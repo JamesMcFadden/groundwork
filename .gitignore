@@ -20,4 +20,8 @@ htmlcov/
 # OS / editor
 .DS_Store
 .idea/
-.vscode/
+
+# Share editor config, ignore per-user state
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
