@@ -4,7 +4,7 @@ A production-style RAG knowledge service. Users upload documents, the system ind
 them asynchronously, and questions are answered from retrieved source material with
 citations back to the originating document and page.
 
-**Status:** in progress — see [docs/SUCCESS_CRITERIA.md](docs/SUCCESS_CRITERIA.md) for the
+**Status:** in progress — see [docs/success-criteria.md](docs/success-criteria.md) for the
 targets this project is being measured against.
 
 ## Stack

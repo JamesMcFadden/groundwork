@@ -4,14 +4,15 @@ Lightweight backlog. Detail is added for the current milestone only; future mile
 stay one line until they are next.
 
 **Now:** M0 — Foundations + document API
-**Next item:** `docs: add success criteria and target metrics`
+**Next item:** `build: add docker compose with postgres/pgvector and minio`
 
 ## Milestones
 
 - [ ] **M0** Foundations + document API — tooling, compose, Dockerfile, schema, upload
 - [ ] **M1** Async ingestion — worker, skip-locked queue, parse/chunk/embed
 - [ ] **M2** RAG query path — vector search, Claude call, cited answers
-- [ ] **M3** Eval harness — golden set, Recall@k / MRR / citation validity / refusal
+- [ ] **M3** Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
+      citation validity, refusal
 - [ ] **M4** Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
 - [ ] **M5** Hardening — API key, query scoping, logging, 503, reindex
 - [ ] **M6** Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
@@ -22,7 +23,7 @@ stay one line until they are next.
 
 - [x] `chore: init uv project with ruff, mypy, pytest`
 - [x] `chore: pin vscode interpreter to project venv`
-- [ ] `docs: add success criteria and target metrics`
+- [x] `docs: add success criteria and target metrics`
 - [ ] `build: add docker compose with postgres/pgvector and minio`
 - [ ] `feat(api): add app factory with live and ready health endpoints`
 - [ ] `build: add multi-stage Dockerfile with api and worker targets`
@@ -34,6 +35,18 @@ stay one line until they are next.
 - [ ] `ci: run lint, type check, and tests on pull requests`
 - [ ] `docs(adr): use postgres skip-locked queue instead of redis`
 - [ ] `docs(adr): use eksctl for cluster, terraform for data services`
+
+## Carried decisions
+
+Decisions taken ahead of their milestone, recorded so they are not lost. Do not
+implement early; apply when the milestone is reached. Rationale in
+[success-criteria.md](success-criteria.md).
+
+- **M2** — add a `GENERATOR=stub` flag selecting the fake answer generator, so load
+  tests measure this service rather than the LLM provider.
+- **M3** — cache fastembed model weights in CI; the ONNX download is ~100 MB per run.
+- **M6** — scale workers to 0 and set explicit CPU requests/limits during load runs, or
+  the 1→3 replica comparison measures contention rather than scaling.
 
 ## Parked
 
