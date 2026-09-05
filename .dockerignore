@@ -15,7 +15,6 @@ k8s
 load
 terraform
 tests
-migrations
 docker-compose.yml
 Dockerfile
 .dockerignore

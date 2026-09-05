@@ -15,8 +15,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-COPY README.md ./
+COPY README.md alembic.ini ./
 COPY app ./app
+COPY migrations ./migrations
 RUN uv sync --frozen --no-dev
 
 # ---- api -----------------------------------------------------------------
@@ -30,6 +31,8 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/app /app/app
+COPY --from=builder --chown=app:app /app/migrations /app/migrations
+COPY --from=builder --chown=app:app /app/alembic.ini /app/alembic.ini
 
 USER app
 EXPOSE 8000

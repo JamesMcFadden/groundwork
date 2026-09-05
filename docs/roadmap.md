@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M0 — Foundations + document API
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `feat(db): add initial alembic migration`
+**Next item:** `feat(api): add collections create and list with keyset pagination`
 
 ## Milestones
 
@@ -30,7 +30,7 @@ CI-gated PR.
 - [x] `feat(api): add app factory with live and ready health endpoints`
 - [x] `build: add multi-stage Dockerfile with api target`
 - [x] `feat(db): add schema for collections, documents, chunks, and jobs`
-- [ ] `feat(db): add initial alembic migration`
+- [x] `feat(db): add initial alembic migration`
 - [ ] `feat(api): add collections create and list with keyset pagination`
 - [ ] `feat(storage): add s3 client with minio-compatible config`
 - [ ] `feat(api): add POST /documents with atomic document and job insert`
