@@ -26,15 +26,11 @@ Repository skeleton only.
 
 ### Job queue in PostgreSQL rather than Redis
 
-Ingestion jobs are claimed with `SELECT ... FOR UPDATE SKIP LOCKED` against an
-`ingestion_jobs` table. The document row and its job row commit in one transaction,
-which removes the dual-write problem a separate broker would introduce — there is no
-outbox and no reconciler. It also removes a container from Compose, a Deployment from
-Kubernetes, and a service from AWS.
+The `ingestion_jobs` table is the queue, claimed with `FOR UPDATE SKIP LOCKED`. A
+document and its job commit in one transaction, so there is no dual-write problem and
+no separate broker to run.
 
-Cost: no push delivery, so the worker polls. Acceptable at this scale.
-
-_To be recorded as an ADR when the queue is implemented (M1)._
+See [ADR 0001](adr/0001-postgres-skip-locked-queue.md).
 
 ### eksctl for the cluster, Terraform for data services
 

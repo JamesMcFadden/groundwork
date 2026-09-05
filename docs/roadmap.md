@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M0 — Foundations + document API
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `docs(adr): use postgres skip-locked queue instead of redis`
+**Next item:** `docs(adr): use eksctl for cluster, terraform for data services`
 
 ## Milestones
 
@@ -36,7 +36,7 @@ CI-gated PR.
 - [x] `feat(storage): add s3 client with minio-compatible config`
 - [x] `feat(api): add POST /documents with atomic document and job insert`
 - [x] `ci: run lint, type check, and tests on pull requests`
-- [ ] `docs(adr): use postgres skip-locked queue instead of redis`
+- [x] `docs(adr): use postgres skip-locked queue instead of redis`
 - [ ] `docs(adr): use eksctl for cluster, terraform for data services`
 
 ## Carried decisions
