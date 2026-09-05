@@ -4,7 +4,9 @@ Lightweight backlog. Detail is added for the current milestone only; future mile
 stay one line until they are next.
 
 **Now:** M0 — Foundations + document API
-**Next item:** `build: add docker compose with postgres/pgvector and minio`
+**Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
+CI-gated PR.
+**Next item:** `feat(api): add app factory with live and ready health endpoints`
 
 ## Milestones
 
@@ -24,7 +26,7 @@ stay one line until they are next.
 - [x] `chore: init uv project with ruff, mypy, pytest`
 - [x] `chore: pin vscode interpreter to project venv`
 - [x] `docs: add success criteria and target metrics`
-- [ ] `build: add docker compose with postgres/pgvector and minio`
+- [x] `build: add docker compose with postgres/pgvector and minio`
 - [ ] `feat(api): add app factory with live and ready health endpoints`
 - [ ] `build: add multi-stage Dockerfile with api and worker targets`
 - [ ] `feat(db): add schema for collections, documents, chunks, and jobs`
