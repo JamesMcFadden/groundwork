@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app import api
 from app.config import Settings, get_settings
 from app.db.session import build_engine, build_session_factory
+from app.services.storage import build_storage
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -21,6 +22,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
+    app.state.storage = build_storage(settings)
     for router in api.routers:
         app.include_router(router)
     return app

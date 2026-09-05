@@ -24,7 +24,9 @@ class Settings(BaseSettings):
     # The row is created by a data migration so foreign keys stay NOT NULL.
     default_user_id: uuid.UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
+    # Empty means "use AWS": boto3 then resolves the real S3 endpoint itself.
     s3_endpoint: str = "http://localhost:9000"
+    s3_region: str = "us-east-1"
     s3_bucket: str = "groundwork-documents"
     s3_access_key: str = "minioadmin"
     s3_secret_key: str
