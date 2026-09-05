@@ -19,3 +19,11 @@ class CollectionRead(BaseModel):
 class CollectionPage(BaseModel):
     items: list[CollectionRead]
     next_cursor: str | None = None
+
+
+class DocumentAccepted(BaseModel):
+    """Returned by upload: the work is queued, not done."""
+
+    document_id: uuid.UUID
+    job_id: uuid.UUID
+    status: str

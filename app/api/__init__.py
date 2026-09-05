@@ -1,3 +1,3 @@
-from app.api import collections, health
+from app.api import collections, documents, health
 
-routers = [health.router, collections.router]
+routers = [health.router, collections.router, documents.router]

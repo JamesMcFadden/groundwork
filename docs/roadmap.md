@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M0 — Foundations + document API
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `feat(api): add POST /documents with atomic document and job insert`
+**Next item:** `ci: run lint, type check, and tests on pull requests`
 
 ## Milestones
 
@@ -34,7 +34,7 @@ CI-gated PR.
 - [x] `feat(api): add collections create and list with keyset pagination`
 - [x] `fix(config): require secrets instead of defaulting them`
 - [x] `feat(storage): add s3 client with minio-compatible config`
-- [ ] `feat(api): add POST /documents with atomic document and job insert`
+- [x] `feat(api): add POST /documents with atomic document and job insert`
 - [ ] `ci: run lint, type check, and tests on pull requests`
 - [ ] `docs(adr): use postgres skip-locked queue instead of redis`
 - [ ] `docs(adr): use eksctl for cluster, terraform for data services`

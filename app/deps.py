@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from fastapi import Request
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.services.storage import ObjectStorage
 
 
@@ -32,3 +33,8 @@ def get_current_user_id(request: Request) -> uuid.UUID:
 def get_storage(request: Request) -> ObjectStorage:
     storage: ObjectStorage = request.app.state.storage
     return storage
+
+
+def get_settings_dep(request: Request) -> Settings:
+    settings: Settings = request.app.state.settings
+    return settings

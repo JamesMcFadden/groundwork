@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Empty means "use AWS": boto3 then resolves the real S3 endpoint itself.
     s3_endpoint: str = "http://localhost:9000"
     s3_region: str = "us-east-1"
+
+    # Uploads are held in memory while hashing, so the cap is deliberate.
+    max_upload_bytes: int = 25 * 1024 * 1024
     s3_bucket: str = "groundwork-documents"
     s3_access_key: str = "minioadmin"
     s3_secret_key: str
