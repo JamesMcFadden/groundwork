@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M0 — Foundations + document API
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `feat(api): add app factory with live and ready health endpoints`
+**Next item:** `build: add multi-stage Dockerfile with api and worker targets`
 
 ## Milestones
 
@@ -27,7 +27,7 @@ CI-gated PR.
 - [x] `chore: pin vscode interpreter to project venv`
 - [x] `docs: add success criteria and target metrics`
 - [x] `build: add docker compose with postgres/pgvector and minio`
-- [ ] `feat(api): add app factory with live and ready health endpoints`
+- [x] `feat(api): add app factory with live and ready health endpoints`
 - [ ] `build: add multi-stage Dockerfile with api and worker targets`
 - [ ] `feat(db): add schema for collections, documents, chunks, and jobs`
 - [ ] `feat(db): add initial alembic migration`

@@ -1,0 +1,21 @@
+from fastapi import FastAPI
+
+from app import api
+from app.config import Settings, get_settings
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Build the application.
+
+    Constructing the app in a function rather than at module scope keeps imports free of
+    side effects and lets tests build an app with their own settings.
+    """
+    settings = settings or get_settings()
+    app = FastAPI(
+        title="Groundwork",
+        description="RAG knowledge service with source-grounded, cited answers.",
+        version="0.1.0",
+    )
+    app.state.settings = settings
+    app.include_router(api.router)
+    return app
