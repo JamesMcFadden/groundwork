@@ -5,12 +5,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application configuration, read from the environment or a local .env file."""
+    """Application configuration, read from the environment or a local .env file.
+
+    Secrets are declared without defaults on purpose. A default would let a
+    misconfigured deployment start with a known-weak credential instead of failing at
+    startup with a message naming what is missing.
+    """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     postgres_user: str = "groundwork"
-    postgres_password: str = "change-me"
+    postgres_password: str
     postgres_db: str = "groundwork"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
@@ -22,7 +27,7 @@ class Settings(BaseSettings):
     s3_endpoint: str = "http://localhost:9000"
     s3_bucket: str = "groundwork-documents"
     s3_access_key: str = "minioadmin"
-    s3_secret_key: str = "change-me"
+    s3_secret_key: str
 
     @property
     def database_url(self) -> str:
@@ -34,4 +39,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # mypy cannot see that pydantic-settings populates required fields from the
+    # environment, so it treats them as missing arguments.
+    return Settings()  # type: ignore[call-arg]
