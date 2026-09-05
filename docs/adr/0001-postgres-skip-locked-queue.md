@@ -20,8 +20,8 @@ broker is a second write that cannot participate in the database transaction:
 ```python
 session.add(document)
 session.add(job)
-session.commit()            # PostgreSQL
-redis.lpush("queue", ...)   # a different system
+session.commit()  # PostgreSQL
+redis.lpush("queue", ...)  # a different system
 ```
 
 A crash between those two statements leaves a document with no queued work and nothing
@@ -56,7 +56,7 @@ Enqueueing is part of the same transaction as the document it belongs to:
 ```python
 session.add(document)
 session.add(job)
-session.commit()            # both rows, or neither
+session.commit()  # both rows, or neither
 ```
 
 ## Consequences
