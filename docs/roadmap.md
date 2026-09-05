@@ -6,12 +6,12 @@ stay one line until they are next.
 **Now:** M0 — Foundations + document API
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `build: add multi-stage Dockerfile with api and worker targets`
+**Next item:** `feat(db): add schema for collections, documents, chunks, and jobs`
 
 ## Milestones
 
 - [ ] **M0** Foundations + document API — tooling, compose, Dockerfile, schema, upload
-- [ ] **M1** Async ingestion — worker, skip-locked queue, parse/chunk/embed
+- [ ] **M1** Async ingestion — worker image, skip-locked queue, parse/chunk/embed
 - [ ] **M2** RAG query path — vector search, Claude call, cited answers
 - [ ] **M3** Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
       citation validity, refusal
@@ -28,7 +28,7 @@ CI-gated PR.
 - [x] `docs: add success criteria and target metrics`
 - [x] `build: add docker compose with postgres/pgvector and minio`
 - [x] `feat(api): add app factory with live and ready health endpoints`
-- [ ] `build: add multi-stage Dockerfile with api and worker targets`
+- [x] `build: add multi-stage Dockerfile with api target`
 - [ ] `feat(db): add schema for collections, documents, chunks, and jobs`
 - [ ] `feat(db): add initial alembic migration`
 - [ ] `feat(api): add collections create and list with keyset pagination`
@@ -44,6 +44,9 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
+- **M1** — add the `worker` target to the Dockerfile alongside `app/worker.py`. M0
+  builds only the `api` target; a worker image with no worker module to run would be
+  scaffolding for code that does not exist.
 - **M2** — add a `GENERATOR=stub` flag selecting the fake answer generator, so load
   tests measure this service rather than the LLM provider.
 - **M3** — cache fastembed model weights in CI; the ONNX download is ~100 MB per run.

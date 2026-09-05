@@ -1,6 +1,34 @@
 name: groundwork
 
 services:
+  api:
+    build:
+      context: .
+      target: api
+    env_file: .env
+    # Inside the compose network, services are reached by name rather than on
+    # localhost. These override the host-oriented defaults in .env.
+    environment:
+      POSTGRES_HOST: postgres
+      S3_ENDPOINT: http://minio:9000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8000/health/live")
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   postgres:
     image: pgvector/pgvector:pg16
     environment:
