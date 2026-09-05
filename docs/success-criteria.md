@@ -49,6 +49,14 @@ they are paired and considerably more sensitive than those marginal intervals im
 Report them as flip counts — how many questions a change fixed and how many it broke —
 not as two overlapping confidence intervals.
 
+Two rules govern how the set is built, because both are easy to get wrong and either
+invalidates every number above:
+
+- **Write questions from the documents, not from the chunks.** Reading chunks while
+  writing questions grades the chunker against itself and inflates recall.
+- **Freeze the corpus.** Adding or re-parsing documents makes runs incomparable, so the
+  ablation between retrieval strategies stops meaning anything.
+
 ## Deliberately not measured
 
 **Answer groundedness.** Scoring whether an answer is supported by its retrieved
