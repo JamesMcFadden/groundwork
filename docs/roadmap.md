@@ -3,14 +3,14 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M0 — Foundations + document API
+**Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `docs(adr): use eksctl for cluster, terraform for data services`
+**Next item:** M1 — start branch `m1-async-ingestion`
 
 ## Milestones
 
-- [ ] **M0** Foundations + document API — tooling, compose, Dockerfile, schema, upload
+- [x] **M0** Foundations + document API — tooling, compose, Dockerfile, schema, upload
 - [ ] **M1** Async ingestion — worker image, skip-locked queue, parse/chunk/embed
 - [ ] **M2** RAG query path — vector search, Claude call, cited answers
 - [ ] **M3** Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
@@ -37,7 +37,7 @@ CI-gated PR.
 - [x] `feat(api): add POST /documents with atomic document and job insert`
 - [x] `ci: run lint, type check, and tests on pull requests`
 - [x] `docs(adr): use postgres skip-locked queue instead of redis`
-- [ ] `docs(adr): use eksctl for cluster, terraform for data services`
+- [x] `docs(adr): use eksctl for cluster, terraform for data services`
 
 ## Carried decisions
 
