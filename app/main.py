@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app import api
 from app.config import Settings, get_settings
+from app.db.session import build_engine, build_session_factory
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -16,6 +17,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description="RAG knowledge service with source-grounded, cited answers.",
         version="0.1.0",
     )
+    engine = build_engine(settings)
     app.state.settings = settings
+    app.state.engine = engine
+    app.state.session_factory = build_session_factory(engine)
     app.include_router(api.router)
     return app

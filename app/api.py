@@ -1,6 +1,8 @@
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, Response, status
+
+from app.db.session import database_ok
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -17,10 +19,14 @@ def live() -> dict[str, str]:
 
 
 @router.get("/ready")
-def ready() -> dict[str, Any]:
+def ready(request: Request, response: Response) -> dict[str, Any]:
     """Readiness: should this pod receive traffic?
 
-    Unlike liveness, this should fail when a dependency is unreachable so traffic stops
-    routing here. `checks` is empty until the database layer exists.
+    Unlike liveness, this fails when a dependency is unreachable so that traffic stops
+    routing here until it recovers.
     """
-    return {"status": "ready", "checks": {}}
+    checks = {"database": "ok" if database_ok(request.app.state.engine) else "unavailable"}
+    ready = all(value == "ok" for value in checks.values())
+    if not ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return {"status": "ready" if ready else "not ready", "checks": checks}
