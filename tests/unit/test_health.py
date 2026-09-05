@@ -19,7 +19,7 @@ def test_live_reports_alive(client: TestClient) -> None:
 def test_ready_reports_ok_when_database_reachable(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("app.api.database_ok", lambda engine: True)
+    monkeypatch.setattr("app.api.health.database_ok", lambda engine: True)
 
     response = client.get("/health/ready")
 
@@ -31,7 +31,7 @@ def test_ready_returns_503_when_database_unreachable(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A pod that cannot reach the database must stop receiving traffic."""
-    monkeypatch.setattr("app.api.database_ok", lambda engine: False)
+    monkeypatch.setattr("app.api.health.database_ok", lambda engine: False)
 
     response = client.get("/health/ready")
 

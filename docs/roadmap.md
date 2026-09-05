@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M0 — Foundations + document API
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** `feat(api): add collections create and list with keyset pagination`
+**Next item:** `fix(config): require secrets instead of defaulting them`
 
 ## Milestones
 
@@ -31,7 +31,8 @@ CI-gated PR.
 - [x] `build: add multi-stage Dockerfile with api target`
 - [x] `feat(db): add schema for collections, documents, chunks, and jobs`
 - [x] `feat(db): add initial alembic migration`
-- [ ] `feat(api): add collections create and list with keyset pagination`
+- [x] `feat(api): add collections create and list with keyset pagination`
+- [ ] `fix(config): require secrets instead of defaulting them`
 - [ ] `feat(storage): add s3 client with minio-compatible config`
 - [ ] `feat(api): add POST /documents with atomic document and job insert`
 - [ ] `ci: run lint, type check, and tests on pull requests`
