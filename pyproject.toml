@@ -11,6 +11,7 @@ dependencies = [
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.5",
     "pydantic-settings>=2.15.0",
+    "pymupdf>=1.28.2",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2",
     "uvicorn[standard]>=0.52.4",
@@ -51,7 +52,7 @@ no_implicit_optional = true
 
 # Third-party packages that ship no usable type information.
 [[tool.mypy.overrides]]
-module = ["fitz.*", "fastembed.*", "boto3.*", "botocore.*"]
+module = ["fastembed.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
