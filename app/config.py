@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     s3_access_key: str = "minioadmin"
     s3_secret_key: str
 
+    # How long the worker waits before asking for work again. ADR 0001 accepts roughly
+    # one second of pickup latency as the price of not running a broker.
+    worker_poll_seconds: float = 1.0
+
     @property
     def database_url(self) -> str:
         return (

@@ -20,8 +20,10 @@ COPY app ./app
 COPY migrations ./migrations
 RUN uv sync --frozen --no-dev
 
-# ---- api -----------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS api
+# ---- runtime -------------------------------------------------------------
+# Everything the api and worker images share: the same interpreter, the same
+# virtualenv, the same non-root user. Only the entrypoint differs between them.
+FROM python:3.12-slim-bookworm AS runtime
 
 RUN groupadd --system app && useradd --system --gid app --create-home app
 
@@ -31,10 +33,25 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/app /app/app
+
+USER app
+
+# ---- worker --------------------------------------------------------------
+# No migrations and no port: the worker consumes a schema the api image manages,
+# and serves no traffic.
+FROM runtime AS worker
+
+CMD ["python", "-m", "app.worker"]
+
+# ---- api -----------------------------------------------------------------
+# Last on purpose, so a `docker build` with no --target still produces the api
+# image rather than silently switching to the worker.
+FROM runtime AS api
+
+# Migrations ship in the image so a container can migrate its own database.
 COPY --from=builder --chown=app:app /app/migrations /app/migrations
 COPY --from=builder --chown=app:app /app/alembic.ini /app/alembic.ini
 
-USER app
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

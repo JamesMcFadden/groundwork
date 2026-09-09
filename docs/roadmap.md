@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — start branch `m1-async-ingestion`
+**Next item:** M1 — `feat(db): add skip-locked job claim with heartbeat reclaim`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -48,7 +48,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 
 ## M1 — Async ingestion
 
-- [ ] `feat(worker): add worker entrypoint and container`
+- [x] `feat(worker): add worker entrypoint and container`
 - [ ] `feat(db): add skip-locked job claim with heartbeat reclaim`
 - [ ] `feat(ingest): parse pdf to per-page text with pymupdf`
 - [ ] `feat(ingest): add page-aware token chunking with overlap`
@@ -107,6 +107,12 @@ implement early; apply when the milestone is reached. Rationale in
   a GIN index over zero rows is meaningless.
 - **M6** — scale workers to 0 and set explicit CPU requests/limits during load runs, or
   the 1→3 replica comparison measures contention rather than scaling.
+- **M6** — the worker needs a liveness probe of its own. The API's probe is an HTTP
+  GET; the worker has no HTTP surface, so that pattern does not transfer. Two
+  candidates: an `exec` probe reading `heartbeat_at` freshness from the database, or
+  a minimal HTTP endpoint on the worker serving probes only. Decide there — a probe
+  that only checks the process is alive would pass for a worker wedged mid-job, which
+  is worse than no probe at all.
 - **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
   the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
 
