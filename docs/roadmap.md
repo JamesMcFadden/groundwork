@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — `feat(db): add skip-locked job claim with heartbeat reclaim`
+**Next item:** M1 — `feat(ingest): parse pdf to per-page text with pymupdf`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -49,7 +49,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 ## M1 — Async ingestion
 
 - [x] `feat(worker): add worker entrypoint and container`
-- [ ] `feat(db): add skip-locked job claim with heartbeat reclaim`
+- [x] `feat(db): add skip-locked job claim with heartbeat reclaim`
 - [ ] `feat(ingest): parse pdf to per-page text with pymupdf`
 - [ ] `feat(ingest): add page-aware token chunking with overlap`
 - [ ] `feat(embeddings): add embedder protocol with fastembed backend`

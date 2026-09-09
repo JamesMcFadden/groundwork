@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,17 @@ class Settings(BaseSettings):
     # How long the worker waits before asking for work again. ADR 0001 accepts roughly
     # one second of pickup latency as the price of not running a broker.
     worker_poll_seconds: float = 1.0
+
+    # A claimed job whose worker has not checked in within this window is treated as
+    # abandoned and may be reclaimed. Five minutes, per ADR 0001.
+    job_stale_after_seconds: int = 300
+
+    # Bounds reclaim, so a document that reliably kills its worker cannot cycle forever.
+    job_max_attempts: int = 3
+
+    @property
+    def job_stale_after(self) -> timedelta:
+        return timedelta(seconds=self.job_stale_after_seconds)
 
     @property
     def database_url(self) -> str:
