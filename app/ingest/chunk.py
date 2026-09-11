@@ -3,6 +3,11 @@
 Windows run across page breaks. A page break is layout, not meaning: a paragraph that
 continues onto the next page should be retrievable as one passage rather than two
 fragments. Each chunk records the pages its first and last tokens came from.
+
+Window edges fall only between words. The embedding model re-tokenizes a chunk's text
+rather than reusing the chunker's tokens, and a fragment cut from partway through a
+word tokenizes differently — enough, on real prose, to push a full chunk past the
+model's window. Cut between words, the text reproduces its token count exactly.
 """
 
 import bisect
@@ -53,9 +58,11 @@ def chunk_pages(
     size: int = CHUNK_TOKENS,
     overlap: int = OVERLAP_TOKENS,
 ) -> list[TextChunk]:
-    """Cut pages into windows of `size` tokens, each sharing `overlap` with the last.
+    """Cut pages into windows of at most `size` tokens, overlapping by at least `overlap`.
 
-    Pages without text contribute nothing, but page numbers come from `Page.number`
+    Windows shrink to end between words, and overlap grows to begin at one. The one
+    exception is a single word longer than the window, which is cut rather than looped
+    on. Pages without text contribute nothing, but page numbers come from `Page.number`
     rather than position, so a skipped page never shifts the numbering after it.
     """
     if not 0 <= overlap < size:
@@ -63,12 +70,12 @@ def chunk_pages(
 
     text, page_offsets, page_numbers = _join(pages)
     spans = tokenizer.spans(text)
-    stride = size - overlap
+    word_starts = _word_starts(spans)
 
     chunks: list[TextChunk] = []
     start = 0
     while start < len(spans):
-        end = min(start + size, len(spans))
+        end = _end_between_words(start, min(start + size, len(spans)), word_starts)
         first_char, last_char = spans[start][0], spans[end - 1][1]
         chunks.append(
             TextChunk(
@@ -79,13 +86,45 @@ def chunk_pages(
                 token_count=end - start,
             )
         )
-        # Stopping once a window reaches the end, rather than stepping through every
-        # stride, is what prevents a trailing chunk made entirely of overlap.
+        # Stopping once a window reaches the end, rather than stepping on regardless, is
+        # what prevents a trailing chunk made entirely of overlap.
         if end == len(spans):
             break
-        start += stride
+        start = _next_start(start, end, overlap, word_starts)
 
     return chunks
+
+
+def _word_starts(spans: list[tuple[int, int]]) -> list[bool]:
+    """Mark the tokens that begin a word: the first, and any with a gap before it.
+
+    Tokens with nothing between them are pieces of one word ("pdf", "##s") or a word and
+    its punctuation, and a window edge between them would leave a fragment.
+    """
+    return [i == 0 or spans[i][0] > spans[i - 1][1] for i in range(len(spans))]
+
+
+def _end_between_words(start: int, end: int, word_starts: list[bool]) -> int:
+    """Pull a window's end back to a word boundary, unless one word fills the window."""
+    if end == len(word_starts):
+        return end
+    boundary = end
+    while boundary > start and not word_starts[boundary]:
+        boundary -= 1
+    return boundary if boundary > start else end
+
+
+def _next_start(start: int, end: int, overlap: int, word_starts: list[bool]) -> int:
+    """Begin the next window `overlap` tokens back, moved earlier to a word boundary.
+
+    Moving earlier rather than later grows the overlap instead of shrinking it, so a
+    sentence crossing the boundary still appears whole in one chunk. With no boundary
+    between the two starts, the next window begins where this one ended.
+    """
+    candidate = end - overlap
+    while candidate > start and not word_starts[candidate]:
+        candidate -= 1
+    return candidate if candidate > start else end
 
 
 def _join(pages: Sequence[Page]) -> tuple[str, list[int], list[int]]:

@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — `feat(embeddings): add embedder protocol with fastembed backend`
+**Next item:** M1 — `feat(worker): wire ingestion pipeline and job state transitions`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -52,7 +52,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 - [x] `feat(db): add skip-locked job claim with heartbeat reclaim`
 - [x] `feat(ingest): parse pdf to per-page text with pymupdf`
 - [x] `feat(ingest): add page-aware token chunking with overlap`
-- [ ] `feat(embeddings): add embedder protocol with fastembed backend`
+- [x] `feat(embeddings): add embedder protocol with fastembed backend`
 - [ ] `feat(worker): wire ingestion pipeline and job state transitions`
 - [ ] `feat(api): add GET /jobs/{job_id}`
 - [ ] `test(integration): assert concurrent workers never double-claim`
@@ -67,7 +67,9 @@ Change them deliberately, not incidentally.
   `sentence-transformers` because it runs ONNX without torch, keeping the image near
   400 MB instead of ~2.5 GB and making CI embeddings free and deterministic. The
   dimension is baked into `chunks.embedding`, so changing model means a migration and a
-  full re-embed — which is what the reindex endpoint exists for.
+  full re-embed — which is what the reindex endpoint exists for. fastembed serves
+  Qdrant's quantized ONNX export, about 63 MB of weights. Its tokenizer truncates at
+  512, so the chunker counts with an untruncated copy rather than the original.
 - **PDF parsing — `pymupdf`.** Fast, good layout handling, per-page text. AGPL: fine
   for this repository, worth knowing. Scanned and OCR documents are out of scope.
 - **Chunking — 510 tokens with 64 overlap, running across page breaks.** Overlap means
@@ -76,8 +78,10 @@ Change them deliberately, not incidentally.
   `page_end` for that reason. Tokens are the embedding model's own, supplied by the
   embeddings backend: bge-small-en-v1.5 takes 512 including two special tokens and
   silently truncates beyond that, hence 510. Chunk text is sliced from the source by
-  character offsets, never decoded from token ids. Revised in M1 from "512, scoped to a
-  page", which contradicted both the page columns and the model's window.
+  character offsets, never decoded from token ids, and window edges fall only between
+  words: the model re-tokenizes chunk text, and cutting mid-word pushed real chunks to
+  511 tokens. Revised in M1 from "512, scoped to a page", which contradicted both the
+  page columns and the model's window.
 - **Generation — `claude-opus-5`.** Citations come back as structured output via
   `client.messages.parse()` with a Pydantic model; assistant prefills return 400 on
   Opus 5, so no prefill. Thinking is on by default and `max_tokens` caps thinking plus
@@ -111,7 +115,10 @@ implement early; apply when the milestone is reached. Rationale in
   validation deterministic.
 - **M2** — add a `GENERATOR=stub` flag selecting the fake answer generator, so load
   tests measure this service rather than the LLM provider.
-- **M3** — cache fastembed model weights in CI; the ONNX download is ~100 MB per run.
+- **M2** — bge vectors come back unit-length, so cosine distance and inner product
+  rank identically; choose the HNSW operator class knowing that. fastembed embeds
+  queries exactly as it embeds passages for this model, so whether a query instruction
+  prefix helps is an M3 measurement rather than an assumption.
 - **M4** — add the `tsv` column and its GIN index here. `chunks` deliberately has no
   full-text column yet: nothing references it, so it is a self-contained migration, and
   a GIN index over zero rows is meaningless.
@@ -138,6 +145,3 @@ have somewhere to go that is not the current branch.
 - Redis response cache
 - Cross-encoder reranking after retrieval — cut for time; hybrid carries M4
 - A `make check` target running all four verification commands as one
-- CI actions target the deprecated Node 20 runtime and are force-upgraded to Node 24.
-  `actions/checkout@v5` and a newer `setup-uv` clear the annotation. Cosmetic; fold
-  into the next commit that touches the workflow.

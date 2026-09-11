@@ -17,6 +17,21 @@ class WhitespaceTokenizer:
         return [match.span() for match in re.finditer(r"\S+", text)]
 
 
+class PieceTokenizer:
+    """Splits each word into two-character pieces, the way WordPiece splits long words.
+
+    Pieces of one word sit side by side with no gap between them, which is how the
+    chunker tells a word's continuation from the start of the next word.
+    """
+
+    def spans(self, text: str) -> list[tuple[int, int]]:
+        return [
+            (start, min(start + 2, match.end()))
+            for match in re.finditer(r"\S+", text)
+            for start in range(match.start(), match.end(), 2)
+        ]
+
+
 def words(count: int) -> str:
     return " ".join(f"w{i}" for i in range(count))
 
@@ -97,3 +112,33 @@ def test_overlap_must_be_non_negative_and_smaller_than_size(size: int, overlap: 
     """An overlap of at least the size would never advance the window."""
     with pytest.raises(ValueError, match="overlap"):
         chunk([Page(number=1, text=words(10))], size=size, overlap=overlap)
+
+
+def test_a_window_never_ends_partway_through_a_word() -> None:
+    """A fragment re-tokenizes to a different count than the window measured."""
+    pages = [Page(number=1, text="aaaa bbbb cccc")]
+
+    chunks = chunk_pages(pages, PieceTokenizer(), size=3, overlap=0)
+
+    assert [(c.text, c.token_count) for c in chunks] == [
+        ("aaaa", 2),
+        ("bbbb", 2),
+        ("cccc", 2),
+    ]
+
+
+def test_a_window_never_starts_partway_through_a_word() -> None:
+    """The overlap grows back to a word boundary rather than starting on a fragment."""
+    pages = [Page(number=1, text="aaaa bbbb cccc")]
+
+    chunks = chunk_pages(pages, PieceTokenizer(), size=4, overlap=1)
+
+    assert [c.text for c in chunks] == ["aaaa bbbb", "bbbb cccc"]
+
+
+def test_a_word_longer_than_the_window_is_cut_rather_than_looped_on() -> None:
+    pages = [Page(number=1, text="a" * 10)]
+
+    chunks = chunk_pages(pages, PieceTokenizer(), size=2, overlap=1)
+
+    assert "".join(c.text for c in chunks) == "a" * 10

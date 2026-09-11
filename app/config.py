@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Bounds reclaim, so a document that reliably kills its worker cannot cycle forever.
     job_max_attempts: int = 3
 
+    # Where the embedding model's weights live. Unset, fastembed uses a directory under
+    # the system temp dir, which a container loses on restart and CI loses every run;
+    # images and CI set it so the weights download once.
+    embedding_cache_dir: str | None = None
+
     @property
     def job_stale_after(self) -> timedelta:
         return timedelta(seconds=self.job_stale_after_seconds)

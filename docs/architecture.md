@@ -51,8 +51,9 @@ Compose runs the API, the worker, PostgreSQL, and MinIO with dependency ordering
 health checks on everything but the worker, which serves no HTTP.
 
 **Verification** — unit tests with no I/O, and integration tests against real
-PostgreSQL and MinIO that skip when the stack is down. CI runs lint, type checking, migrations, and the
-suite on every push and pull request, with the same pgvector image Compose uses.
+PostgreSQL, MinIO, and the embedding model that skip when those are unavailable. CI
+runs lint, type checking, migrations, and the suite on every push and pull request,
+with the same pgvector image Compose uses and the model's weights cached between runs.
 
 **Ingestion — in progress (M1)** — a worker process runs beside the API on the same
 configuration and database, and stops cleanly on SIGTERM, but does not yet process
@@ -63,10 +64,13 @@ jobs. The pieces it will run exist as tested components, not yet wired together:
 - per-page PDF text extraction with pymupdf, keeping empty pages so page numbers stay
   true;
 - chunking into 510-token windows with 64 tokens of overlap that run across page
-  breaks, recording the first and last page of each chunk.
+  breaks and break only between words, recording the first and last page of each
+  chunk;
+- embedding with bge-small-en-v1.5 through fastembed, which also supplies the tokenizer
+  the chunker counts in — copied with truncation off, since the original stops at 512.
 
-**Not yet built** — embeddings, the wired ingestion pipeline, retrieval, answer
-generation, Kubernetes manifests, and AWS infrastructure.
+**Not yet built** — the wired ingestion pipeline, retrieval, answer generation,
+Kubernetes manifests, and AWS infrastructure.
 
 ## Decisions
 
