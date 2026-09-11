@@ -2,10 +2,12 @@ import threading
 import uuid
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import timedelta
+from typing import Any
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import Engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
@@ -17,6 +19,7 @@ STALE_AFTER = timedelta(minutes=5)
 MAX_ATTEMPTS = 3
 CONCURRENT_WORKERS = 8
 CONCURRENT_JOBS = 40
+CLAIMABLE_INDEX = "ix_ingestion_jobs_claimable"
 
 
 @pytest.fixture
@@ -325,3 +328,63 @@ def test_a_claim_skips_a_row_another_worker_holds(
 
     assert claimed is not None and claimed.id == free
     assert status_of(sessions, held)[0] == "queued"
+
+
+@contextmanager
+def updates_sent(engine: Engine) -> Iterator[list[tuple[str, Any]]]:
+    """Record the UPDATE statements sent to ingestion_jobs while the block runs."""
+    sent: list[tuple[str, Any]] = []
+
+    def record(
+        conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
+    ) -> None:
+        if statement.lstrip().upper().startswith("UPDATE INGESTION_JOBS"):
+            sent.append((statement, parameters))
+
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        yield sent
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+
+
+def plan_of(engine: Engine, statement: str, parameters: Any) -> str:
+    """EXPLAIN a statement exactly as it was sent, with sequential scans priced out.
+
+    A test table holds a handful of rows, so the planner would scan it whatever indexes
+    exist. Disabling sequential scans asks the narrower question that matters here: can
+    this query use the index at all?
+    """
+    with engine.connect() as connection:
+        connection.exec_driver_sql("SET LOCAL enable_seqscan = off")
+        plan = connection.exec_driver_sql(f"EXPLAIN {statement}", parameters).scalars().all()
+        connection.rollback()
+    return "\n".join(plan)
+
+
+def test_the_claim_query_can_use_the_claimable_jobs_index(
+    sessions: sessionmaker[Session],
+) -> None:
+    """The index condition and the claim's WHERE clause must stay in step.
+
+    Postgres uses a partial index only when it can prove the query's condition implies
+    the index's. If either drifts, the claim silently goes back to scanning every job
+    ever run, once a second, on every worker.
+    """
+    engine: Engine = sessions.kw["bind"]
+    with updates_sent(engine) as sent, sessions() as session:
+        claim_job(session, STALE_AFTER, MAX_ATTEMPTS)
+
+    assert len(sent) == 1
+    assert CLAIMABLE_INDEX in plan_of(engine, *sent[0])
+
+
+def test_the_expiry_query_can_use_the_claimable_jobs_index(
+    sessions: sessionmaker[Session],
+) -> None:
+    engine: Engine = sessions.kw["bind"]
+    with updates_sent(engine) as sent, sessions() as session:
+        expire_exhausted(session, STALE_AFTER, MAX_ATTEMPTS)
+
+    assert len(sent) == 1
+    assert CLAIMABLE_INDEX in plan_of(engine, *sent[0])

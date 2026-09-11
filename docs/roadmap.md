@@ -57,6 +57,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 - [x] `feat(api): add GET /jobs/{job_id}`
 - [x] `test(integration): assert concurrent workers never double-claim`
 - [x] `test(integration): assert stalled jobs are reclaimed`
+- [x] `perf(db): add partial index for the job claim query`
 
 ## Stack decisions
 

@@ -14,6 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -144,6 +145,15 @@ class IngestionJob(Base):
         CheckConstraint(
             "status IN ('queued', 'running', 'completed', 'failed')",
             name="ck_ingestion_jobs_status",
+        ),
+        # Serves the claim and the expiry of abandoned jobs, which both look only at queued
+        # and running rows. Finished jobs accumulate forever; this index holds only the few
+        # still in flight. Postgres uses a partial index only when it can prove a query's
+        # condition implies the index's, so a new in-flight status must be added here too.
+        Index(
+            "ix_ingestion_jobs_claimable",
+            "created_at",
+            postgresql_where=text("status IN ('queued', 'running')"),
         ),
     )
 

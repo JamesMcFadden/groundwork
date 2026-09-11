@@ -69,9 +69,11 @@ infrastructure.
 The worker polls `ingestion_jobs` once a second. Each pass first fails any job that has
 been abandoned with no attempts left, then claims the oldest available job in a single
 `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED)`: queued, or running with a
-heartbeat more than five minutes stale. The claim increments `attempts` and commits
-before any work begins, so every attempt is counted even if the worker dies. While
-there is work, the queue drains without waiting between jobs.
+heartbeat more than five minutes stale. Both queries read a partial index on
+`created_at` that holds only queued and running jobs, so they stay fast however many
+jobs have finished. The claim increments `attempts` and commits before any work begins,
+so every attempt is counted even if the worker dies. While there is work, the queue
+drains without waiting between jobs.
 
 A job then runs in four steps:
 
