@@ -1,3 +1,4 @@
+import time
 import uuid
 from collections.abc import Iterator, Sequence
 
@@ -6,10 +7,12 @@ import pytest
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db.jobs import claim_job
 from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document, IngestionJob
 from app.db.session import build_engine, build_session_factory, database_ok
+from app.ingest.chunk import chunk_pages
+from app.ingest.parse import parse_pdf
 from app.ingest.pipeline import process_job
 from app.services.embeddings import Embedder
 from app.services.storage import ObjectStorage, build_storage, content_key
@@ -126,6 +129,33 @@ class BrokenEmbedder:
 
     def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
         raise RuntimeError("embedding backend unavailable")
+
+
+class WorkerKilled(BaseException):
+    """Stands in for SIGKILL or an out-of-memory kill: nothing in the worker can handle it."""
+
+
+class DyingEmbedder:
+    """The real tokenizer, in a worker that dies the moment it starts embedding.
+
+    By then the job has been claimed, fetched, parsed, chunked, and heartbeated: the
+    worker is genuinely partway through when it goes.
+    """
+
+    def __init__(self, real: Embedder) -> None:
+        self.tokenizer = real.tokenizer
+
+    def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
+        raise WorkerKilled
+
+
+def quick_to_stall(seconds: int) -> Settings:
+    """Settings whose staleness window passes in seconds rather than five minutes."""
+    return get_settings().model_copy(update={"job_stale_after_seconds": seconds})
+
+
+def wait_until_stale(settings: Settings) -> None:
+    time.sleep(settings.job_stale_after_seconds + 0.25)
 
 
 def test_a_queued_pdf_is_indexed_into_embedded_chunks(
@@ -246,3 +276,64 @@ def test_one_poll_claims_and_indexes_a_queued_upload(
     assert poll_once(settings, sessions, storage, embedder) is True
     assert job_state(sessions, job_id)[0] == "completed"
     assert poll_once(settings, sessions, storage, embedder) is False
+
+
+def test_a_job_whose_worker_died_is_reclaimed_and_indexed_once(
+    sessions: sessionmaker[Session],
+    storage: ObjectStorage,
+    embedder: Embedder,
+    collection_id: uuid.UUID,
+) -> None:
+    """A worker killed mid-job leaves nothing behind, and its job is finished by another.
+
+    The job is left alone while the dead worker's heartbeat is fresh, then reclaimed by
+    the next poll once it goes stale, and the document is indexed exactly once.
+    """
+    data = make_pdf([prose(300, n) for n in range(2)])
+    job_id = upload(sessions, storage, collection_id, data)
+    settings = quick_to_stall(2)
+
+    with pytest.raises(WorkerKilled):
+        poll_once(settings, sessions, storage, DyingEmbedder(embedder))
+    assert job_state(sessions, job_id) == ("running", None, 0)
+
+    # The heartbeat is still fresh: a live worker must not take a job that may be in hand.
+    assert poll_once(settings, sessions, storage, embedder) is False
+
+    wait_until_stale(settings)
+    assert poll_once(settings, sessions, storage, embedder) is True
+
+    expected = len(chunk_pages(parse_pdf(data), embedder.tokenizer))
+    with sessions() as session:
+        row = session.execute(
+            text(
+                "SELECT j.attempts, (SELECT count(DISTINCT c.chunk_index) FROM chunks c "
+                "WHERE c.document_id = j.document_id) AS distinct_chunks "
+                "FROM ingestion_jobs j WHERE j.id = :id"
+            ),
+            {"id": job_id},
+        ).one()
+    assert job_state(sessions, job_id) == ("completed", None, expected)
+    assert (row.attempts, row.distinct_chunks) == (2, expected)
+
+
+def test_a_job_that_kills_every_worker_is_failed_once_its_attempts_run_out(
+    sessions: sessionmaker[Session],
+    storage: ObjectStorage,
+    embedder: Embedder,
+    collection_id: uuid.UUID,
+) -> None:
+    """Reclaim is bounded: after every attempt has died, the next poll fails the job."""
+    job_id = upload(sessions, storage, collection_id, make_pdf([prose(50, 4)]))
+    settings = quick_to_stall(1)
+
+    for _ in range(settings.job_max_attempts):
+        with pytest.raises(WorkerKilled):
+            poll_once(settings, sessions, storage, DyingEmbedder(embedder))
+        wait_until_stale(settings)
+
+    assert poll_once(settings, sessions, storage, embedder) is False
+
+    status, error, chunks = job_state(sessions, job_id)
+    assert (status, chunks) == ("failed", 0)
+    assert error is not None and f"{settings.job_max_attempts} attempts" in error

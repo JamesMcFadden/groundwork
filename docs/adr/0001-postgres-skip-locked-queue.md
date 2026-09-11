@@ -98,3 +98,10 @@ a single atomic statement, and the test passes even with `SKIP LOCKED` removed.
 `test_a_claim_skips_a_row_another_worker_holds` is what fails then: with the oldest job
 locked, a claim must take the next one rather than wait behind the lock, so it is the
 evidence that claiming does not block.
+
+`tests/integration/test_pipeline.py::test_a_job_whose_worker_died_is_reclaimed_and_indexed_once`
+kills a worker partway through a job, with the staleness window shortened to seconds. The
+job is left alone while the dead worker's heartbeat is fresh, then reclaimed by the next
+poll once it goes stale, and the document is indexed exactly once.
+`test_a_job_that_kills_every_worker_is_failed_once_its_attempts_run_out` shows the bound:
+after three deaths the job is failed rather than reclaimed again.
