@@ -10,12 +10,13 @@ A RAG knowledge service with two runtime components sharing one database:
 - **API** — accepts uploads and questions, serves answers with citations
 - **Worker** — ingests uploaded documents asynchronously
 
-State lives in PostgreSQL; original documents live in object storage. The API exists;
-the worker does not yet.
+State lives in PostgreSQL; original documents live in object storage. Both components
+exist; the worker does not yet ingest anything.
 
 ## Current state
 
-End of M0. The API accepts documents and stores them; nothing indexes them yet.
+End of M0, with M1 under way. The API accepts documents and stores them; nothing
+indexes them yet.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -42,16 +43,29 @@ environments; only the endpoint differs.
 Secrets are declared without defaults, so a misconfigured deployment fails at startup
 rather than falling back to a weak credential.
 
-**Packaging** — a multi-stage Dockerfile with an `api` target: dependencies install
-into a virtualenv in a builder stage, which a slim non-root runtime copies. Migrations
-ship in the image so a container can migrate its own database. Compose runs the API,
-PostgreSQL, and MinIO with health checks and dependency ordering.
+**Packaging** — a multi-stage Dockerfile with `api` and `worker` targets: dependencies
+install into a virtualenv in a builder stage, which a shared slim non-root runtime stage
+copies, so the two images differ only in entrypoint. Migrations ship in the api image
+alone, so a container can migrate its own database and only one image ever does.
+Compose runs the API, the worker, PostgreSQL, and MinIO with dependency ordering, and
+health checks on everything but the worker, which serves no HTTP.
 
-**Verification** — 26 tests, split between unit tests with no I/O and integration tests
-against real PostgreSQL and MinIO. CI runs lint, type checking, migrations, and the
+**Verification** — unit tests with no I/O, and integration tests against real
+PostgreSQL and MinIO that skip when the stack is down. CI runs lint, type checking, migrations, and the
 suite on every push and pull request, with the same pgvector image Compose uses.
 
-**Not yet built** — the ingestion worker, chunking, embeddings, retrieval, answer
+**Ingestion — in progress (M1)** — a worker process runs beside the API on the same
+configuration and database, and stops cleanly on SIGTERM, but does not yet process
+jobs. The pieces it will run exist as tested components, not yet wired together:
+
+- a single-statement `FOR UPDATE SKIP LOCKED` claim, which also reclaims jobs whose
+  heartbeat has gone stale, bounded by an attempt count;
+- per-page PDF text extraction with pymupdf, keeping empty pages so page numbers stay
+  true;
+- chunking into 510-token windows with 64 tokens of overlap that run across page
+  breaks, recording the first and last page of each chunk.
+
+**Not yet built** — embeddings, the wired ingestion pipeline, retrieval, answer
 generation, Kubernetes manifests, and AWS infrastructure.
 
 ## Decisions

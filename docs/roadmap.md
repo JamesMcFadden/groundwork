@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — `feat(ingest): add page-aware token chunking with overlap`
+**Next item:** M1 — `feat(embeddings): add embedder protocol with fastembed backend`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -51,7 +51,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 - [x] `feat(worker): add worker entrypoint and container`
 - [x] `feat(db): add skip-locked job claim with heartbeat reclaim`
 - [x] `feat(ingest): parse pdf to per-page text with pymupdf`
-- [ ] `feat(ingest): add page-aware token chunking with overlap`
+- [x] `feat(ingest): add page-aware token chunking with overlap`
 - [ ] `feat(embeddings): add embedder protocol with fastembed backend`
 - [ ] `feat(worker): wire ingestion pipeline and job state transitions`
 - [ ] `feat(api): add GET /jobs/{job_id}`
@@ -70,9 +70,14 @@ Change them deliberately, not incidentally.
   full re-embed — which is what the reindex endpoint exists for.
 - **PDF parsing — `pymupdf`.** Fast, good layout handling, per-page text. AGPL: fine
   for this repository, worth knowing. Scanned and OCR documents are out of scope.
-- **Chunking — 512 tokens with 64 overlap, scoped to a page.** Overlap means a sentence
-  crossing a boundary appears whole in at least one chunk. Chunks record `page_start`
-  and `page_end` because chunk boundaries and page boundaries do not align.
+- **Chunking — 510 tokens with 64 overlap, running across page breaks.** Overlap means
+  a sentence crossing a boundary appears whole in at least one chunk. A page break is
+  layout rather than meaning, so windows cross it, and chunks record `page_start` and
+  `page_end` for that reason. Tokens are the embedding model's own, supplied by the
+  embeddings backend: bge-small-en-v1.5 takes 512 including two special tokens and
+  silently truncates beyond that, hence 510. Chunk text is sliced from the source by
+  character offsets, never decoded from token ids. Revised in M1 from "512, scoped to a
+  page", which contradicted both the page columns and the model's window.
 - **Generation — `claude-opus-5`.** Citations come back as structured output via
   `client.messages.parse()` with a Pydantic model; assistant prefills return 400 on
   Opus 5, so no prefill. Thinking is on by default and `max_tokens` caps thinking plus
@@ -91,6 +96,11 @@ implement early; apply when the milestone is reached. Rationale in
 - **M1** — add the `worker` target to the Dockerfile alongside `app/worker.py`. M0
   builds only the `api` target; a worker image with no worker module to run would be
   scaffolding for code that does not exist.
+- **M1** — narrow the `except Exception` in `parse_pdf` when the wiring commit adds
+  failure transitions. It currently wraps the page comprehension as well as the open
+  call, so a bug in our own code would be reported as a corrupt PDF and fail the job
+  terminally. Deferred because it changes what counts as a permanent failure, which is
+  that commit's subject.
 - **M2** — create the HNSW index on `chunks.embedding` here, not earlier: indexes
   belong with the queries that need them, and an index built over zero rows tells you
   nothing. Note that a `collection_id` predicate is not used by the HNSW index, so
