@@ -19,7 +19,7 @@ Two rules govern it:
 | Refusal | 8/8 unanswerable questions refused | `make eval` | not yet measured |
 | API reliability | ≥ 99% non-5xx, 30 VU × 5 min, stubbed generator | k6 on kind | not yet measured |
 | Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | not yet measured |
-| Ingestion | 30-page PDF indexed in < 60 s | job timestamps | not yet measured |
+| Ingestion | 30-page PDF indexed in < 60 s | job timestamps | met locally: 4.05 s (n=1, laptop CPU via Compose, 2026-09-11) |
 | Scaling | 1→3 API replicas ≥ 1.8× throughput, P95 no worse | k6 on kind | not yet measured |
 | Recovery | Pod deletion under load → zero failed requests | k6 error rate | not yet measured |
 | AWS | Reachable via LoadBalancer, answering against RDS | smoke test | not yet measured |

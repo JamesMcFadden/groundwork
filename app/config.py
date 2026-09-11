@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,6 +34,26 @@ class Settings(BaseSettings):
     s3_bucket: str = "groundwork-documents"
     s3_access_key: str = "minioadmin"
     s3_secret_key: str
+
+    # How long the worker waits before asking for work again. ADR 0001 accepts roughly
+    # one second of pickup latency as the price of not running a broker.
+    worker_poll_seconds: float = 1.0
+
+    # A claimed job whose worker has not checked in within this window is treated as
+    # abandoned and may be reclaimed. Five minutes, per ADR 0001.
+    job_stale_after_seconds: int = 300
+
+    # Bounds reclaim, so a document that reliably kills its worker cannot cycle forever.
+    job_max_attempts: int = 3
+
+    # Where the embedding model's weights live. Unset, fastembed uses a directory under
+    # the system temp dir, which a container loses on restart and CI loses every run;
+    # images and CI set it so the weights download once.
+    embedding_cache_dir: str | None = None
+
+    @property
+    def job_stale_after(self) -> timedelta:
+        return timedelta(seconds=self.job_stale_after_seconds)
 
     @property
     def database_url(self) -> str:

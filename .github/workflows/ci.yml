@@ -40,15 +40,37 @@ jobs:
       S3_SECRET_KEY: ci-secret
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        # setup-uv publishes no moving major tag, so the release is pinned exactly.
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
 
       - name: Install dependencies
         run: uv sync --locked
+
+      # The embedding model's weights (~63 MB) come from the Hugging Face Hub, which
+      # rate-limits unauthenticated requests from shared runner IPs. Keyed on the model
+      # and the fastembed version, they download once rather than on every run.
+      - name: Resolve embedding model cache key
+        id: embedding-cache
+        run: |
+          uv run python - >> "$GITHUB_OUTPUT" <<'PY'
+          import importlib.metadata
+
+          from app.services.embeddings import EMBEDDING_MODEL
+
+          version = importlib.metadata.version("fastembed")
+          print(f"key=fastembed-{version}-{EMBEDDING_MODEL.replace('/', '-')}")
+          PY
+
+      - name: Cache embedding model
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/fastembed
+          key: ${{ steps.embedding-cache.outputs.key }}
 
       # MinIO needs a server argument, which service containers cannot supply, so it
       # runs as a plain container instead.
@@ -100,4 +122,6 @@ jobs:
         run: uv run alembic upgrade head
 
       - name: Test
+        env:
+          EMBEDDING_CACHE_DIR: ${{ runner.temp }}/fastembed
         run: uv run pytest -v
