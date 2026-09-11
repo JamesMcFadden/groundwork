@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — `test(integration): assert concurrent workers never double-claim`
+**Next item:** M1 — `test(integration): assert stalled jobs are reclaimed`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -55,7 +55,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 - [x] `feat(embeddings): add embedder protocol with fastembed backend`
 - [x] `feat(worker): wire ingestion pipeline and job state transitions`
 - [x] `feat(api): add GET /jobs/{job_id}`
-- [ ] `test(integration): assert concurrent workers never double-claim`
+- [x] `test(integration): assert concurrent workers never double-claim`
 - [ ] `test(integration): assert stalled jobs are reclaimed`
 
 ## Stack decisions

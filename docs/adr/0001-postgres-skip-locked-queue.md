@@ -90,3 +90,11 @@ chained tasks are needed, or workers in another language must consume the same q
 `POST /documents` performs the single-transaction insert, and
 `tests/integration/test_documents.py::test_upload_creates_document_and_job_together`
 asserts both rows exist via a join.
+
+`tests/integration/test_jobs.py::test_concurrent_workers_never_claim_the_same_job`
+releases eight workers together against forty queued jobs and asserts each job is
+claimed exactly once, with `attempts` still 1. That guarantee comes from the claim being
+a single atomic statement, and the test passes even with `SKIP LOCKED` removed.
+`test_a_claim_skips_a_row_another_worker_holds` is what fails then: with the oldest job
+locked, a claim must take the next one rather than wait behind the lock, so it is the
+evidence that claiming does not block.

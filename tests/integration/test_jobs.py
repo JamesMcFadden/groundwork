@@ -1,5 +1,7 @@
+import threading
 import uuid
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
 import pytest
@@ -13,6 +15,8 @@ from app.db.session import build_engine, build_session_factory, database_ok
 
 STALE_AFTER = timedelta(minutes=5)
 MAX_ATTEMPTS = 3
+CONCURRENT_WORKERS = 8
+CONCURRENT_JOBS = 40
 
 
 @pytest.fixture
@@ -256,3 +260,68 @@ def test_stale_jobs_with_no_attempts_left_are_expired_as_failed(
     assert (status, finished) == ("failed", True)
     assert error is not None and f"{MAX_ATTEMPTS} attempts" in error
     assert status_of(sessions, retryable)[0] == "running"
+
+
+def test_concurrent_workers_never_claim_the_same_job(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    """Workers released together drain one queue; every job goes to exactly one of them.
+
+    The single-statement claim is what rules out a double claim, so this holds even
+    without SKIP LOCKED: workers would queue behind each other instead. Losing SKIP
+    LOCKED is caught by `test_a_claim_skips_a_row_another_worker_holds`.
+    """
+    queued = {queue_job(sessions, collection_id) for _ in range(CONCURRENT_JOBS)}
+    start = threading.Barrier(CONCURRENT_WORKERS, timeout=10)
+
+    def drain(_: int) -> list[uuid.UUID]:
+        claimed: list[uuid.UUID] = []
+        start.wait()
+        with sessions() as session:
+            while (job := claim_job(session, STALE_AFTER, MAX_ATTEMPTS)) is not None:
+                claimed.append(job.id)
+        return claimed
+
+    with ThreadPoolExecutor(max_workers=CONCURRENT_WORKERS) as pool:
+        per_worker = list(pool.map(drain, range(CONCURRENT_WORKERS)))
+
+    claimed = [job_id for worker in per_worker for job_id in worker]
+    assert len(claimed) == len(set(claimed)) == CONCURRENT_JOBS
+    assert set(claimed) == queued
+    # A race one worker won outright would say nothing about contention.
+    assert sum(1 for worker in per_worker if worker) > 1
+
+    # The database agrees: a job claimed twice would show two attempts.
+    with sessions() as session:
+        states = session.execute(
+            text(
+                "SELECT DISTINCT j.status, j.attempts FROM ingestion_jobs j "
+                "JOIN documents d ON d.id = j.document_id WHERE d.collection_id = :collection"
+            ),
+            {"collection": collection_id},
+        ).all()
+    assert [tuple(state) for state in states] == [("running", 1)]
+
+
+def test_a_claim_skips_a_row_another_worker_holds(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    """With the oldest job locked, a claim takes the next one rather than waiting.
+
+    Without SKIP LOCKED the claim would queue behind the lock. The lock timeout turns
+    that wait into an error, so a regression fails the test instead of hanging it.
+    """
+    held = queue_job(sessions, collection_id)
+    free = queue_job(sessions, collection_id)
+
+    with sessions() as locker:
+        locker.execute(
+            text("SELECT id FROM ingestion_jobs WHERE id = :id FOR UPDATE"), {"id": held}
+        )
+        with sessions() as session:
+            session.execute(text("SET LOCAL lock_timeout = '2s'"))
+            claimed = claim_job(session, STALE_AFTER, MAX_ATTEMPTS)
+        locker.rollback()
+
+    assert claimed is not None and claimed.id == free
+    assert status_of(sessions, held)[0] == "queued"
