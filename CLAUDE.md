@@ -14,6 +14,20 @@
 - Commit messages must be approved before commits are finalized.
 - Do not implement future roadmap items early.
 
+## Merging pull requests
+- Merge only when explicitly instructed.
+- Update the PR description first so it matches what is being merged.
+- Mark a draft PR ready for review before merging; GitHub will not merge a draft.
+- Merge only after CI passes on the PR's current head commit: wait for the run for that
+  exact SHA to finish successfully, and confirm `gh pr checks` reports every check
+  passing. If either fails, do not merge; report why. Branch protection is unavailable
+  on this private repo's plan, so this check is the only gate.
+- Pin the merge to the verified commit, so it is refused if the head has moved since:
+  `gh pr merge <number> --merge --delete-branch --match-head-commit <sha>`.
+- Use a merge commit, never squash or rebase. Branch commits keep their SHAs, which PR
+  descriptions and docs cite; squashing collapses them and rebasing rewrites them.
+- After merging, confirm CI passes on `main` for the merge commit.
+
 ## Testing
 - Add tests for meaningful functionality.
 - Run the relevant tests after changes.

@@ -3,10 +3,10 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M1 — Async ingestion
+**Now:** M2 — RAG query path
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — review and merge PR #1; every M1 item is in
+**Next item:** M2 — plan the milestone: add its detail section before starting work
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -15,7 +15,7 @@ Hours are estimates from planning, not commitments. They exist to keep scope
 proportionate: a milestone running far over is a signal to cut, not to continue.
 
 - [x] **M0** (11h) Foundations + document API — tooling, compose, Dockerfile, schema, upload
-- [ ] **M1** (7h) Async ingestion — worker image, skip-locked queue, parse/chunk/embed
+- [x] **M1** (7h) Async ingestion — worker image, skip-locked queue, parse/chunk/embed
 - [ ] **M2** (8h) RAG query path — vector search, Claude call, cited answers
 - [ ] **M3** (4h) Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
       citation validity, refusal
@@ -47,6 +47,8 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 - [x] `docs(adr): use eksctl for cluster, terraform for data services`
 
 ## M1 — Async ingestion
+
+Merged through PR #1 as `a3aa63f`.
 
 - [x] `feat(worker): add worker entrypoint and container`
 - [x] `feat(db): add skip-locked job claim with heartbeat reclaim`
@@ -100,9 +102,6 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M1** — add the `worker` target to the Dockerfile alongside `app/worker.py`. M0
-  builds only the `api` target; a worker image with no worker module to run would be
-  scaffolding for code that does not exist.
 - **M2** — create the HNSW index on `chunks.embedding` here, not earlier: indexes
   belong with the queries that need them, and an index built over zero rows tells you
   nothing. Note that a `collection_id` predicate is not used by the HNSW index, so
