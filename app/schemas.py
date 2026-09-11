@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,3 +28,22 @@ class DocumentAccepted(BaseModel):
     document_id: uuid.UUID
     job_id: uuid.UUID
     status: str
+
+
+class JobRead(BaseModel):
+    """An ingestion job's progress.
+
+    `heartbeat_at` is left out on purpose: it is how workers coordinate, not something a
+    caller can act on.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    document_id: uuid.UUID
+    status: Literal["queued", "running", "completed", "failed"]
+    attempts: int
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None

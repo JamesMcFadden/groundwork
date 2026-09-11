@@ -28,6 +28,7 @@ construct one with their own settings. Routes:
 | `POST /collections` | Creates a collection. 409 on a duplicate name. |
 | `GET /collections` | Keyset pagination with an opaque cursor. |
 | `POST /documents` | Uploads to object storage, inserts document and job in one transaction, returns 202. |
+| `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
 
 **Data** — PostgreSQL 16 with pgvector. Seven tables: `users`, `collections`,
 `documents`, `chunks`, `ingestion_jobs`, `questions`, `retrieval_results`. Schema is
@@ -60,8 +61,8 @@ with the same pgvector image Compose uses and the model's weights cached between
 **Ingestion** — the worker turns uploads into embedded chunks; see
 [Ingestion](#ingestion).
 
-**Not yet built** — `GET /jobs/{job_id}`, retrieval, answer generation, Kubernetes
-manifests, and AWS infrastructure.
+**Not yet built** — retrieval, answer generation, Kubernetes manifests, and AWS
+infrastructure.
 
 ## Ingestion
 
