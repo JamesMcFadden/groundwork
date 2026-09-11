@@ -5,7 +5,7 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
-from app.config import Settings
+from app.config import Settings, get_settings
 
 
 def content_key(data: bytes) -> str:
@@ -45,6 +45,22 @@ class ObjectStorage:
             raise
         return True
 
+    def ensure_bucket(self) -> None:
+        """Create the bucket if it does not exist yet. Safe to run any number of times.
+
+        For local and CI object storage. On AWS the bucket belongs to Terraform, and
+        there `BucketAlreadyExists` would mean another account owns the name: an error,
+        not something to wave through.
+        """
+        try:
+            self._client.create_bucket(Bucket=self._bucket)
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] not in {
+                "BucketAlreadyOwnedByYou",
+                "BucketAlreadyExists",
+            }:
+                raise
+
 
 def build_storage(settings: Settings) -> ObjectStorage:
     client = boto3.client(
@@ -58,3 +74,10 @@ def build_storage(settings: Settings) -> ObjectStorage:
         config=Config(s3={"addressing_style": "path"}),
     )
     return ObjectStorage(client, settings.s3_bucket)
+
+
+if __name__ == "__main__":
+    # Prepares local and CI object storage; Compose and CI run `python -m app.services.storage`.
+    settings = get_settings()
+    build_storage(settings).ensure_bucket()
+    print(f"bucket ready: {settings.s3_bucket}")

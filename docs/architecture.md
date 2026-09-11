@@ -38,7 +38,10 @@ tenant-filtered vector search stays single-table.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
-environments; only the endpoint differs.
+environments; only the endpoint differs. MinIO no longer publishes images, so Compose
+and CI run one built from its last community source release by
+[docker/minio/Dockerfile](../docker/minio/Dockerfile), published to GitHub's container
+registry and pinned by digest.
 
 **Configuration** — `pydantic-settings`, from the environment or a local `.env`.
 Secrets are declared without defaults, so a misconfigured deployment fails at startup
