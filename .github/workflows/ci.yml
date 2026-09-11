@@ -31,6 +31,21 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      minio:
+        # Built from source by .github/workflows/minio-image.yml; the same pinned
+        # reference Compose runs.
+        image: ghcr.io/jamesmcfadden/groundwork-minio:RELEASE.2025-10-15T17-29-55Z@sha256:98a0faf34af0449f1eaf322006864a44ae80f1663818ad8b2c95d20e5bf2fbdf
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: ci-secret
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       # These have no defaults in code; the application refuses to start without them.
       POSTGRES_PASSWORD: ci-password
@@ -72,43 +87,8 @@ jobs:
           path: ${{ runner.temp }}/fastembed
           key: ${{ steps.embedding-cache.outputs.key }}
 
-      # MinIO needs a server argument, which service containers cannot supply, so it
-      # runs as a plain container instead.
-      - name: Start object storage
-        run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=ci-secret \
-            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
-          for _ in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            sleep 1
-          done
-
       - name: Create bucket
-        run: |
-          uv run python - <<'PY'
-          import boto3
-          from botocore.client import Config
-          from botocore.exceptions import ClientError
-
-          from app.config import get_settings
-
-          settings = get_settings()
-          client = boto3.client(
-              "s3",
-              endpoint_url=settings.s3_endpoint,
-              aws_access_key_id=settings.s3_access_key,
-              aws_secret_access_key=settings.s3_secret_key,
-              region_name=settings.s3_region,
-              config=Config(s3={"addressing_style": "path"}),
-          )
-          try:
-              client.create_bucket(Bucket=settings.s3_bucket)
-          except ClientError as exc:
-              if exc.response["Error"]["Code"] not in {"BucketAlreadyOwnedByYou", "BucketAlreadyExists"}:
-                  raise
-          PY
+        run: uv run python -m app.services.storage
 
       - name: Lint
         run: |

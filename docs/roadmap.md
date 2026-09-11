@@ -95,6 +95,14 @@ Change them deliberately, not incidentally.
 - **Retrieval — `RETRIEVER=dense|hybrid` config flag.** Both strategies stay runnable
   for the life of the project, so the ablation table is reproducible rather than
   remembered.
+- **Local object storage — MinIO, built from source.** MinIO stopped distributing its
+  community edition and archived its repository, and the Docker Hub images this project
+  pinned were deleted in September 2026. `docker/minio/Dockerfile` builds the last
+  community release, `RELEASE.2025-10-15T17-29-55Z`, and a workflow publishes it once to
+  `ghcr.io/jamesmcfadden/groundwork-minio`, which Compose and CI pin by digest. It is
+  unmaintained: seven 2026 security advisories are fixed only in releases never
+  published as source. Acceptable because it stands in for S3 on localhost and CI
+  runners and never leaves them; production uses S3.
 
 ## Carried decisions
 
@@ -152,3 +160,5 @@ have somewhere to go that is not the current branch.
 - Automatic retry with backoff for transient ingestion failures. Needs a retry-after
   column and a claim predicate; requeueing without backoff spends every attempt in
   seconds during an outage, so it is not worth doing halfway.
+- Replace MinIO with a maintained S3-compatible server for local development and CI.
+  The source-built image works but will never receive fixes.
