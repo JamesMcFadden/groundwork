@@ -64,8 +64,10 @@ Chosen during planning, with the reasoning that is not recoverable from the code
 Change them deliberately, not incidentally.
 
 - **Embeddings — `fastembed` with `bge-small-en-v1.5`, 384 dimensions.** Chosen over
-  `sentence-transformers` because it runs ONNX without torch, keeping the image near
-  400 MB instead of ~2.5 GB and making CI embeddings free and deterministic. The
+  `sentence-transformers` because it runs ONNX without torch, which keeps images smaller
+  and makes CI embeddings free and deterministic. As built in M1 (arm64), the api image
+  is 755 MB and the worker 883 MB, 407 MB of each the shared virtualenv. Planning had
+  estimated 400 MB against ~2.5 GB with torch; neither figure was measured. The
   dimension is baked into `chunks.embedding`, so changing model means a migration and a
   full re-embed — which is what the reindex endpoint exists for. fastembed serves
   Qdrant's quantized ONNX export, about 63 MB of weights. Its tokenizer truncates at
@@ -120,6 +122,10 @@ implement early; apply when the milestone is reached. Rationale in
 - **M4** — add the `tsv` column and its GIN index here. `chunks` deliberately has no
   full-text column yet: nothing references it, so it is a self-contained migration, and
   a GIN index over zero rows is meaningless.
+- **M5** — decide how much of a job's recorded error `GET /jobs/{job_id}` returns. For
+  unexpected failures the worker records the exception's type and message, which can
+  carry internal detail such as storage error text; callers may warrant a generic
+  reason, with the detail kept in the logs.
 - **M6** — scale workers to 0 and set explicit CPU requests/limits during load runs, or
   the 1→3 replica comparison measures contention rather than scaling.
 - **M6** — the worker needs a liveness probe of its own. The API's probe is an HTTP
