@@ -42,17 +42,18 @@ def parse_pdf(data: bytes) -> list[Page]:
 
     Raises `ParseError` if the file will not open, or holds no text anywhere.
     """
+    # Only pymupdf's own calls sit inside the try. What follows is this codebase's, and a
+    # bug there should surface as a bug rather than be reported as an unreadable document.
     try:
         with pymupdf.open(stream=data, filetype="pdf") as document:
             # pages() rather than the document itself: Document defines __getitem__ but
             # no __iter__, so iterating it directly leans on the legacy sequence
             # protocol, which stricter type checkers reject.
-            pages = [
-                Page(number=index + 1, text=_normalise(page.get_text()))
-                for index, page in enumerate(document.pages())
-            ]
+            texts = [page.get_text() for page in document.pages()]
     except Exception as exc:
         raise ParseError(f"could not read pdf: {exc}") from exc
+
+    pages = [Page(number=index + 1, text=_normalise(text)) for index, text in enumerate(texts)]
 
     if not any(page.text for page in pages):
         raise ParseError("no extractable text; scanned and image-only PDFs are out of scope")

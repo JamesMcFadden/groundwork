@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M1 — Async ingestion
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M1 — `feat(worker): wire ingestion pipeline and job state transitions`
+**Next item:** M1 — `feat(api): add GET /jobs/{job_id}`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -53,7 +53,7 @@ a single deploy-and-teardown; do not cut the evaluation milestones.
 - [x] `feat(ingest): parse pdf to per-page text with pymupdf`
 - [x] `feat(ingest): add page-aware token chunking with overlap`
 - [x] `feat(embeddings): add embedder protocol with fastembed backend`
-- [ ] `feat(worker): wire ingestion pipeline and job state transitions`
+- [x] `feat(worker): wire ingestion pipeline and job state transitions`
 - [ ] `feat(api): add GET /jobs/{job_id}`
 - [ ] `test(integration): assert concurrent workers never double-claim`
 - [ ] `test(integration): assert stalled jobs are reclaimed`
@@ -100,11 +100,6 @@ implement early; apply when the milestone is reached. Rationale in
 - **M1** — add the `worker` target to the Dockerfile alongside `app/worker.py`. M0
   builds only the `api` target; a worker image with no worker module to run would be
   scaffolding for code that does not exist.
-- **M1** — narrow the `except Exception` in `parse_pdf` when the wiring commit adds
-  failure transitions. It currently wraps the page comprehension as well as the open
-  call, so a bug in our own code would be reported as a corrupt PDF and fail the job
-  terminally. Deferred because it changes what counts as a permanent failure, which is
-  that commit's subject.
 - **M2** — create the HNSW index on `chunks.embedding` here, not earlier: indexes
   belong with the queries that need them, and an index built over zero rows tells you
   nothing. Note that a `collection_id` predicate is not used by the HNSW index, so
@@ -119,6 +114,9 @@ implement early; apply when the milestone is reached. Rationale in
   rank identically; choose the HNSW operator class knowing that. fastembed embeds
   queries exactly as it embeds passages for this model, so whether a query instruction
   prefix helps is an M3 measurement rather than an assumption.
+- **M2** — move the baked embedding weights from the `worker` stage into the shared
+  `runtime` stage once the API embeds queries. M1 bakes them into the worker alone,
+  since the API had nothing to load them for.
 - **M4** — add the `tsv` column and its GIN index here. `chunks` deliberately has no
   full-text column yet: nothing references it, so it is a self-contained migration, and
   a GIN index over zero rows is meaningless.
@@ -145,3 +143,6 @@ have somewhere to go that is not the current branch.
 - Redis response cache
 - Cross-encoder reranking after retrieval — cut for time; hybrid carries M4
 - A `make check` target running all four verification commands as one
+- Automatic retry with backoff for transient ingestion failures. Needs a retry-after
+  column and a claim predicate; requeueing without backoff spends every attempt in
+  seconds during an outage, so it is not worth doing halfway.

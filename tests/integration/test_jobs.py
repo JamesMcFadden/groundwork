@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from app.db.jobs import claim_job, heartbeat
+from app.db.jobs import claim_job, complete_job, expire_exhausted, fail_job, heartbeat
 from app.db.models import Collection, Document, IngestionJob
 from app.db.session import build_engine, build_session_factory, database_ok
 
@@ -70,6 +70,19 @@ def go_stale(sessions: sessionmaker[Session], job_id: uuid.UUID) -> None:
             {"id": job_id},
         )
         session.commit()
+
+
+def status_of(sessions: sessionmaker[Session], job_id: uuid.UUID) -> tuple[str, str | None, bool]:
+    """Return a job's status, its error, and whether it has a finish time."""
+    with sessions() as session:
+        row = session.execute(
+            text(
+                "SELECT status, error, finished_at IS NOT NULL AS finished "
+                "FROM ingestion_jobs WHERE id = :id"
+            ),
+            {"id": job_id},
+        ).one()
+        return row.status, row.error, row.finished
 
 
 def test_claims_a_queued_job_and_marks_it_running(
@@ -164,7 +177,82 @@ def test_heartbeat_keeps_a_job_from_being_reclaimed(
     go_stale(sessions, claimed.id)
 
     with sessions() as session:
-        heartbeat(session, claimed.id)
+        assert heartbeat(session, claimed.id, claimed.attempts)
 
     with sessions() as session:
         assert claim_job(session, STALE_AFTER, MAX_ATTEMPTS) is None
+
+
+def test_heartbeat_reports_a_claim_lost_to_a_reclaim(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    queue_job(sessions, collection_id)
+    with sessions() as session:
+        stalled = claim_job(session, STALE_AFTER, MAX_ATTEMPTS)
+    assert stalled is not None
+    go_stale(sessions, stalled.id)
+    with sessions() as session:
+        assert claim_job(session, STALE_AFTER, MAX_ATTEMPTS) is not None
+
+    with sessions() as session:
+        assert heartbeat(session, stalled.id, stalled.attempts) is False
+
+
+def test_completion_is_refused_to_a_worker_whose_claim_was_reclaimed(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    """`attempts` fences the stalled worker out; only the current holder may finish."""
+    queue_job(sessions, collection_id)
+    with sessions() as session:
+        stalled = claim_job(session, STALE_AFTER, MAX_ATTEMPTS)
+    assert stalled is not None
+    go_stale(sessions, stalled.id)
+    with sessions() as session:
+        current = claim_job(session, STALE_AFTER, MAX_ATTEMPTS)
+    assert current is not None
+
+    with sessions() as session:
+        assert complete_job(session, stalled.id, stalled.attempts) is False
+        assert complete_job(session, current.id, current.attempts) is True
+        session.commit()
+
+    assert status_of(sessions, current.id) == ("completed", None, True)
+
+
+def test_failure_records_the_reason_and_finishes_the_job(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    queue_job(sessions, collection_id)
+    with sessions() as session:
+        claimed = claim_job(session, STALE_AFTER, MAX_ATTEMPTS)
+    assert claimed is not None
+
+    with sessions() as session:
+        assert fail_job(session, claimed.id, claimed.attempts, "could not read pdf: broken")
+
+    assert status_of(sessions, claimed.id) == ("failed", "could not read pdf: broken", True)
+
+
+def test_stale_jobs_with_no_attempts_left_are_expired_as_failed(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    """No longer claimable, such a job would otherwise sit in running forever."""
+    exhausted = queue_job(sessions, collection_id)
+    retryable = queue_job(sessions, collection_id)
+    with sessions() as session:
+        for job_id, attempts in ((exhausted, MAX_ATTEMPTS), (retryable, 1)):
+            session.execute(
+                text("UPDATE ingestion_jobs SET status = 'running', attempts = :n WHERE id = :id"),
+                {"n": attempts, "id": job_id},
+            )
+        session.commit()
+    go_stale(sessions, exhausted)
+    go_stale(sessions, retryable)
+
+    with sessions() as session:
+        assert expire_exhausted(session, STALE_AFTER, MAX_ATTEMPTS) == 1
+
+    status, error, finished = status_of(sessions, exhausted)
+    assert (status, finished) == ("failed", True)
+    assert error is not None and f"{MAX_ATTEMPTS} attempts" in error
+    assert status_of(sessions, retryable)[0] == "running"

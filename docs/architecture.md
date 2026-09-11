@@ -10,13 +10,13 @@ A RAG knowledge service with two runtime components sharing one database:
 - **API** — accepts uploads and questions, serves answers with citations
 - **Worker** — ingests uploaded documents asynchronously
 
-State lives in PostgreSQL; original documents live in object storage. Both components
-exist; the worker does not yet ingest anything.
+State lives in PostgreSQL; original documents live in object storage. The worker ingests
+uploads; the API does not yet answer questions.
 
 ## Current state
 
-End of M0, with M1 under way. The API accepts documents and stores them; nothing
-indexes them yet.
+M1 under way. Uploads are stored, then parsed, chunked, and embedded by the worker;
+nothing searches the chunks yet.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -45,32 +45,64 @@ rather than falling back to a weak credential.
 
 **Packaging** — a multi-stage Dockerfile with `api` and `worker` targets: dependencies
 install into a virtualenv in a builder stage, which a shared slim non-root runtime stage
-copies, so the two images differ only in entrypoint. Migrations ship in the api image
-alone, so a container can migrate its own database and only one image ever does.
-Compose runs the API, the worker, PostgreSQL, and MinIO with dependency ordering, and
-health checks on everything but the worker, which serves no HTTP.
+copies, so the two images share one environment. Migrations ship in the api image
+alone, so a container can migrate its own database and only one image ever does. The
+worker image also carries the embedding weights, fetched at build time, and runs with
+the Hugging Face Hub offline, so a missing model fails at startup rather than
+downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
+ordering, and health checks on everything but the worker, which serves no HTTP.
 
 **Verification** — unit tests with no I/O, and integration tests against real
 PostgreSQL, MinIO, and the embedding model that skip when those are unavailable. CI
 runs lint, type checking, migrations, and the suite on every push and pull request,
 with the same pgvector image Compose uses and the model's weights cached between runs.
 
-**Ingestion — in progress (M1)** — a worker process runs beside the API on the same
-configuration and database, and stops cleanly on SIGTERM, but does not yet process
-jobs. The pieces it will run exist as tested components, not yet wired together:
+**Ingestion** — the worker turns uploads into embedded chunks; see
+[Ingestion](#ingestion).
 
-- a single-statement `FOR UPDATE SKIP LOCKED` claim, which also reclaims jobs whose
-  heartbeat has gone stale, bounded by an attempt count;
-- per-page PDF text extraction with pymupdf, keeping empty pages so page numbers stay
-  true;
-- chunking into 510-token windows with 64 tokens of overlap that run across page
-  breaks and break only between words, recording the first and last page of each
-  chunk;
-- embedding with bge-small-en-v1.5 through fastembed, which also supplies the tokenizer
-  the chunker counts in — copied with truncation off, since the original stops at 512.
+**Not yet built** — `GET /jobs/{job_id}`, retrieval, answer generation, Kubernetes
+manifests, and AWS infrastructure.
 
-**Not yet built** — the wired ingestion pipeline, retrieval, answer generation,
-Kubernetes manifests, and AWS infrastructure.
+## Ingestion
+
+The worker polls `ingestion_jobs` once a second. Each pass first fails any job that has
+been abandoned with no attempts left, then claims the oldest available job in a single
+`UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED)`: queued, or running with a
+heartbeat more than five minutes stale. The claim increments `attempts` and commits
+before any work begins, so every attempt is counted even if the worker dies. While
+there is work, the queue drains without waiting between jobs.
+
+A job then runs in four steps:
+
+1. **Fetch** the PDF from object storage by its content-hash key.
+2. **Parse** it to per-page text with pymupdf. Pages without text are kept so page
+   numbers stay true; a file that will not open, or holds no text at all, fails.
+3. **Chunk** into windows of at most 510 tokens with at least 64 of overlap, running
+   across page breaks and cut only between words. Tokens are the embedding model's
+   own, counted by an untruncated copy of its tokenizer, and each chunk records its
+   first and last page.
+4. **Embed** with bge-small-en-v1.5 through fastembed, 32 chunks at a time, with a
+   heartbeat before each batch.
+
+Chunks, `page_count`, and the job's completion commit in one transaction, so a document
+is indexed fully or not at all and a retry never has partial output to clean up.
+
+**Fencing.** `attempts` doubles as a fencing token. Heartbeat, completion, and failure
+all require the attempt a worker claimed with, so a worker that stalls past the
+staleness window and is reclaimed finds its claim gone at its next heartbeat and
+discards its work. Completion is checked first in the final transaction and locks the
+job row; the unique `(document_id, chunk_index)` constraint backs it up.
+
+**Failure.** Every failure is terminal. The job is marked `failed` with a reason — a
+parse error's own message, or the exception's type and message for anything else — and
+nothing is retried automatically. Only a worker that dies outright has its job retried,
+through reclaim, for up to three attempts. If the database is unreachable when a failure
+is recorded, the job stays `running` and is reclaimed as after a crash. The cost is
+that a transient storage error fails a document until it is re-uploaded or reindexed.
+
+**Shutdown.** SIGTERM and SIGINT set a flag the loop checks between jobs, so a worker
+finishes the job in hand before exiting. On a laptop CPU a 30-page document embeds in
+under three seconds and a 300-page one in about thirty.
 
 ## Decisions
 
@@ -92,5 +124,5 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: ingestion pipeline, retrieval, answer generation and
-citations, evaluation, Kubernetes, AWS.
+Added as each subsystem is built: retrieval, answer generation and citations,
+evaluation, Kubernetes, AWS.
