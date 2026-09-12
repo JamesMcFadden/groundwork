@@ -71,7 +71,7 @@ version.
 - [x] `build: pin the pgvector image to an explicit version`
 - [x] `feat(embeddings): add query embedding to the embedder protocol`
 - [x] `feat(retrieval): add collection-filtered dense vector search`
-- [ ] `perf(db): add hnsw index for filtered vector search`
+- [x] `perf(db): add hnsw index for filtered vector search`
 - [ ] `feat(generation): add generator protocol, numbered context, and stub backend`
 - [ ] `feat(generation): add claude backend with structured citations`
 - [ ] `feat(generation): validate citations against the supplied context`
@@ -99,10 +99,12 @@ Decisions taken while planning:
 - **Insufficient evidence skips the model** when retrieval returns nothing, and an
   answer left with no valid citation is downgraded to it. No relevance-score threshold
   until M3 has data to tune one.
-- **Search uses inner product on unit-length vectors** through an HNSW index,
-  over-fetching with `hnsw.ef_search` because the collection filter applies after the
-  index scan. The pgvector image is pinned by version and digest first: `pg16` is a
-  floating tag, and index-scan options depend on the extension version.
+- **Search uses inner product on unit-length vectors** through an HNSW index. The
+  collection filter applies after the index scan, so search turns on
+  `hnsw.iterative_scan` rather than over-fetching with `hnsw.ef_search` as first
+  planned; the check below confirmed the pinned version supports it. The pgvector image
+  is pinned by version and digest first: `pg16` is a floating tag, and index-scan options
+  depend on the extension version.
 - **The API process embeds queries**, loading the model at startup, and ends its
   database transaction before calling the model, so a slow generation never holds a
   pooled connection.
@@ -183,7 +185,7 @@ implement early; apply when the milestone is reached. Rationale in
 - **M2** — create the HNSW index on `chunks.embedding` here, not earlier: indexes
   belong with the queries that need them, and an index built over zero rows tells you
   nothing. Note that a `collection_id` predicate is not used by the HNSW index, so
-  filtered search over-fetches and post-filters, tuning `hnsw.ef_search`.
+  filtered search post-filters, and uses iterative index scan to still fill its results.
 - **M2** — chunk ids never go to the model. The prompt numbers its context `[1]`–`[5]`
   per request and the server maps those back to chunk ids. Small integers cost fewer
   tokens and are cited more reliably than UUIDs, and the mapping is what makes citation

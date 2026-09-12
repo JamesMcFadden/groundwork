@@ -112,6 +112,14 @@ class Chunk(Base):
     __table_args__ = (
         UniqueConstraint("document_id", "chunk_index", name="uq_chunks_document_index"),
         Index("ix_chunks_collection", "collection_id"),
+        # Approximate nearest-neighbour search. The operator class must match the
+        # search's <#> ordering, or Postgres cannot use the index for it at all.
+        Index(
+            "ix_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_ip_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

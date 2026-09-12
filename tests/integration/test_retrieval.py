@@ -1,9 +1,12 @@
 import math
+import random
 import uuid
 from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import Connection, Engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
@@ -11,6 +14,8 @@ from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.retrieval.dense import TOP_K, dense_search
 from app.services.embeddings import Embedder
+
+HNSW_INDEX = "ix_chunks_embedding_hnsw"
 
 
 @pytest.fixture
@@ -174,3 +179,82 @@ def test_a_question_finds_the_passage_that_answers_it(
         )
 
     assert results[0].chunk_id == ids[1]
+
+
+def near_axis(i: int, rng: random.Random) -> list[float]:
+    """A unit vector a small random step away from one axis."""
+    vector = [rng.gauss(0, 0.02) for _ in range(EMBEDDING_DIM)]
+    vector[i] += 1.0
+    length = math.sqrt(sum(x * x for x in vector))
+    return [x / length for x in vector]
+
+
+def price_out_all_but_index_scans(executor: Connection | Session) -> None:
+    """Leave an ordered index scan as the only affordable plan, for this transaction.
+
+    Test collections hold a handful of chunks, which the planner would rather read and
+    sort directly, so the HNSW index would never be exercised.
+    """
+    for setting in ("enable_seqscan", "enable_bitmapscan", "enable_sort"):
+        executor.execute(text(f"SET LOCAL {setting} = off"))
+
+
+@contextmanager
+def selects_sent(engine: Engine) -> Iterator[list[tuple[str, Any]]]:
+    """Record the SELECT statements sent while the block runs."""
+    sent: list[tuple[str, Any]] = []
+
+    def record(
+        conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            sent.append((statement, parameters))
+
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        yield sent
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+
+
+def test_search_can_use_the_hnsw_index(sessions: sessionmaker[Session]) -> None:
+    """The index's operator class and the search's ordering must stay in step.
+
+    An HNSW index serves only the distance its operator class defines. Ordered by any
+    other, search silently goes back to comparing the question with every chunk.
+    """
+    collection_id = add_collection(sessions, "plan")
+    engine: Engine = sessions.kw["bind"]
+    with selects_sent(engine) as sent, sessions() as session:
+        dense_search(session, collection_id, axis(0))
+
+    assert len(sent) == 1
+    statement, parameters = sent[0]
+    with engine.connect() as connection:
+        price_out_all_but_index_scans(connection)
+        plan = connection.exec_driver_sql(f"EXPLAIN {statement}", parameters).scalars().all()
+        connection.rollback()
+
+    assert HNSW_INDEX in "\n".join(plan)
+
+
+def test_a_small_collection_in_a_large_index_still_fills_its_results(
+    sessions: sessionmaker[Session],
+) -> None:
+    """Iterative index scan: the collection filter no longer starves search of candidates.
+
+    Every chunk of the crowding collection sits nearer the question than any of this
+    one's. Stopping at the index's first 40 candidates, as HNSW does by default, all of
+    them would belong to the crowd, and the filter would leave nothing to return.
+    """
+    mine = add_collection(sessions, "small")
+    crowd = add_collection(sessions, "crowd")
+    own = add_document(sessions, mine, [(f"own {i}", axis(i + 1)) for i in range(TOP_K)])
+    rng = random.Random(0)
+    add_document(sessions, crowd, [(f"crowd {i}", near_axis(0, rng)) for i in range(500)])
+
+    with sessions() as session:
+        price_out_all_but_index_scans(session)
+        results = dense_search(session, mine, axis(0))
+
+    assert sorted(result.chunk_id for result in results) == sorted(own)

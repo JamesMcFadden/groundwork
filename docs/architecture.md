@@ -129,6 +129,16 @@ Each result carries what a citation points at: chunk, document, filename, pages,
 score. Equal scores are ordered by chunk id, so the same question retrieves the same
 chunks in the same order.
 
+An HNSW index on `chunks.embedding`, built with `vector_ip_ops` to match the `<#>`
+ordering, lets the planner find the nearest chunks without comparing the question with
+every one. The index knows nothing of collections: it yields candidates from all of them
+and the filter discards the rest, so by default a small collection in a large index can
+lose every candidate and come back short. Search therefore enables pgvector's iterative
+index scan for its own transaction (`hnsw.iterative_scan = relaxed_order`), which keeps
+reading candidates until enough match, and re-sorts the relaxed order it returns. While
+a collection is small, the planner may still prefer the `collection_id` b-tree and an
+exact sort, which returns the same answer.
+
 ## Decisions
 
 ### Job queue in PostgreSQL rather than Redis

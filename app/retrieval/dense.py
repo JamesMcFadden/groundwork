@@ -7,7 +7,7 @@ product equals cosine similarity and ranks chunks identically.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.db.models import Chunk, Document
@@ -40,6 +40,13 @@ def dense_search(
     `collection_id`, and only those few are joined to their documents. The ordered scan
     stays on one table, where a vector index can serve it.
     """
+    # The HNSW index finds nearest neighbours across every collection before the filter
+    # applies, and by default stops after 40 candidates. A collection that is a small part
+    # of the index would lose most of them to the filter and come back short. Iterative
+    # scan keeps searching until enough of this collection's chunks are found. Its relaxed
+    # order is re-sorted by the outer query. Scoped to this transaction.
+    session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
+
     # pgvector's <#> is the negative inner product, so ascending order is nearest first.
     distance = Chunk.embedding.max_inner_product(query).label("distance")
     nearest = (
