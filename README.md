@@ -61,6 +61,16 @@ locally, export a key first:
 ANTHROPIC_API_KEY=... uv run pytest -m live tests/live
 ```
 
+### Evaluation
+
+```bash
+make eval        # retrieval figures and the query-prefix comparison; free, and what CI runs
+make eval-live   # also measures answers with Claude on ANTHROPIC_API_KEY, about $1–2 a run
+```
+
+Both need PostgreSQL with migrations applied. What each figure means, and the latest
+results, are in [docs/evaluation.md](docs/evaluation.md).
+
 ### Running the service
 
 The API answers with Claude by default, and refuses to start without `ANTHROPIC_API_KEY`

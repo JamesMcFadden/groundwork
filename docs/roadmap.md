@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M3 — Eval harness
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M3 — start branch `m3-eval-harness`
+**Next item:** M3 — review and merge PR #4
 **Budget:** ~52.5h total, range 44–60h. M0, M1, and M2 took their estimated 11h, 7h, and
 9.5h.
 
@@ -148,9 +148,9 @@ Planned 2026-09-12.
 - [x] `feat(eval): report refusal and citation validity through the answering path`
 - [x] `ci: run the retrieval eval on every pull request`
 - [x] `feat(eval): compare retrieval with and without a query instruction prefix`
-- [ ] `feat(embeddings): embed queries with the bge instruction prefix`, only if the
-      prefix rule below says to adopt it
-- [ ] `docs: add evaluation doc and record M3 results`
+- [ ] `feat(embeddings): embed queries with the bge instruction prefix` — not needed: the
+      prefix rule kept questions unprefixed (see the results below)
+- [x] `docs: add evaluation doc and record M3 results`
 
 How each golden-set question is scored is defined in
 [success-criteria.md](success-criteria.md#scoring), fixed there before any run.
@@ -246,9 +246,12 @@ Decisions taken while planning:
   and read the `questions` and `retrieval_results` tables; with the stub generator they
   are reported as not measured. CI fails only if the harness does, never on a missed
   target.
-- **The live run is local**, with `GENERATOR=anthropic`, estimated at $1–2 per full run
-  of 38 questions at `claude-opus-5` list prices. Tokens recorded on each question give
-  the actual figure.
+- **The live run is local**, as `make eval-live`, estimated at $1–2 per full run of 38
+  questions at `claude-opus-5` list prices. Planned as `GENERATOR=anthropic` and changed
+  while building: the service's settings default to `anthropic`, so a shell with a key
+  exported would have spent money on every `make eval`. The harness takes
+  `--answers stub|claude` instead, defaulting to the stub. The first live run used
+  181,862 input and 7,176 output tokens, about $1.09.
 
 Pre-registered rules, fixed before any result exists:
 
@@ -261,6 +264,23 @@ Pre-registered rules, fixed before any result exists:
   unanswerable alike, and adopt no threshold in M3. Choosing a cutoff from the eight
   unanswerable questions and then scoring refusal on the same eight would grade the
   choice against itself. A threshold waits for held-out questions or real traffic.
+
+Results, recorded 2026-09-12 from a run of commit `2047afb`
+(`eval/results/20260912T165717Z.json`); detail in
+[evaluation.md](evaluation.md#results):
+
+- **Recall@5 27/30 = 0.900 (n=30)**, exactly on the target, so one question fewer would
+  miss it. MRR@10 0.763. Unanswerable questions refused 8/8, with 3/30 false refusals,
+  which are the three questions retrieval missed. No returned citation named a chunk
+  outside those cited, and the model cited no passage it was not given (0/49).
+- **Query prefix: not adopted.** With the instruction, Recall@5 fell to 26/30 and MRR@10
+  rose to 0.786. It fixed no question and broke `a22`, a net −1 against the +2 the rule
+  required, so item 9 is not needed.
+- **Relevance threshold: none.** Unanswerable questions' best chunk scores (0.724–0.871,
+  median 0.779) sit inside the answerable range (0.663–0.873, median 0.764). A cutoff
+  above every unanswerable score would refuse 29 of 30 answerable questions; one at the
+  lowest unanswerable score would refuse 7 answerable questions and no unanswerable ones.
+  The model's own judgement refused all 8.
 
 ## Stack decisions
 
