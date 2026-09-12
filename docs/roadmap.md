@@ -76,7 +76,7 @@ version.
 - [x] `feat(generation): add claude backend with structured citations`
 - [x] `feat(generation): validate citations against the supplied context`
 - [x] `feat(db): record question outcome and invalid citation count`
-- [ ] `feat(api): add POST /questions with per-stage timings`
+- [x] `feat(api): add POST /questions with per-stage timings`
 - [ ] `build: move embedding weights into the shared runtime stage`
 - [ ] `ci: run the live claude test on main and on demand`
 - [ ] `test(integration): assert invalid citations are never returned or recorded`

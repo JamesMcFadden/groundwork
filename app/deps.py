@@ -5,6 +5,8 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.generation.generator import Generator
+from app.services.embeddings import Embedder
 from app.services.storage import ObjectStorage
 
 
@@ -38,3 +40,13 @@ def get_storage(request: Request) -> ObjectStorage:
 def get_settings_dep(request: Request) -> Settings:
     settings: Settings = request.app.state.settings
     return settings
+
+
+def get_embedder(request: Request) -> Embedder:
+    embedder: Embedder = request.app.state.embedder
+    return embedder
+
+
+def get_generator(request: Request) -> Generator:
+    generator: Generator = request.app.state.generator
+    return generator

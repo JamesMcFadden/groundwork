@@ -1,28 +1,50 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app import api
 from app.config import Settings, get_settings
 from app.db.session import build_engine, build_session_factory
+from app.generation.factory import build_generator
+from app.generation.generator import Generator
+from app.services.embeddings import Embedder, FastEmbedder
 from app.services.storage import build_storage
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    embedder: Embedder | None = None,
+    generator: Generator | None = None,
+) -> FastAPI:
     """Build the application.
 
     Constructing the app in a function rather than at module scope keeps imports free of
-    side effects and lets tests build an app with their own settings.
+    side effects and lets tests build an app with their own settings, embedder, and
+    generator.
     """
-    settings = settings or get_settings()
+    resolved = settings or get_settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Built at startup rather than for the first question, so missing weights or a
+        # missing API key stop the process before it serves anything.
+        app.state.embedder = embedder or FastEmbedder(cache_dir=resolved.embedding_cache_dir)
+        app.state.generator = generator or build_generator(resolved)
+        yield
+
     app = FastAPI(
         title="Groundwork",
         description="RAG knowledge service with source-grounded, cited answers.",
         version="0.1.0",
+        lifespan=lifespan,
     )
-    engine = build_engine(settings)
-    app.state.settings = settings
+    engine = build_engine(resolved)
+    app.state.settings = resolved
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
-    app.state.storage = build_storage(settings)
+    app.state.storage = build_storage(resolved)
     for router in api.routers:
         app.include_router(router)
     return app

@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
 class CollectionCreate(BaseModel):
@@ -47,3 +47,52 @@ class JobRead(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+
+
+class QuestionAsk(BaseModel):
+    collection_id: uuid.UUID
+    # Stripped first, so a question of nothing but whitespace is rejected as empty.
+    question: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ]
+
+
+class CitationRead(BaseModel):
+    """What one `[n]` marker in an answer points at."""
+
+    marker: int
+    chunk_id: int
+    document_id: uuid.UUID
+    filename: str
+    page_start: int
+    page_end: int
+    score: float
+
+
+class StageTimings(BaseModel):
+    """Milliseconds each stage took, null for a stage that did not run.
+
+    `total_ms` runs from receiving the question to having its outcome, and so excludes
+    recording the question itself.
+    """
+
+    embed_ms: int | None
+    search_ms: int | None
+    prep_ms: int | None
+    llm_ms: int | None
+    total_ms: int | None
+
+
+class QuestionAnswer(BaseModel):
+    """An answer, or the finding that the collection's documents cannot give one.
+
+    For insufficient evidence, `answer` is null and `citations` is empty.
+    """
+
+    id: uuid.UUID
+    collection_id: uuid.UUID
+    question: str
+    outcome: Literal["answered", "insufficient_evidence"]
+    answer: str | None
+    citations: list[CitationRead]
+    timings: StageTimings

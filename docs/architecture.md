@@ -11,13 +11,13 @@ A RAG knowledge service with two runtime components sharing one database:
 - **Worker** — ingests uploaded documents asynchronously
 
 State lives in PostgreSQL; original documents live in object storage. The worker ingests
-uploads; the API does not yet answer questions.
+uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-M2 in progress. Uploads are stored, then parsed, chunked, and embedded by the worker,
-and a collection's chunks can be searched by similarity to a question; nothing answers
-questions yet.
+M2 in progress. Uploads are stored, then parsed, chunked, and embedded by the worker.
+`POST /questions` searches a collection's chunks for a question, answers from the
+nearest with cited passages, and records every question with its outcome and timings.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -30,6 +30,7 @@ construct one with their own settings. Routes:
 | `GET /collections` | Keyset pagination with an opaque cursor. |
 | `POST /documents` | Uploads to object storage, inserts document and job in one transaction, returns 202. |
 | `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
+| `POST /questions` | Answers from one collection with cited passages and per-stage timings, recording every question. 201 for an answer or insufficient evidence, 502 when generation declines or fails, 404 unless the collection is the caller's. |
 
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
@@ -78,7 +79,10 @@ with the same pgvector image Compose uses and the model's weights cached between
 selected by `GENERATOR`, and citation validation; see
 [Answer generation](#answer-generation).
 
-**Not yet built** — `POST /questions`, Kubernetes manifests, and AWS infrastructure.
+**Questions** — `POST /questions` ties search, generation, and citation checks together;
+see [Answering a question](#answering-a-question).
+
+**Not yet built** — Kubernetes manifests and AWS infrastructure.
 
 ## Ingestion
 
@@ -176,6 +180,27 @@ counted once each, and a statement left citing nothing is dropped whole, since e
 claim must rest on a passage. Repeated numbers collapse to one citation. What survives
 is rendered as prose with `[n]` markers placed before each statement's closing
 punctuation.
+
+## Answering a question
+
+`POST /questions` runs a question through four timed stages, then checks citations. The
+API process embeds the question itself, having loaded the model at startup; searches the
+collection; numbers the nearest chunks into passages; and asks the generator. The
+search's transaction is committed before the generator is called, so a generation that
+takes seconds never holds a pooled database connection. The generator is built at
+startup too, so a missing API key stops the API before it serves anything.
+
+With nothing retrieved, the model is not called and the outcome is insufficient
+evidence. Otherwise the outcome is `answered` if at least one statement survives citation
+checks, and insufficient evidence if none does or the model itself judged the passages
+inadequate; both return 201. A safety refusal is `declined` and any other generation
+error `failed`. Both are recorded with the stages that ran, the tokens reported, and the
+exception's class name, and the caller gets a 502 that says nothing of the cause.
+
+Every question writes a `questions` row and one `retrieval_results` row per retrieved
+chunk, with its rank, score, and whether the returned answer cites it. Timings are
+returned in the response and stored on the row: `embed_ms`, `search_ms`, `prep_ms`,
+`llm_ms`, and `total_ms`, which covers everything but the write that records them.
 
 ## Decisions
 
