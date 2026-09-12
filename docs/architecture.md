@@ -70,8 +70,11 @@ with the same pgvector image Compose uses and the model's weights cached between
 **Retrieval** — dense search over one collection's chunks; see
 [Retrieval](#retrieval).
 
-**Not yet built** — answer generation, `POST /questions`, Kubernetes manifests, and AWS
-infrastructure.
+**Answer generation** — a generator protocol, numbered context, and a stub backend; see
+[Answer generation](#answer-generation).
+
+**Not yet built** — the Claude backend, citation validation, `POST /questions`,
+Kubernetes manifests, and AWS infrastructure.
 
 ## Ingestion
 
@@ -138,6 +141,22 @@ index scan for its own transaction (`hnsw.iterative_scan = relaxed_order`), whic
 reading candidates until enough match, and re-sorts the relaxed order it returns. While
 a collection is small, the planner may still prefer the `collection_id` b-tree and an
 exact sort, which returns the same answer.
+
+## Answer generation
+
+A generator takes a question and numbered passages and answers in statements, each
+citing the passage numbers it relies on, together with its own judgement of whether the
+passages answer the question at all. Structured statements, rather than prose with
+inline markers, mean citations never have to be parsed out of text.
+
+Retrieved chunks are numbered from 1 in retrieval order for each request. The passages a
+generator receives carry a number, text, filename, and pages, but no chunk or document
+id: ids never reach the model, and a cited number maps back to its chunk by position.
+Filenames are escaped where the context is laid out, since they come from uploads.
+
+The stub generator answers with the opening words of the top passage and cites it. It
+makes no network call and gives the same answer every time, so CI needs no API key and
+load tests measure this service rather than a model provider.
 
 ## Decisions
 

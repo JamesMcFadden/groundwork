@@ -72,7 +72,7 @@ version.
 - [x] `feat(embeddings): add query embedding to the embedder protocol`
 - [x] `feat(retrieval): add collection-filtered dense vector search`
 - [x] `perf(db): add hnsw index for filtered vector search`
-- [ ] `feat(generation): add generator protocol, numbered context, and stub backend`
+- [x] `feat(generation): add generator protocol, numbered context, and stub backend`
 - [ ] `feat(generation): add claude backend with structured citations`
 - [ ] `feat(generation): validate citations against the supplied context`
 - [ ] `feat(db): record question outcome and invalid citation count`
