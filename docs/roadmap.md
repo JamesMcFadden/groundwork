@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M3 — Eval harness
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M3 — plan the milestone: add its detail section before starting work
+**Next item:** M3 — start branch `m3-eval-harness`
 **Budget:** ~52.5h total, range 44–60h. M0, M1, and M2 took their estimated 11h, 7h, and
 9.5h.
 
@@ -136,6 +136,132 @@ Unverified going in; checked 2026-09-11:
   omitted; the docs call it "the inclusive, authoritative total used for billing".
   `usage.output_tokens_details.thinking_tokens` reports the thinking share on its own.
 
+## M3 — Eval harness
+
+Planned 2026-09-12.
+
+- [ ] `feat(eval): add frozen corpus with checksum manifest`
+- [ ] `feat(eval): add golden set format with validation`
+- [ ] `feat(eval): add golden set of 30 answerable and 8 unanswerable questions`
+- [ ] `feat(eval): ingest the corpus into an isolated eval collection`
+- [ ] `feat(eval): report Recall@5 and MRR@10 for dense retrieval`
+- [ ] `feat(eval): report refusal and citation validity through the answering path`
+- [ ] `ci: run the retrieval eval on every pull request`
+- [ ] `feat(eval): compare retrieval with and without a query instruction prefix`
+- [ ] `feat(embeddings): embed queries with the bge instruction prefix`, only if the
+      prefix rule below says to adopt it
+- [ ] `docs: add evaluation doc and record M3 results`
+
+How each golden-set question is scored is defined in
+[success-criteria.md](success-criteria.md#scoring), fixed there before any run.
+
+The corpus is six NASA technical reports from the NASA Technical Reports Server (NTRS),
+217 pages and about 67,000 words. They are committed under `eval/corpus/` with a SHA-256
+manifest the harness checks before every run. Filenames are what the model sees as each
+passage's source.
+
+| File | NTRS ID | Title | Pages |
+| --- | --- | --- | --- |
+| `small-satellite-failure-rates.pdf` | 20190002705 | Small-Satellite Mission Failure Rates | 46 |
+| `faint-lateral-cutoff.pdf` | 20160003115 | Lateral Cutoff Analysis and Results from NASA's Farfield Investigation of No-Boom Thresholds | 46 |
+| `x59-cumulative-noise-metrics.pdf` | 20240005399 | Literature Review of Cumulative Noise Metrics Relevant to X-59 Supersonic Overflights | 22 |
+| `uam-motion-sickness.pdf` | 20205009977 | Motion Sickness and Concerns for Urban Air Mobility Vehicles: A Literature Review | 40 |
+| `uam-risk.pdf` | 20205000604 | Understanding Risk in Urban Air Mobility: Moving Towards Safe Operating Standards | 17 |
+| `iss-crew-workload-fatigue.pdf` | 20205006969 | Characterization of International Space Station Crew Members' Workload Contributing to Fatigue, Sleep Disruption and Circadian De-synchronization | 46 |
+
+Two pairs share a topic, so retrieval must choose between documents with the same
+vocabulary: FaINT and the X-59 review both concern sonic boom noise metrics, and the two
+urban air mobility reports approach air taxis from passenger physiology and from safety
+regulation. The ISS fatigue report sits close to the motion sickness review, which gives
+near-miss unanswerable questions somewhere to come from.
+
+Checked 2026-09-12, while choosing:
+
+- **Rights.** NTRS records every report as a US government work with public use
+  permitted, containing no third-party material and not export controlled.
+- **Extraction.** All are born-digital, not scanned. `parse_pdf` output has no
+  replacement characters, typographic ligatures, or margin line numbers.
+- **Rejected for extraction.** *Lessons Learned from Sonic Boom Flight Research Projects*
+  (NTRS 20200011462) is a line-numbered draft whose margin numbers land inside the text
+  ("differentiate between 2 requirements"). *A Study in a New Test Facility on Indoor
+  Annoyance Caused by Sonic Booms* (20120002057) holds 163 ligatures, which exact quote
+  matching would miss; see Parked.
+
+The golden set:
+
+- **Written by a different LLM, from the PDFs alone.** It never sees chunks, retrieval
+  results, or answers. Its model and version are recorded with the set, since an
+  author's phrasing can favour one retriever or generator over another.
+- **Committed before anything is measured.** The questions land before the harness can
+  run, so none is adjusted to fit a result. Changing one later needs a dated note in
+  success-criteria.md.
+- **TOML, read with the standard library's `tomllib`**, so no new dependency:
+
+  ```toml
+  [[answerable]]
+  id = "a01"
+  question = "..."
+
+  [[answerable.evidence]]
+  document = "small-satellite-failure-rates.pdf"
+  page = 9
+  quote = "..."
+
+  [[unanswerable]]
+  id = "u01"
+  question = "..."
+  reason = "..."
+  ```
+
+- **Authoring rules**, enforced by validation where they can be:
+  - 30 answerable questions, five per report, and 8 unanswerable, at least six of them
+    near misses on a report's topic. Each unanswerable question gives a `reason` and is
+    checked against all six reports.
+  - An answerable question asks for one fact stated in one place. Where the same fact
+    also appears elsewhere, further `evidence` entries list it, and any of them counts.
+  - `page` is the page's position in the PDF, the first page being 1, not its printed
+    number. NASA reports carry front matter, so the two differ.
+  - `quote` is verbatim body text from that one page, at most 30 words, and never from a
+    table, caption, or running header. Validation requires it to appear in that page's
+    parsed text and to be under 48 tokens.
+  - Questions are phrased as a reader would ask them, not by rewording the quote:
+    borrowing its wording inflates recall.
+
+Decisions taken while planning:
+
+- **The harness is a top-level `eval/` package**, run as `python -m eval` or `make eval`.
+  `.dockerignore` already keeps `eval/` out of images. The Makefile holds that one
+  target; `make check` stays parked.
+- **The harness ingests the corpus itself**, through `parse_pdf`, `chunk_pages`, and
+  `embed_passages`, skipping object storage and the job queue: neither affects what
+  retrieval finds.
+- **Runs are isolated.** The harness owns an eval user, so integration-test fixtures,
+  which clear the default user's collections, never touch its data. Each run deletes its
+  previous collections first, so the vector index is the same from run to run. Results
+  go to `eval/results/` as JSON with run metadata: git commit, corpus and golden-set
+  hashes, embedding model, chunk settings, pgvector version, generator, and model. Runs
+  cited in documentation are committed.
+- **Two layers.** Retrieval metrics need only PostgreSQL and the embedding model, cost
+  nothing, and run in CI. Answering metrics put each question through `answer_question`
+  and read the `questions` and `retrieval_results` tables; with the stub generator they
+  are reported as not measured. CI fails only if the harness does, never on a missed
+  target.
+- **The live run is local**, with `GENERATOR=anthropic`, estimated at $1–2 per full run
+  of 38 questions at `claude-opus-5` list prices. Tokens recorded on each question give
+  the actual figure.
+
+Pre-registered rules, fixed before any result exists:
+
+- **Query prefix.** The candidate is bge's retrieval instruction, added to questions
+  only, so adopting it needs no re-embedding:
+  `Represent this sentence for searching relevant passages: `. Adopt it only if, over
+  the 30 answerable questions, it fixes at least two more Recall@5 hits than it breaks
+  and MRR@10 does not fall. Otherwise questions stay unprefixed.
+- **Relevance threshold.** Record each question's best chunk score, answerable and
+  unanswerable alike, and adopt no threshold in M3. Choosing a cutoff from the eight
+  unanswerable questions and then scoring refusal on the same eight would grade the
+  choice against itself. A threshold waits for held-out questions or real traffic.
+
 ## Stack decisions
 
 Chosen during planning, with the reasoning that is not recoverable from the code.
@@ -196,13 +322,6 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M3** — measure whether a query instruction prefix helps retrieval, rather than
-  assume it. fastembed embeds bge-small-en-v1.5 queries exactly as it embeds passages,
-  and a test asserts that, so adding a prefix is a deliberate change to compare on the
-  golden set.
-- **M3** — decide, with golden-set data, whether a relevance-score threshold should
-  return insufficient evidence without calling the model. M2 calls the model whenever
-  retrieval returns anything.
 - **M4** — add the `tsv` column and its GIN index here. `chunks` deliberately has no
   full-text column yet: nothing references it, so it is a self-contained migration, and
   a GIN index over zero rows is meaningless.
@@ -245,3 +364,9 @@ have somewhere to go that is not the current branch.
   seconds during an outage, so it is not worth doing halfway.
 - Replace MinIO with a maintained S3-compatible server for local development and CI.
   The source-built image works but will never receive fixes.
+- Normalise typographic ligatures when parsing. `parse_pdf` keeps characters such as
+  "ﬁ" and "ﬀ": the embedding tokenizer reads "coeﬀicients" as `[UNK]`, exact quote
+  matching misses them, and M4's full-text search would not match "ﬁrst" to "first". A
+  sentence's embedding barely moves (0.989 similarity to its plain form, checked
+  2026-09-12), and the M3 corpus contains none. Every chunk would change, so any
+  baseline recorded before the fix must be re-run.

@@ -15,7 +15,7 @@ Two rules govern it:
 | Area | Criterion | Measured by | Status |
 | --- | --- | --- | --- |
 | Retrieval | Recall@5 ≥ 0.90 (n=30) | `make eval` | not yet measured |
-| Citations | Validation rejects 100% of invalid chunk ids | `make eval` | not yet measured |
+| Citations | Validation rejects 100% of invalid citations | `make eval` | not yet measured |
 | Refusal | 8/8 unanswerable questions refused | `make eval` | not yet measured |
 | API reliability | ≥ 99% non-5xx, 30 VU × 5 min, stubbed generator | k6 on kind | not yet measured |
 | Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | not yet measured |
@@ -34,6 +34,9 @@ Reported alongside, with no target attached:
   criterion above is a hard gate the code enforces, so it passes by construction; this
   number is the interesting one, and it is what justifies having written the validator.
 - **Per-stage latency breakdown** — embedding, vector search, prompt assembly, LLM.
+- **False refusals.** Answerable questions recorded as insufficient evidence. Without
+  this figure, a service that refused every question would still meet the refusal
+  criterion.
 
 ## Sample size
 
@@ -57,6 +60,31 @@ invalidates every number above:
 - **Freeze the corpus.** Adding or re-parsing documents makes runs incomparable, so the
   ablation between retrieval strategies stops meaning anything.
 
+## Scoring
+
+Fixed in M3 alongside the golden set's format, before any run.
+
+- **Hit.** Each answerable question lists one or more places its answer is stated: a
+  document, a page, and a short verbatim quote from that page. A retrieved chunk is a
+  hit when it comes from that document, its pages include that page, and its text
+  contains the quote, compared case-insensitively with whitespace collapsed. Page
+  overlap alone would credit neighbouring chunks that do not hold the answer. Quotes are
+  kept under 48 tokens, and consecutive chunks overlap by at least 64, so every quote
+  lies whole within some chunk.
+- **Recall@5** is the share of the 30 answerable questions with a hit among the five
+  chunks the service's own search returns. With one fact per question it is strictly a
+  hit rate; the conventional name is kept.
+- **MRR@10** averages, over answerable questions, the reciprocal rank of the first hit
+  in a separate ten-chunk search, counting 0 where there is none. The searches are kept
+  separate so an approximate index can never make Recall@5 differ from what the service
+  retrieves.
+- **Refusal** counts unanswerable questions recorded as `insufficient_evidence`. A
+  declined or failed question is not a refusal, and is reported separately.
+- **Citation validity** reads every `[n]` marker back out of a returned answer and
+  requires it to name a chunk retrieved for that question and marked as cited. The raw
+  invalid-citation rate is rejected citation numbers over rejected plus accepted, each
+  counted once per question, across questions whose answers reached validation.
+
 ## Deliberately not measured
 
 **Answer groundedness.** Scoring whether an answer is supported by its retrieved
@@ -79,4 +107,7 @@ roadmap's Parked list; the honest statement is that grounding is enforced struct
 
 ## Revisions
 
-_None yet._
+- **2026-09-12, before any measurement.** The citations criterion names invalid
+  citations rather than invalid chunk ids: since M2, chunk ids never reach the model,
+  which cites passage numbers. [Scoring](#scoring) defines hits and each golden-set
+  figure, and false refusals join the figures reported alongside. No target changed.
