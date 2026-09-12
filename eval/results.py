@@ -1,12 +1,13 @@
 """What a run records: the figures, each question's detail, and how to reproduce them.
 
 Every figure carries its n, as success-criteria.md requires, and every run records the
-commit, corpus, golden set, model, chunking, and pgvector version it was measured with.
+commit, corpus, golden set, models, chunking, and pgvector version it was measured with.
 """
 
 import json
 import statistics
 import subprocess
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime
@@ -16,8 +17,10 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.generation.claude import MODEL as CLAUDE_MODEL
 from app.ingest.chunk import CHUNK_TOKENS, OVERLAP_TOKENS
 from app.services.embeddings import EMBEDDING_MODEL
+from eval.answering import STAGES, AnsweringReport
 from eval.corpus import Corpus
 from eval.golden import GoldenSet
 from eval.retrieval import MRR_K, RECALL_K, RetrievalReport
@@ -26,7 +29,7 @@ RESULTS_DIR = Path(__file__).parent / "results"
 
 
 def run_metadata(
-    session: Session, corpus: Corpus, golden: GoldenSet, started: datetime
+    session: Session, corpus: Corpus, golden: GoldenSet, started: datetime, answers: str
 ) -> dict[str, Any]:
     return {
         "started_at": started.isoformat(timespec="seconds"),
@@ -38,6 +41,8 @@ def run_metadata(
         "chunk_overlap_tokens": OVERLAP_TOKENS,
         "retriever": "dense",
         "pgvector_version": pgvector_version(session),
+        "answers": answers,
+        "generation_model": CLAUDE_MODEL if answers == "claude" else None,
     }
 
 
@@ -60,6 +65,30 @@ def retrieval_record(report: RetrievalReport) -> dict[str, Any]:
     }
 
 
+def answering_record(report: AnsweringReport, measured: bool) -> dict[str, Any]:
+    return {
+        "measured": measured,
+        "refused": report.refused,
+        "unanswerable_count": len(report.unanswerable),
+        "false_refusals": report.false_refusals,
+        "answerable_count": len(report.answerable),
+        "outcomes": dict(Counter(result.outcome for result in report.results)),
+        "markers_checked": report.markers_checked,
+        "unresolved_markers": report.unresolved_markers,
+        "questions_checked": report.questions_checked,
+        "rejected_citations": report.rejected_citations,
+        "accepted_citations": report.accepted_citations,
+        "raw_invalid_citation_rate": report.raw_invalid_citation_rate,
+        "input_tokens": report.input_tokens,
+        "output_tokens": report.output_tokens,
+        "latency_ms": {stage: report.latency(stage) for stage in STAGES},
+        "questions": [
+            asdict(result) | {"unresolved_markers": list(result.unresolved_markers)}
+            for result in report.results
+        ],
+    }
+
+
 def write_results(record: Mapping[str, Any], directory: Path, started: datetime) -> Path:
     """Write a run's record as JSON, named by when it started, and return the path."""
     directory.mkdir(parents=True, exist_ok=True)
@@ -71,7 +100,7 @@ def write_results(record: Mapping[str, Any], directory: Path, started: datetime)
 def render_summary(
     report: RetrievalReport, metadata: Mapping[str, Any], chunk_counts: Mapping[str, int]
 ) -> str:
-    """A Markdown summary of the run, for a terminal or a CI job summary."""
+    """A Markdown summary of the retrieval figures, for a terminal or a CI job summary."""
     git = metadata["git"]
     commit = "unknown commit" if git is None else git["commit"][:7]
     if git is not None and git["uncommitted_changes"]:
@@ -102,6 +131,64 @@ def render_summary(
     return "\n".join(lines)
 
 
+def render_answering(report: AnsweringReport, measured: bool, model: str | None) -> str:
+    """A Markdown summary of the answering figures, or why they were not measured."""
+    n = len(report.results)
+    outcomes = ", ".join(
+        f"{outcome} {count}"
+        for outcome, count in sorted(Counter(r.outcome for r in report.results).items())
+    )
+    if not measured:
+        return "\n".join(
+            [
+                "## Answering evaluation",
+                "",
+                "Not measured: the stub generator answered, and it answers every question from "
+                "its top passage. Run `make eval-live` to measure with Claude.",
+                "",
+                f"The answering path ran for all {n} questions ({outcomes}).",
+            ]
+        )
+
+    rate = report.raw_invalid_citation_rate
+    total = report.rejected_citations + report.accepted_citations
+    rate_text = (
+        "no citations checked"
+        if rate is None
+        else f"{report.rejected_citations}/{total} = {rate:.3f} "
+        f"({report.questions_checked} questions checked)"
+    )
+    lines = [
+        f"## Answering evaluation ({model})",
+        "",
+        "| Figure | Value |",
+        "| --- | --- |",
+        f"| Unanswerable questions refused | {report.refused}/{len(report.unanswerable)} |",
+        f"| False refusals of answerable questions | "
+        f"{report.false_refusals}/{len(report.answerable)} |",
+        f"| Declined / failed (n={n}) | {report.count('declined')} / {report.count('failed')} |",
+        f"| Returned markers naming no cited chunk | "
+        f"{report.unresolved_markers} of {report.markers_checked} |",
+        f"| Raw invalid-citation rate | {rate_text} |",
+        f"| Tokens | {report.input_tokens:,} input, {report.output_tokens:,} output |",
+        "",
+        "Latency, ms, P50 / P95: "
+        + "; ".join(f"{stage.removesuffix('_ms')} {_ms(report.latency(stage))}" for stage in STAGES)
+        + ".",
+        "",
+        "Outcomes: " + outcomes + ".",
+        _listing(
+            "Unanswerable, not refused",
+            [r for r in report.unanswerable if r.outcome != "insufficient_evidence"],
+        ),
+        _listing(
+            "Answerable, refused",
+            [r for r in report.answerable if r.outcome == "insufficient_evidence"],
+        ),
+    ]
+    return "\n".join(lines)
+
+
 def _misses(report: RetrievalReport) -> str:
     missed = [
         f"`{result.question_id}` ("
@@ -115,6 +202,17 @@ def _misses(report: RetrievalReport) -> str:
         if result.rank_at_5 is None
     ]
     return f"Missed at {RECALL_K}: " + (", ".join(missed) if missed else "none") + "."
+
+
+def _listing(label: str, results: Sequence[Any]) -> str:
+    names = ", ".join(f"`{result.question_id}` ({result.outcome})" for result in results)
+    return f"{label}: {names or 'none'}."
+
+
+def _ms(latency: Mapping[str, float | int | None]) -> str:
+    if latency["n"] == 0:
+        return "did not run"
+    return f"{latency['p50']} / {latency['p95']} (n={latency['n']})"
 
 
 def _spread(scores: Sequence[float | None]) -> str:

@@ -4,7 +4,7 @@ import pytest
 
 from app.retrieval.dense import RetrievedChunk
 from eval.golden import Evidence
-from eval.metrics import first_hit_rank, is_hit, mean_reciprocal_rank, recall_at
+from eval.metrics import first_hit_rank, is_hit, mean_reciprocal_rank, percentile, recall_at
 
 QUOTE = "Blocking out time for relaxation"
 EVIDENCE = (Evidence("fatigue.pdf", 29, QUOTE),)
@@ -69,6 +69,13 @@ def test_recall_is_the_share_of_questions_with_a_hit_within_k() -> None:
 def test_mrr_averages_reciprocal_ranks_within_k_counting_the_rest_as_zero() -> None:
     assert mean_reciprocal_rank([1, 2, None, 4], k=10) == pytest.approx((1 + 0.5 + 0.25) / 4)
     assert mean_reciprocal_rank([1, 2, None, 4], k=3) == pytest.approx((1 + 0.5) / 4)
+
+
+def test_a_percentile_is_the_nearest_rank_so_every_value_was_observed() -> None:
+    assert percentile([40, 10, 30, 20], 50) == 20
+    assert percentile([40, 10, 30, 20], 95) == 40
+    assert percentile([7], 95) == 7
+    assert percentile([], 50) is None
 
 
 def test_scoring_no_questions_is_an_error() -> None:

@@ -6,6 +6,7 @@ alone would credit neighbouring chunks that do not hold the answer; the quote is
 shows the chunk does.
 """
 
+import math
 from collections.abc import Sequence
 
 from app.retrieval.dense import RetrievedChunk
@@ -38,6 +39,18 @@ def recall_at(ranks: Sequence[int | None], k: int) -> float:
 def mean_reciprocal_rank(ranks: Sequence[int | None], k: int) -> float:
     """The mean of 1/rank of each question's first hit within k, counting 0 where none is."""
     return _mean([1 / rank if rank is not None and rank <= k else 0.0 for rank in ranks])
+
+
+def percentile(values: Sequence[float], p: float) -> float | None:
+    """The nearest-rank percentile: the smallest value with at least p% of values at or below.
+
+    Nearest rank rather than interpolation, so every reported latency is one that a
+    question actually took. None when there are no values.
+    """
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[max(1, math.ceil(p / 100 * len(ordered))) - 1]
 
 
 def _mean(values: Sequence[float]) -> float:

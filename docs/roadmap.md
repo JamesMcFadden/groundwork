@@ -145,7 +145,7 @@ Planned 2026-09-12.
 - [x] `feat(eval): add golden set of 30 answerable and 8 unanswerable questions`
 - [x] `feat(eval): ingest the corpus into an isolated eval collection`
 - [x] `feat(eval): report Recall@5 and MRR@10 for dense retrieval`
-- [ ] `feat(eval): report refusal and citation validity through the answering path`
+- [x] `feat(eval): report refusal and citation validity through the answering path`
 - [ ] `ci: run the retrieval eval on every pull request`
 - [ ] `feat(eval): compare retrieval with and without a query instruction prefix`
 - [ ] `feat(embeddings): embed queries with the bge instruction prefix`, only if the
