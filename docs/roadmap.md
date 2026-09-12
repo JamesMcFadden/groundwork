@@ -79,7 +79,7 @@ version.
 - [x] `feat(api): add POST /questions with per-stage timings`
 - [x] `build: move embedding weights into the shared runtime stage`
 - [x] `ci: run the live claude test on main and on demand`
-- [ ] `test(integration): assert invalid citations are never returned or recorded`
+- [x] `test(integration): assert invalid citations are never returned or recorded`
 - [ ] `test(integration): assert insufficient evidence skips the model call`
 
 Decisions taken while planning:

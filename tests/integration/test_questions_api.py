@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.db.models import Chunk, Collection, Document, User
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.generation.context import Passage
-from app.generation.generator import Generation, GenerationDeclined, Generator
+from app.generation.generator import Generation, GenerationDeclined, Generator, Statement
 from app.generation.stub import StubGenerator
 from app.main import create_app
 from app.services.embeddings import Embedder
@@ -286,3 +286,78 @@ def test_no_database_connection_is_held_while_the_model_generates(
 
     assert response.status_code == 201
     assert watcher.checked_out == [0]
+
+
+class ScriptedGenerator:
+    """Answers with fixed statements whatever it is asked, citing what the test chooses."""
+
+    def __init__(self, *statements: Statement) -> None:
+        self.statements = statements
+
+    def generate(self, question: str, passages: Sequence[Passage]) -> Generation:
+        return Generation(
+            statements=self.statements,
+            insufficient_evidence=False,
+            input_tokens=500,
+            output_tokens=60,
+        )
+
+
+def test_invalid_citations_are_never_returned_or_recorded(
+    engine: Engine, embedder: Embedder
+) -> None:
+    """Three passages are supplied, so [7] and [0] name nothing.
+
+    They must vanish from the answer, its citations, and the record alike, and a statement
+    resting only on them must go with them. What remains of them is a count.
+    """
+    collection_id = add_collection(engine, embedder, PASSAGES)
+    generator = ScriptedGenerator(
+        Statement("Stale jobs are reclaimed by another worker.", (2, 7)),
+        Statement("Reclaimed jobs are retried forever.", (0,)),
+    )
+
+    with serving(embedder, generator) as client:
+        body = ask(client, collection_id).json()
+
+    assert body["outcome"] == "answered"
+    assert body["answer"] == "Stale jobs are reclaimed by another worker [2]."
+    assert [citation["marker"] for citation in body["citations"]] == [2]
+    results = retrieval_results(engine, body["id"])
+    assert [(result.rank, result.cited) for result in results] == [
+        (1, False),
+        (2, True),
+        (3, False),
+    ]
+    assert body["citations"][0]["chunk_id"] == results[1].chunk_id
+    row = recorded_question(engine, collection_id)
+    assert (row.answer_text, row.invalid_citations) == (body["answer"], 2)
+
+
+def test_an_answer_left_with_no_valid_citation_is_downgraded_to_insufficient_evidence(
+    engine: Engine, embedder: Embedder
+) -> None:
+    """Nothing the answer claims rests on a supplied passage, so nothing of it is returned."""
+    collection_id = add_collection(engine, embedder, PASSAGES)
+    generator = ScriptedGenerator(
+        Statement("An invented claim.", (4,)),
+        Statement("Another invented claim.", (9, 4)),
+    )
+
+    with serving(embedder, generator) as client:
+        response = ask(client, collection_id)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert (body["outcome"], body["answer"], body["citations"]) == (
+        "insufficient_evidence",
+        None,
+        [],
+    )
+    assert not any(result.cited for result in retrieval_results(engine, body["id"]))
+    row = recorded_question(engine, collection_id)
+    assert (row.outcome, row.answer_text, row.invalid_citations) == (
+        "insufficient_evidence",
+        None,
+        2,
+    )
