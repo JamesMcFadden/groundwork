@@ -75,7 +75,7 @@ version.
 - [x] `feat(generation): add generator protocol, numbered context, and stub backend`
 - [x] `feat(generation): add claude backend with structured citations`
 - [x] `feat(generation): validate citations against the supplied context`
-- [ ] `feat(db): record question outcome and invalid citation count`
+- [x] `feat(db): record question outcome and invalid citation count`
 - [ ] `feat(api): add POST /questions with per-stage timings`
 - [ ] `build: move embedding weights into the shared runtime stage`
 - [ ] `ci: run the live claude test on main and on demand`

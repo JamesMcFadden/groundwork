@@ -37,7 +37,11 @@ extension version. Seven tables: `users`, `collections`,
 `documents`, `chunks`, `ingestion_jobs`, `questions`, `retrieval_results`. Schema is
 managed by Alembic and applies from empty. `chunks.embedding` is `vector(384)`, fixed
 by the embedding model; `chunks.collection_id` is denormalised from `documents` so
-tenant-filtered vector search stays single-table.
+tenant-filtered vector search stays single-table. `questions.outcome` is `answered`,
+`insufficient_evidence`, `declined`, or `failed`, enforced by a check constraint, so
+every question asked can be counted. Declined and failed rows keep the exception's class
+name in `error_class`, never its message, and `invalid_citations` is null wherever no
+answer was checked.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
