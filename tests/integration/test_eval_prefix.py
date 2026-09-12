@@ -54,7 +54,7 @@ def test_the_comparison_starts_from_the_services_own_retrieval_and_the_prefix_ch
     ingested = ingest_corpus(sessions, embedder, documents, email=TEST_EMAIL)
 
     comparison = compare_prefix(sessions, embedder, ingested.collection_id, golden)
-    service = run_retrieval(sessions, embedder.embed_query, ingested.collection_id, golden)
+    service = run_retrieval(sessions, embedder.embed_query, ingested.collection_id, golden, "dense")
 
     assert comparison.without == service
     without_scores = [r.best_score for r in comparison.without.answerable]

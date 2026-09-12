@@ -1,0 +1,2158 @@
+{
+  "metadata": {
+    "started_at": "2026-09-12T22:06:46+00:00",
+    "git": {
+      "commit": "38dd6611e9519fbaafffad320f63d3116128d603",
+      "uncommitted_changes": false
+    },
+    "corpus_manifest_sha256": "4d50f297b5883da5a0f612ad09d5a3fb052f6661131c4fda93899bc8d2bebf1f",
+    "golden_set_sha256": "c9ece53bf82daa915356a968eadce626fb68801f26ff2b387ec283c6290b67e9",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "chunk_tokens": 510,
+    "chunk_overlap_tokens": 64,
+    "retriever": "dense",
+    "pgvector_version": "0.8.6",
+    "answers": "stub",
+    "generation_model": null
+  },
+  "chunk_counts": {
+    "faint-lateral-cutoff.pdf": 31,
+    "iss-crew-workload-fatigue.pdf": 74,
+    "small-satellite-failure-rates.pdf": 43,
+    "uam-motion-sickness.pdf": 55,
+    "uam-risk.pdf": 24,
+    "x59-cumulative-noise-metrics.pdf": 35
+  },
+  "retrieval": {
+    "retriever": "dense",
+    "recall_at_5": 0.9,
+    "hits_at_5": 27,
+    "mrr_at_10": 0.763095238095238,
+    "answerable_count": 30,
+    "answerable": [
+      {
+        "question_id": "a01",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.767828106880188
+      },
+      {
+        "question_id": "a02",
+        "rank_at_5": 2,
+        "rank_at_10": 2,
+        "best_score": 0.7324723601341248
+      },
+      {
+        "question_id": "a03",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7387794256210327
+      },
+      {
+        "question_id": "a04",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7927864789962769
+      },
+      {
+        "question_id": "a05",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.8492356538772583
+      },
+      {
+        "question_id": "a06",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.772158145904541
+      },
+      {
+        "question_id": "a07",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.711175799369812
+      },
+      {
+        "question_id": "a08",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7208478450775146
+      },
+      {
+        "question_id": "a09",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7664090991020203
+      },
+      {
+        "question_id": "a10",
+        "rank_at_5": 5,
+        "rank_at_10": 5,
+        "best_score": 0.8252044916152954
+      },
+      {
+        "question_id": "a11",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.717994213104248
+      },
+      {
+        "question_id": "a12",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.6629060506820679
+      },
+      {
+        "question_id": "a13",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7492517232894897
+      },
+      {
+        "question_id": "a14",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7456516027450562
+      },
+      {
+        "question_id": "a15",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7607122659683228
+      },
+      {
+        "question_id": "a16",
+        "rank_at_5": 2,
+        "rank_at_10": 2,
+        "best_score": 0.870276927947998
+      },
+      {
+        "question_id": "a17",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.69243323802948
+      },
+      {
+        "question_id": "a18",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.8107150197029114
+      },
+      {
+        "question_id": "a19",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.8734710216522217
+      },
+      {
+        "question_id": "a20",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7455587387084961
+      },
+      {
+        "question_id": "a21",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7295392155647278
+      },
+      {
+        "question_id": "a22",
+        "rank_at_5": 5,
+        "rank_at_10": 5,
+        "best_score": 0.7966998219490051
+      },
+      {
+        "question_id": "a23",
+        "rank_at_5": null,
+        "rank_at_10": 7,
+        "best_score": 0.713932991027832
+      },
+      {
+        "question_id": "a24",
+        "rank_at_5": 4,
+        "rank_at_10": 4,
+        "best_score": 0.6877639889717102
+      },
+      {
+        "question_id": "a25",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.7985386848449707
+      },
+      {
+        "question_id": "a26",
+        "rank_at_5": 2,
+        "rank_at_10": 2,
+        "best_score": 0.7959263920783997
+      },
+      {
+        "question_id": "a27",
+        "rank_at_5": 2,
+        "rank_at_10": 2,
+        "best_score": 0.7814779281616211
+      },
+      {
+        "question_id": "a28",
+        "rank_at_5": null,
+        "rank_at_10": 10,
+        "best_score": 0.7687802314758301
+      },
+      {
+        "question_id": "a29",
+        "rank_at_5": 1,
+        "rank_at_10": 1,
+        "best_score": 0.8246472477912903
+      },
+      {
+        "question_id": "a30",
+        "rank_at_5": null,
+        "rank_at_10": null,
+        "best_score": 0.7348598837852478
+      }
+    ],
+    "unanswerable": [
+      {
+        "question_id": "u01",
+        "best_score": 0.8706179857254028
+      },
+      {
+        "question_id": "u02",
+        "best_score": 0.7555689811706543
+      },
+      {
+        "question_id": "u03",
+        "best_score": 0.7241007089614868
+      },
+      {
+        "question_id": "u04",
+        "best_score": 0.8060308694839478
+      },
+      {
+        "question_id": "u05",
+        "best_score": 0.7236332893371582
+      },
+      {
+        "question_id": "u06",
+        "best_score": 0.8583586812019348
+      },
+      {
+        "question_id": "u07",
+        "best_score": 0.7932169437408447
+      },
+      {
+        "question_id": "u08",
+        "best_score": 0.7656534910202026
+      }
+    ]
+  },
+  "retriever_comparison": {
+    "min_net_fixed": 2,
+    "fixed_at_5": [
+      "a23",
+      "a28"
+    ],
+    "broken_at_5": [],
+    "net_fixed": 2,
+    "adopt_hybrid": true,
+    "dense": {
+      "retriever": "dense",
+      "recall_at_5": 0.9,
+      "hits_at_5": 27,
+      "mrr_at_10": 0.763095238095238,
+      "answerable_count": 30,
+      "answerable": [
+        {
+          "question_id": "a01",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.767828106880188
+        },
+        {
+          "question_id": "a02",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7324723601341248
+        },
+        {
+          "question_id": "a03",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7387794256210327
+        },
+        {
+          "question_id": "a04",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7927864789962769
+        },
+        {
+          "question_id": "a05",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8492356538772583
+        },
+        {
+          "question_id": "a06",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.772158145904541
+        },
+        {
+          "question_id": "a07",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.711175799369812
+        },
+        {
+          "question_id": "a08",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7208478450775146
+        },
+        {
+          "question_id": "a09",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7664090991020203
+        },
+        {
+          "question_id": "a10",
+          "rank_at_5": 5,
+          "rank_at_10": 5,
+          "best_score": 0.8252044916152954
+        },
+        {
+          "question_id": "a11",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.717994213104248
+        },
+        {
+          "question_id": "a12",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6629060506820679
+        },
+        {
+          "question_id": "a13",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7492517232894897
+        },
+        {
+          "question_id": "a14",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7456516027450562
+        },
+        {
+          "question_id": "a15",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7607122659683228
+        },
+        {
+          "question_id": "a16",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.870276927947998
+        },
+        {
+          "question_id": "a17",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.69243323802948
+        },
+        {
+          "question_id": "a18",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8107150197029114
+        },
+        {
+          "question_id": "a19",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8734710216522217
+        },
+        {
+          "question_id": "a20",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7455587387084961
+        },
+        {
+          "question_id": "a21",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7295392155647278
+        },
+        {
+          "question_id": "a22",
+          "rank_at_5": 5,
+          "rank_at_10": 5,
+          "best_score": 0.7966998219490051
+        },
+        {
+          "question_id": "a23",
+          "rank_at_5": null,
+          "rank_at_10": 7,
+          "best_score": 0.713932991027832
+        },
+        {
+          "question_id": "a24",
+          "rank_at_5": 4,
+          "rank_at_10": 4,
+          "best_score": 0.6877639889717102
+        },
+        {
+          "question_id": "a25",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7985386848449707
+        },
+        {
+          "question_id": "a26",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7959263920783997
+        },
+        {
+          "question_id": "a27",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7814779281616211
+        },
+        {
+          "question_id": "a28",
+          "rank_at_5": null,
+          "rank_at_10": 10,
+          "best_score": 0.7687802314758301
+        },
+        {
+          "question_id": "a29",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8246472477912903
+        },
+        {
+          "question_id": "a30",
+          "rank_at_5": null,
+          "rank_at_10": null,
+          "best_score": 0.7348598837852478
+        }
+      ],
+      "unanswerable": [
+        {
+          "question_id": "u01",
+          "best_score": 0.8706179857254028
+        },
+        {
+          "question_id": "u02",
+          "best_score": 0.7555689811706543
+        },
+        {
+          "question_id": "u03",
+          "best_score": 0.7241007089614868
+        },
+        {
+          "question_id": "u04",
+          "best_score": 0.8060308694839478
+        },
+        {
+          "question_id": "u05",
+          "best_score": 0.7236332893371582
+        },
+        {
+          "question_id": "u06",
+          "best_score": 0.8583586812019348
+        },
+        {
+          "question_id": "u07",
+          "best_score": 0.7932169437408447
+        },
+        {
+          "question_id": "u08",
+          "best_score": 0.7656534910202026
+        }
+      ]
+    },
+    "hybrid": {
+      "retriever": "hybrid",
+      "recall_at_5": 0.9666666666666667,
+      "hits_at_5": 29,
+      "mrr_at_10": 0.8916666666666667,
+      "answerable_count": 30,
+      "answerable": [
+        {
+          "question_id": "a01",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a02",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a03",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a04",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a05",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a06",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a07",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a08",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a09",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a10",
+          "rank_at_5": 3,
+          "rank_at_10": 3,
+          "best_score": null
+        },
+        {
+          "question_id": "a11",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a12",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a13",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a14",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a15",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a16",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a17",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a18",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a19",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a20",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a21",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a22",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": null
+        },
+        {
+          "question_id": "a23",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a24",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": null
+        },
+        {
+          "question_id": "a25",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a26",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a27",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a28",
+          "rank_at_5": 4,
+          "rank_at_10": 4,
+          "best_score": null
+        },
+        {
+          "question_id": "a29",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": null
+        },
+        {
+          "question_id": "a30",
+          "rank_at_5": null,
+          "rank_at_10": 6,
+          "best_score": null
+        }
+      ],
+      "unanswerable": [
+        {
+          "question_id": "u01",
+          "best_score": null
+        },
+        {
+          "question_id": "u02",
+          "best_score": null
+        },
+        {
+          "question_id": "u03",
+          "best_score": null
+        },
+        {
+          "question_id": "u04",
+          "best_score": null
+        },
+        {
+          "question_id": "u05",
+          "best_score": null
+        },
+        {
+          "question_id": "u06",
+          "best_score": null
+        },
+        {
+          "question_id": "u07",
+          "best_score": null
+        },
+        {
+          "question_id": "u08",
+          "best_score": null
+        }
+      ]
+    }
+  },
+  "query_prefix": {
+    "prefix": "Represent this sentence for searching relevant passages: ",
+    "min_net_fixed": 2,
+    "fixed_at_5": [],
+    "broken_at_5": [
+      "a22"
+    ],
+    "net_fixed": -1,
+    "adopt": false,
+    "without": {
+      "retriever": "dense",
+      "recall_at_5": 0.9,
+      "hits_at_5": 27,
+      "mrr_at_10": 0.763095238095238,
+      "answerable_count": 30,
+      "answerable": [
+        {
+          "question_id": "a01",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.767828106880188
+        },
+        {
+          "question_id": "a02",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7324723601341248
+        },
+        {
+          "question_id": "a03",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7387794256210327
+        },
+        {
+          "question_id": "a04",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7927864789962769
+        },
+        {
+          "question_id": "a05",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8492356538772583
+        },
+        {
+          "question_id": "a06",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.772158145904541
+        },
+        {
+          "question_id": "a07",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.711175799369812
+        },
+        {
+          "question_id": "a08",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7208478450775146
+        },
+        {
+          "question_id": "a09",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7664090991020203
+        },
+        {
+          "question_id": "a10",
+          "rank_at_5": 5,
+          "rank_at_10": 5,
+          "best_score": 0.8252044916152954
+        },
+        {
+          "question_id": "a11",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.717994213104248
+        },
+        {
+          "question_id": "a12",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6629060506820679
+        },
+        {
+          "question_id": "a13",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7492517232894897
+        },
+        {
+          "question_id": "a14",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7456516027450562
+        },
+        {
+          "question_id": "a15",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7607122659683228
+        },
+        {
+          "question_id": "a16",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.870276927947998
+        },
+        {
+          "question_id": "a17",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.69243323802948
+        },
+        {
+          "question_id": "a18",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8107150197029114
+        },
+        {
+          "question_id": "a19",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8734710216522217
+        },
+        {
+          "question_id": "a20",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7455587387084961
+        },
+        {
+          "question_id": "a21",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7295392155647278
+        },
+        {
+          "question_id": "a22",
+          "rank_at_5": 5,
+          "rank_at_10": 5,
+          "best_score": 0.7966998219490051
+        },
+        {
+          "question_id": "a23",
+          "rank_at_5": null,
+          "rank_at_10": 7,
+          "best_score": 0.713932991027832
+        },
+        {
+          "question_id": "a24",
+          "rank_at_5": 4,
+          "rank_at_10": 4,
+          "best_score": 0.6877639889717102
+        },
+        {
+          "question_id": "a25",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7985386848449707
+        },
+        {
+          "question_id": "a26",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7959263920783997
+        },
+        {
+          "question_id": "a27",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7814779281616211
+        },
+        {
+          "question_id": "a28",
+          "rank_at_5": null,
+          "rank_at_10": 10,
+          "best_score": 0.7687802314758301
+        },
+        {
+          "question_id": "a29",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8246472477912903
+        },
+        {
+          "question_id": "a30",
+          "rank_at_5": null,
+          "rank_at_10": null,
+          "best_score": 0.7348598837852478
+        }
+      ],
+      "unanswerable": [
+        {
+          "question_id": "u01",
+          "best_score": 0.8706179857254028
+        },
+        {
+          "question_id": "u02",
+          "best_score": 0.7555689811706543
+        },
+        {
+          "question_id": "u03",
+          "best_score": 0.7241007089614868
+        },
+        {
+          "question_id": "u04",
+          "best_score": 0.8060308694839478
+        },
+        {
+          "question_id": "u05",
+          "best_score": 0.7236332893371582
+        },
+        {
+          "question_id": "u06",
+          "best_score": 0.8583586812019348
+        },
+        {
+          "question_id": "u07",
+          "best_score": 0.7932169437408447
+        },
+        {
+          "question_id": "u08",
+          "best_score": 0.7656534910202026
+        }
+      ]
+    },
+    "with_prefix": {
+      "retriever": "dense",
+      "recall_at_5": 0.8666666666666667,
+      "hits_at_5": 26,
+      "mrr_at_10": 0.7855952380952381,
+      "answerable_count": 30,
+      "answerable": [
+        {
+          "question_id": "a01",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7513992786407471
+        },
+        {
+          "question_id": "a02",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.6878896951675415
+        },
+        {
+          "question_id": "a03",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.734105110168457
+        },
+        {
+          "question_id": "a04",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7619156837463379
+        },
+        {
+          "question_id": "a05",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8282780647277832
+        },
+        {
+          "question_id": "a06",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7260265350341797
+        },
+        {
+          "question_id": "a07",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.704985499382019
+        },
+        {
+          "question_id": "a08",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6957901120185852
+        },
+        {
+          "question_id": "a09",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7421915531158447
+        },
+        {
+          "question_id": "a10",
+          "rank_at_5": 5,
+          "rank_at_10": 5,
+          "best_score": 0.7882400751113892
+        },
+        {
+          "question_id": "a11",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6770817041397095
+        },
+        {
+          "question_id": "a12",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6116092205047607
+        },
+        {
+          "question_id": "a13",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7273109555244446
+        },
+        {
+          "question_id": "a14",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7179635763168335
+        },
+        {
+          "question_id": "a15",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7259180545806885
+        },
+        {
+          "question_id": "a16",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.8361308574676514
+        },
+        {
+          "question_id": "a17",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6825838685035706
+        },
+        {
+          "question_id": "a18",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8137092590332031
+        },
+        {
+          "question_id": "a19",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.8656728267669678
+        },
+        {
+          "question_id": "a20",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7148666381835938
+        },
+        {
+          "question_id": "a21",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6906411647796631
+        },
+        {
+          "question_id": "a22",
+          "rank_at_5": null,
+          "rank_at_10": 8,
+          "best_score": 0.7542067766189575
+        },
+        {
+          "question_id": "a23",
+          "rank_at_5": null,
+          "rank_at_10": 7,
+          "best_score": 0.6791753768920898
+        },
+        {
+          "question_id": "a24",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.6689876914024353
+        },
+        {
+          "question_id": "a25",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7726280689239502
+        },
+        {
+          "question_id": "a26",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7988286018371582
+        },
+        {
+          "question_id": "a27",
+          "rank_at_5": 2,
+          "rank_at_10": 2,
+          "best_score": 0.7674590945243835
+        },
+        {
+          "question_id": "a28",
+          "rank_at_5": null,
+          "rank_at_10": 10,
+          "best_score": 0.7447983622550964
+        },
+        {
+          "question_id": "a29",
+          "rank_at_5": 1,
+          "rank_at_10": 1,
+          "best_score": 0.7858875393867493
+        },
+        {
+          "question_id": "a30",
+          "rank_at_5": null,
+          "rank_at_10": null,
+          "best_score": 0.6834332346916199
+        }
+      ],
+      "unanswerable": [
+        {
+          "question_id": "u01",
+          "best_score": 0.8612314462661743
+        },
+        {
+          "question_id": "u02",
+          "best_score": 0.7393617630004883
+        },
+        {
+          "question_id": "u03",
+          "best_score": 0.708959698677063
+        },
+        {
+          "question_id": "u04",
+          "best_score": 0.7776914238929749
+        },
+        {
+          "question_id": "u05",
+          "best_score": 0.6710827350616455
+        },
+        {
+          "question_id": "u06",
+          "best_score": 0.8249592185020447
+        },
+        {
+          "question_id": "u07",
+          "best_score": 0.7601462006568909
+        },
+        {
+          "question_id": "u08",
+          "best_score": 0.748491644859314
+        }
+      ]
+    }
+  },
+  "answering": {
+    "measured": false,
+    "refused": 0,
+    "unanswerable_count": 8,
+    "false_refusals": 0,
+    "answerable_count": 30,
+    "outcomes": {
+      "answered": 38
+    },
+    "markers_checked": 38,
+    "unresolved_markers": 0,
+    "questions_checked": 38,
+    "rejected_citations": 0,
+    "accepted_citations": 38,
+    "raw_invalid_citation_rate": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "latency_ms": {
+      "embed_ms": {
+        "p50": 5,
+        "p95": 6,
+        "n": 38
+      },
+      "search_ms": {
+        "p50": 3,
+        "p95": 4,
+        "n": 38
+      },
+      "prep_ms": {
+        "p50": 0,
+        "p95": 0,
+        "n": 38
+      },
+      "llm_ms": {
+        "p50": 0,
+        "p95": 0,
+        "n": 38
+      },
+      "total_ms": {
+        "p50": 8,
+        "p95": 10,
+        "n": 38
+      }
+    },
+    "questions": [
+      {
+        "question_id": "a01",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "Table 1 Small Satellite Mass Ranges Type Mass Range Femtosatellite Less than 100 g Picosatellite 100 g to 1 kg Nanosatellite (CubeSat) 1 kg to 10 kg Microsatellite 10 kg [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 6,
+          "search_ms": 6,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 12
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a02",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "1 Drexel University and US Naval Academy Satellite deployed into orbit, but no signals were received. 2013 1U ESTCube-1 University of Tartu, Estonia The primary mission was to deploy a [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 4,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a03",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "indicating satellite failure, and at times, a lack of publications indicating success. References 16, 17, and 18 identified many small satellites as either having succeeded or failed, and in the [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a04",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "3 presents the total number of small satellites launched in a year and, of those launches, lists the number of successful, failed, and partially failed missions. The same data is [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 6,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a05",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "total mission failure appears to have increased in recent years seemed counter-intuitive, since increased experience with launching small satellites together with improved small satellite electronics would have been expected to [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a06",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "a tethered blimp with microphones attached, provided and operated by Cessna, to record measurements more than 2000 ft above the ground. The blimp and its data is not discussed here, [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 4,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a07",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "boom footprint on the microphone array required accurate knowledge of the Mach number and altitude of the airplane. The calibration of the airplane production air data system in the supersonic [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 7
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a08",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "the sonic boom carpet edge do not exist at this time. 12 Table 1. FaINT F-18 airplane lateral cutoff test point matrix. Date Flight Number Pass Number Mach Altitude (ft [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a09",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "then found, and stepping backwards through the new signature, the start point was found at the point 99 percent of the energy from the end point had been expended. Since [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a10",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "a strong temperature inversion. The presence and strength of a temperature inversion on the ground has a considerable influence on the lateral profile of a sonic boom carpet near the [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a11",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "WHO World Health Organization WSPR Waveforms and Sonic Boom Perception and Response ZDNL Zero-weighted (or flat or unweighted) day-night average sound level ZSEL Zero-weighted (or flat or unweighted) sound equivalent [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a12",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "on cumulative noise metrics and long- term response. Subsequently, select research from laboratory studies are summarized. 1 General Operating and Flight Rules, 38 Fed. Reg. 8,051, 8,051 (Mar. 28, 1973) [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a13",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "for CDNL with quieter supersonic noise signatures is discussed later in Section B.1 An additional analysis of WSPR data by Fidell (2013) investigated multi-event annoyance predictions. An interesting question he [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a14",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "most common response studied to noise (\ud835\udc5b= 97). Transportation noise is the most studied sound source, particularly aircraft noise (\ud835\udc5b= 59), road traffic (\ud835\udc5b= 39), and railway (\ud835\udc5b= 23). 7 [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a15",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "developed with application to en-route supersonic noise in mind while also influenced by work from Urban Air Mobility (UAM) vehicle noise. Much of the background literature focuses on the \u201cnoise [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 7
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a16",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "were 10%, 38%, 26%, and 38%, respectively, for passengers who never, rarely, sometimes, and frequently experience motion sickness. For the no-task condition, a progression of increasing incidences of symptoms was [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a17",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "motion sickness include user-worn devices, anti-motion sickness medications, and non-pharmacological approaches such as biofeedback and Autogenic Feedback Training Exercise. Both simulator and in-vehicle UAM research is needed to evaluate the [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a18",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "brain compares information arriving simultaneously from the vestibular, visual, and proprioceptive receptor systems (Reason & Brand, 1975). A mismatch between this information leads to symptoms of motion sickness until the [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a19",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "the Motion Sickness Susceptibility Questionnaire (MSSQ) (Reason & Brand, 1975). That questionnaire is lengthy, and as a consequence, takes some time to complete. It includes instructions and 4 basic questions, [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a20",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "biofeedback and Autogenic Feedback Training. Visual Fixation Device: Bonato et al, 2015) tested the effectiveness of a user-worn device that provides a visual fixation point that moves with the user [1].",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 6,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a21",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "barriers to be addressed in successfully introducing On Demand Mobility (ODM) vehicles and services (ODM and Emerging Technology Workshop, 2016). Of the nine challenges assessed, the highest priority was assigned [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a22",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "vehicles. Electric and hybrid propulsion systems are relatively new to aviation, requiring new emphasis on vertical lift and forward motion. However, in terms of safety, all need to be measured [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a23",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "trajectories required of UAM flights. As an initial, top-down look into the issues associated with UAM flight paths, a full analysis is needed of scenarios that can describe representative UAM [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a24",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "the valuable resource of airspace. This is a huge challenge at a time when the present air traffic control system is struggling to keep up with growing conventional demands. The [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a25",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "companies developing UAM vehicles are looking to both domestic and foreign markets. Safety is a universal concern and is a natural focus for international as well as domestic cooperation. The [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a26",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "3 period of approximately one year, generally from the first manned launch in the calendar year until the first launch of the next calendar year. The third planning step is [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 7
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a27",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "searching for additional abatement tactics is a sensible topic of research. It is not known to what extent the sleep deficiency can be explained by characteristics of crew workload. This [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a28",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "searching for additional abatement tactics is a sensible topic of research. It is not known to what extent the sleep deficiency can be explained by characteristics of crew workload. This [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a29",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "long-sleepers (Hamet & Tremblay, 2006). Caffeine has been shown to have beneficial effects on cognitive performance when individuals are either partially or totally sleep deprived (Patat, Rosenzweig, Enslen, Tocherie, et [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "a30",
+        "answerable": true,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "on a stressful workday is not possible because there is simply too much to do, autonomy and time control might help employees to adjust work demands to individual needs and [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u01",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "Successful Missions Figure 5 Percent of small satellite missions failed or partially failed. Figure 5 presents the percent of small satellite missions that either totally failed or partially failed to [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u02",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "paper focuses on quantifying the lateral extent of noise beyond a sonic boom\u2019s carpet; analyzing the change in sonic boom levels as a function of distance from flight path, using [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 6,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 10
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u03",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "WHO World Health Organization WSPR Waveforms and Sonic Boom Perception and Response ZDNL Zero-weighted (or flat or unweighted) day-night average sound level ZSEL Zero-weighted (or flat or unweighted) sound equivalent [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 6,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 10
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u04",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "were 10%, 38%, 26%, and 38%, respectively, for passengers who never, rarely, sometimes, and frequently experience motion sickness. For the no-task condition, a progression of increasing incidences of symptoms was [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 4,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u05",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "barriers to be addressed in successfully introducing On Demand Mobility (ODM) vehicles and services (ODM and Emerging Technology Workshop, 2016). Of the nine challenges assessed, the highest priority was assigned [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 6,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 10
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u06",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "deadlines. Here it will be argued that these human capital leveraging techniques may be undermining the astronaut\u2019s sleep, which could negatively impact performance. Along with half of the Earth-bound working [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u07",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "of launch failures of all space vehicles launched between 1957 and 2017. The data was compiled from References 16, 17, and 18. The list includes all rocket launches, US space [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 3,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 8
+        },
+        "unresolved_markers": []
+      },
+      {
+        "question_id": "u08",
+        "answerable": false,
+        "retriever": "dense",
+        "outcome": "answered",
+        "answer_text": "deadlines. Here it will be argued that these human capital leveraging techniques may be undermining the astronaut\u2019s sleep, which could negatively impact performance. Along with half of the Earth-bound working [1]",
+        "markers": [
+          1
+        ],
+        "cited_ranks": [
+          1
+        ],
+        "invalid_citations": 0,
+        "error_class": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "timings": {
+          "embed_ms": 5,
+          "search_ms": 4,
+          "prep_ms": 0,
+          "llm_ms": 0,
+          "total_ms": 9
+        },
+        "unresolved_markers": []
+      }
+    ]
+  }
+}

@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.services.embeddings import Embedder
 from eval.golden import GoldenSet
-from eval.retrieval import QueryEmbedder, RetrievalReport, run_retrieval
+from eval.retrieval import QueryEmbedder, RetrievalReport, flipped_at_5, run_retrieval
 
 QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
@@ -53,12 +53,12 @@ class PrefixComparison:
     @property
     def fixed(self) -> list[str]:
         """Questions with a hit at 5 only when the prefix is added."""
-        return self._flips(gained=True)
+        return flipped_at_5(self.without, self.with_prefix, gained=True)
 
     @property
     def broken(self) -> list[str]:
         """Questions with a hit at 5 only when it is not."""
-        return self._flips(gained=False)
+        return flipped_at_5(self.without, self.with_prefix, gained=False)
 
     @property
     def net_fixed(self) -> int:
@@ -70,15 +70,6 @@ class PrefixComparison:
             self.net_fixed >= MIN_NET_FIXED and self.with_prefix.mrr_at_10 >= self.without.mrr_at_10
         )
 
-    def _flips(self, gained: bool) -> list[str]:
-        hit_without = {r.question_id: r.rank_at_5 is not None for r in self.without.answerable}
-        return [
-            result.question_id
-            for result in self.with_prefix.answerable
-            if (result.rank_at_5 is not None) == gained
-            and hit_without[result.question_id] != gained
-        ]
-
 
 def compare_prefix(
     sessions: sessionmaker[Session],
@@ -86,9 +77,13 @@ def compare_prefix(
     collection_id: uuid.UUID,
     golden: GoldenSet,
 ) -> PrefixComparison:
-    """Score retrieval over the same collection and questions, without and with the prefix."""
+    """Score retrieval over the same collection and questions, without and with the prefix.
+
+    Always dense search, whatever the run's retriever: the rule was pre-registered for it,
+    and applied in M3.
+    """
     without, with_prefix = query_embedders(embedder.embed_passages)
     return PrefixComparison(
-        without=run_retrieval(sessions, without, collection_id, golden),
-        with_prefix=run_retrieval(sessions, with_prefix, collection_id, golden),
+        without=run_retrieval(sessions, without, collection_id, golden, "dense"),
+        with_prefix=run_retrieval(sessions, with_prefix, collection_id, golden, "dense"),
     )

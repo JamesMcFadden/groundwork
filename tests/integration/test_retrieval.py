@@ -13,9 +13,12 @@ from app.config import get_settings
 from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.retrieval.dense import TOP_K, dense_search
+from app.retrieval.fulltext import fulltext_search
+from app.retrieval.hybrid import hybrid_search
 from app.services.embeddings import Embedder
 
 HNSW_INDEX = "ix_chunks_embedding_hnsw"
+GIN_INDEX = "ix_chunks_tsv_gin"
 
 
 @pytest.fixture
@@ -258,3 +261,230 @@ def test_a_small_collection_in_a_large_index_still_fills_its_results(
         results = dense_search(session, mine, axis(0))
 
     assert sorted(result.chunk_id for result in results) == sorted(own)
+
+
+def add_passages(
+    sessions: sessionmaker[Session],
+    collection_id: uuid.UUID,
+    passages: list[str],
+    filename: str = "report.pdf",
+) -> list[int]:
+    """Store passages for full-text search, which reads their words and never their vectors."""
+    return add_document(
+        sessions,
+        collection_id,
+        [(passage, axis(i)) for i, passage in enumerate(passages)],
+        filename=filename,
+    )
+
+
+def test_full_text_finds_chunks_holding_only_some_of_the_questions_words(
+    sessions: sessionmaker[Session],
+) -> None:
+    """Requiring every word would find nothing: no passage says "loud" or "people"."""
+    collection_id = add_collection(sessions, "any-word")
+    boom, _ = add_passages(
+        sessions,
+        collection_id,
+        [
+            "Supersonic aircraft produce a boom heard on the ground.",
+            "Crew members reported fatigue on the space station.",
+        ],
+    )
+
+    with sessions() as session:
+        results = fulltext_search(
+            session, collection_id, "How loud was the boom people heard on the ground?"
+        )
+
+    assert [result.chunk_id for result in results] == [boom]
+
+
+def test_full_text_ranks_chunks_holding_more_of_the_questions_words_first(
+    sessions: sessionmaker[Session],
+) -> None:
+    collection_id = add_collection(sessions, "full-text-ranking")
+    one, three, _, two = add_passages(
+        sessions,
+        collection_id,
+        [
+            "A boom.",
+            "The boom was heard on the ground.",
+            "Nothing relevant here.",
+            "The boom was heard.",
+        ],
+    )
+
+    with sessions() as session:
+        results = fulltext_search(session, collection_id, "Was the boom heard on the ground?")
+
+    assert [result.chunk_id for result in results] == [three, two, one]
+    assert results[0].score > results[1].score > results[2].score > 0
+
+
+def test_full_text_searches_only_the_named_collection(sessions: sessionmaker[Session]) -> None:
+    """Another collection's chunk holding every word of the question must not be returned."""
+    mine = add_collection(sessions, "mine")
+    other = add_collection(sessions, "other")
+    (own,) = add_passages(sessions, mine, ["The boom was heard."])
+    add_passages(sessions, other, ["The boom was heard on the ground."])
+
+    with sessions() as session:
+        results = fulltext_search(session, mine, "Was the boom heard on the ground?")
+
+    assert [result.chunk_id for result in results] == [own]
+
+
+def test_a_question_of_stopwords_alone_finds_nothing_by_full_text(
+    sessions: sessionmaker[Session],
+) -> None:
+    collection_id = add_collection(sessions, "stopwords")
+    add_passages(sessions, collection_id, ["What it is: a boom heard on the ground."])
+
+    with sessions() as session:
+        assert fulltext_search(session, collection_id, "What is it?") == []
+
+
+def test_at_most_limit_chunks_are_returned_by_full_text(sessions: sessionmaker[Session]) -> None:
+    collection_id = add_collection(sessions, "full-text-many")
+    add_passages(sessions, collection_id, [f"boom {i}" for i in range(TOP_K + 2)])
+
+    with sessions() as session:
+        results = fulltext_search(session, collection_id, "boom")
+
+    assert len(results) == TOP_K
+
+
+def test_full_text_results_carry_what_a_citation_points_at(
+    sessions: sessionmaker[Session],
+) -> None:
+    collection_id = add_collection(sessions, "full-text-citations")
+    (chunk_id,) = add_passages(
+        sessions, collection_id, ["the sonic boom"], filename="annual-report.pdf"
+    )
+
+    with sessions() as session:
+        (result,) = fulltext_search(session, collection_id, "boom")
+        chunk = session.get(Chunk, chunk_id)
+
+    assert chunk is not None
+    assert (result.chunk_id, result.document_id, result.filename) == (
+        chunk_id,
+        chunk.document_id,
+        "annual-report.pdf",
+    )
+    assert (result.text, result.page_start, result.page_end) == ("the sonic boom", 1, 1)
+    assert result.score > 0
+
+
+def test_full_text_search_can_use_the_gin_index(sessions: sessionmaker[Session]) -> None:
+    """Search must match `tsv` itself: an expression over `text` finds the same chunks, but
+    recomputes every candidate's lexemes and leaves the index unused.
+
+    A GIN index serves only bitmap scans, and while collections are small the planner reads
+    them through the `collection_id` index instead. With that index dropped inside the
+    transaction, and plain and index scans priced out, a bitmap scan of the GIN index is the
+    only plan left that does not read the whole table.
+    """
+    collection_id = add_collection(sessions, "full-text-plan")
+    engine: Engine = sessions.kw["bind"]
+    with selects_sent(engine) as sent, sessions() as session:
+        fulltext_search(session, collection_id, "boom heard")
+
+    assert len(sent) == 1
+    statement, parameters = sent[0]
+    with engine.connect() as connection:
+        # Undone by the rollback below, with the settings.
+        connection.execute(text("DROP INDEX ix_chunks_collection"))
+        for setting in ("enable_seqscan", "enable_indexscan"):
+            connection.execute(text(f"SET LOCAL {setting} = off"))
+        plan = connection.exec_driver_sql(f"EXPLAIN {statement}", parameters).scalars().all()
+        connection.rollback()
+
+    assert GIN_INDEX in "\n".join(plan)
+
+
+def exact(session: Session) -> Session:
+    """Make vector search in this transaction exact, by leaving it no index scan to use.
+
+    HNSW is approximate. Over a table churned by earlier tests it can miss a true neighbour,
+    as it did once on CI, and the tests below are about fusion, not the index's recall.
+    """
+    session.execute(text("SET LOCAL enable_indexscan = off"))
+    return session
+
+
+def leaning(similarity: float, i: int) -> list[float]:
+    """A unit vector whose inner product with axis(0) is `similarity`, the rest along axis(i)."""
+    vector = [0.0] * EMBEDDING_DIM
+    vector[0] = similarity
+    vector[i] = math.sqrt(1 - similarity**2)
+    return vector
+
+
+def test_hybrid_lifts_a_chunk_full_text_matches_above_those_dense_ranks_higher(
+    sessions: sessionmaker[Session],
+) -> None:
+    collection_id = add_collection(sessions, "hybrid-lift")
+    storage, jobs, boom = add_document(
+        sessions,
+        collection_id,
+        [
+            ("Uploads are kept in object storage.", axis(0)),
+            ("Workers claim queued jobs.", between(0, 1)),
+            ("The sonic boom was heard on the ground.", axis(2)),
+        ],
+    )
+    question = "Was the boom heard on the ground?"
+
+    with sessions() as session:
+        dense = dense_search(exact(session), collection_id, axis(0))
+    with sessions() as session:
+        hybrid = hybrid_search(exact(session), collection_id, question, axis(0))
+
+    assert [result.chunk_id for result in dense] == [storage, jobs, boom]
+    assert [result.chunk_id for result in hybrid] == [boom, storage, jobs]
+
+
+def test_hybrid_searches_only_the_named_collection(sessions: sessionmaker[Session]) -> None:
+    """Another collection's chunk, nearest the question and holding its words, is not returned."""
+    mine = add_collection(sessions, "mine")
+    other = add_collection(sessions, "other")
+    (own,) = add_document(sessions, mine, [("Workers claim queued jobs.", axis(1))])
+    add_document(sessions, other, [("The sonic boom was heard on the ground.", axis(0))])
+
+    with sessions() as session:
+        results = hybrid_search(session, mine, "Was the boom heard on the ground?", axis(0))
+
+    assert [result.chunk_id for result in results] == [own]
+
+
+def test_a_chunk_sixth_in_both_searches_still_makes_the_top_five(
+    sessions: sessionmaker[Session],
+) -> None:
+    """Each search is asked for candidates to a depth of its own, not the result limit.
+
+    Five chunks lie nearer the question and hold none of its words; five others hold more
+    of its words and lie further from it. Each search alone ranks sixth the chunk that is
+    both near and matching, but a place in both lists lifts it into the top five, provided
+    each search was asked for more than five.
+    """
+    collection_id = add_collection(sessions, "hybrid-depth")
+    near = [(f"Stored upload number {i}.", leaning(0.9 - 0.05 * i, i + 1)) for i in range(TOP_K)]
+    wordy = [("The boom was heard on the ground.", axis(10 + i)) for i in range(TOP_K)]
+    chunk_ids = add_document(
+        sessions, collection_id, [*near, ("A boom.", leaning(0.5, 20)), *wordy]
+    )
+    both = chunk_ids[TOP_K]
+    question = "Was the boom heard on the ground?"
+
+    with sessions() as session:
+        dense = dense_search(exact(session), collection_id, axis(0), limit=TOP_K)
+    with sessions() as session:
+        full_text = fulltext_search(session, collection_id, question, limit=TOP_K)
+    with sessions() as session:
+        hybrid = hybrid_search(exact(session), collection_id, question, axis(0), limit=TOP_K)
+
+    assert both not in [result.chunk_id for result in dense]
+    assert both not in [result.chunk_id for result in full_text]
+    assert both in [result.chunk_id for result in hybrid]

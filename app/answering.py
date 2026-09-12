@@ -18,7 +18,8 @@ from app.db.models import Question, RetrievalResult
 from app.generation.citations import CheckedAnswer, check_citations
 from app.generation.context import number_passages
 from app.generation.generator import GenerationDeclined, GenerationError, Generator
-from app.retrieval.dense import RetrievedChunk, dense_search
+from app.retrieval.dense import RetrievedChunk
+from app.retrieval.search import Retriever, search
 from app.services.embeddings import Embedder
 
 logger = logging.getLogger(__name__)
@@ -67,10 +68,12 @@ def answer_question(
     collection_id: uuid.UUID,
     user_id: uuid.UUID,
     text: str,
+    retriever: Retriever,
 ) -> RecordedQuestion:
     """Answer a question from one collection, and record the attempt whatever its outcome.
 
     The caller must already have checked that the collection belongs to the user.
+    `retriever` names the search that finds the chunks, and is recorded with them.
     Declined and failed generations are recorded rather than raised; how to report them
     is the caller's decision.
     """
@@ -78,12 +81,14 @@ def answer_question(
     with watch.stage("embed"):
         query = embedder.embed_query(text)
     with watch.stage("search"):
-        chunks = dense_search(session, collection_id, query)
+        chunks = search(session, retriever, collection_id, text, query)
     # Ends the search's transaction, returning its connection to the pool, before a
     # model call that can take seconds.
     session.commit()
 
-    question = Question(collection_id=collection_id, user_id=user_id, question_text=text)
+    question = Question(
+        collection_id=collection_id, user_id=user_id, question_text=text, retriever=retriever
+    )
     checked: CheckedAnswer | None = None
     if chunks:
         checked = _generate(question, text, chunks, generator, watch)

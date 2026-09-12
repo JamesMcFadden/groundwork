@@ -6,6 +6,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -16,12 +17,17 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Fixed by the embedding model (bge-small-en-v1.5). Changing models requires a
 # migration and a full re-embed, which is what the reindex endpoint exists for.
 EMBEDDING_DIM = 384
+
+# The text search configuration chunks are indexed with. A query must name the same one,
+# or its words are stemmed differently from the index's and fail to match.
+TEXT_SEARCH_CONFIG = "english"
 
 
 class Base(DeclarativeBase):
@@ -120,6 +126,8 @@ class Chunk(Base):
             postgresql_using="hnsw",
             postgresql_ops={"embedding": "vector_ip_ops"},
         ),
+        # Full-text search. GIN holds each lexeme once, with the chunks that contain it.
+        Index("ix_chunks_tsv_gin", "tsv", postgresql_using="gin"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -135,6 +143,13 @@ class Chunk(Base):
     page_end: Mapped[int] = mapped_column(Integer, nullable=False)
     token_count: Mapped[int] = mapped_column(Integer, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
+    # Full-text lexemes, computed by the database from `text`. Generated rather than set by
+    # the worker, so every path that writes chunks fills it, the eval harness's included.
+    tsv: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(f"to_tsvector('{TEXT_SEARCH_CONFIG}', text)", persisted=True),
+        nullable=False,
+    )
     created_at: Mapped[datetime] = _created_at()
 
     document: Mapped[Document] = relationship(back_populates="chunks")
@@ -196,6 +211,7 @@ class Question(Base):
             "outcome IN ('answered', 'insufficient_evidence', 'declined', 'failed')",
             name="ck_questions_outcome",
         ),
+        CheckConstraint("retriever IN ('dense', 'hybrid')", name="ck_questions_retriever"),
         Index("ix_questions_collection_created", "collection_id", "created_at", "id"),
     )
 
@@ -208,6 +224,9 @@ class Question(Base):
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    # The search that retrieved this question's chunks. Their recorded scores are inner
+    # products under dense search and fused ranks under hybrid, unreadable without it.
+    retriever: Mapped[str] = mapped_column(String(20), nullable=False)
     answer_text: Mapped[str | None] = mapped_column(Text)
     # Distinct cited numbers that validation rejected. None where no answer was checked,
     # so a question that never reached validation is not counted as citing perfectly.

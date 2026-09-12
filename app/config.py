@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # choose fails for want of a key rather than quietly serving the stub's fake answers.
     generator: Literal["anthropic", "stub"] = "anthropic"
 
+    # What retrieves a question's chunks: dense search alone, or dense and full-text search
+    # fused by rank. Hybrid since it met the rule pre-registered for it in docs/roadmap.md.
+    retriever: Literal["dense", "hybrid"] = "hybrid"
+
     # Needed only when the generator is the real model, so its absence is reported when
     # the API builds its generator, not here: the worker has no use for it.
     anthropic_api_key: SecretStr | None = None

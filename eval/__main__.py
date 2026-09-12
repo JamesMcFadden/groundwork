@@ -4,6 +4,9 @@ Verifies the corpus, loads the golden set, ingests the corpus into the eval coll
 checks every quote against the parsed text, measures retrieval, puts every question
 through the answering path, and writes the results. Exits non-zero only when the harness
 cannot run: a missed target is a result to record, not a failure.
+
+Questions are retrieved with `RETRIEVER`, read as the service reads it, and the run
+records which retriever that was.
 """
 
 import argparse
@@ -28,12 +31,15 @@ from eval.results import (
     prefix_record,
     render_answering,
     render_prefix,
+    render_retriever_comparison,
     render_summary,
     retrieval_record,
+    retriever_comparison_record,
     run_metadata,
     write_results,
 )
 from eval.retrieval import run_retrieval
+from eval.retrievers import compare_retrievers
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -84,17 +90,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"eval: {exc}", file=sys.stderr)
         return 1
 
-    retrieval = run_retrieval(sessions, embedder.embed_query, ingested.collection_id, golden)
+    retriever = settings.retriever
+    retrieval = run_retrieval(
+        sessions, embedder.embed_query, ingested.collection_id, golden, retriever
+    )
+    # Both strategies, whichever RETRIEVER names: the comparison is recorded on every run.
+    retrievers = compare_retrievers(sessions, embedder.embed_query, ingested.collection_id, golden)
     comparison = compare_prefix(sessions, embedder, ingested.collection_id, golden)
-    answering = run_answering(sessions, embedder, generator, ingested, golden)
+    answering = run_answering(sessions, embedder, generator, ingested, golden, retriever)
     measured = args.answers == "claude"
 
     with sessions() as session:
-        metadata = run_metadata(session, corpus, golden, started, args.answers)
+        metadata = run_metadata(session, corpus, golden, started, args.answers, retriever)
     record = {
         "metadata": metadata,
         "chunk_counts": ingested.chunk_counts,
         "retrieval": retrieval_record(retrieval),
+        "retriever_comparison": retriever_comparison_record(retrievers),
         "query_prefix": prefix_record(comparison),
         "answering": answering_record(answering, measured),
     }
@@ -103,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = "\n\n".join(
         [
             render_summary(retrieval, metadata, ingested.chunk_counts),
+            render_retriever_comparison(retrievers),
             render_prefix(comparison),
             render_answering(answering, measured, metadata["generation_model"]),
         ]

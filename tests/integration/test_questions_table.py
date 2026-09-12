@@ -12,6 +12,7 @@ from app.db.models import Collection, Question
 from app.db.session import build_engine, build_session_factory, database_ok
 
 OUTCOMES = ("answered", "insufficient_evidence", "declined", "failed")
+RETRIEVERS = ("dense", "hybrid")
 
 
 @pytest.fixture
@@ -49,7 +50,7 @@ def record(sessions: sessionmaker[Session], collection_id: uuid.UUID, **fields: 
                 collection_id=collection_id,
                 user_id=get_settings().default_user_id,
                 question_text="How is an abandoned job recovered?",
-                **fields,
+                **{"retriever": "dense", **fields},
             )
         )
         session.commit()
@@ -109,3 +110,32 @@ def test_a_question_cannot_be_recorded_without_an_outcome(
 ) -> None:
     with pytest.raises(IntegrityError, match='"outcome"'):
         record(sessions, collection_id)
+
+
+def test_each_retriever_can_be_recorded(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    for retriever in RETRIEVERS:
+        record(sessions, collection_id, outcome="answered", retriever=retriever)
+
+    with sessions() as session:
+        stored = session.scalars(
+            select(Question.retriever).where(Question.collection_id == collection_id)
+        ).all()
+
+    assert sorted(stored) == sorted(RETRIEVERS)
+
+
+def test_an_unknown_retriever_is_rejected(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    """A recorded score means nothing without the search that produced it."""
+    with pytest.raises(IntegrityError, match="ck_questions_retriever"):
+        record(sessions, collection_id, outcome="answered", retriever="sparse")
+
+
+def test_a_question_cannot_be_recorded_without_a_retriever(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    with pytest.raises(IntegrityError, match='"retriever"'):
+        record(sessions, collection_id, outcome="answered", retriever=None)

@@ -25,12 +25,19 @@ from eval.corpus import Corpus
 from eval.golden import GoldenSet
 from eval.prefix import MIN_NET_FIXED, QUERY_INSTRUCTION, PrefixComparison
 from eval.retrieval import MRR_K, RECALL_K, RetrievalReport
+from eval.retrievers import MIN_NET_FIXED as HYBRID_MIN_NET_FIXED
+from eval.retrievers import RetrieverComparison
 
 RESULTS_DIR = Path(__file__).parent / "results"
 
 
 def run_metadata(
-    session: Session, corpus: Corpus, golden: GoldenSet, started: datetime, answers: str
+    session: Session,
+    corpus: Corpus,
+    golden: GoldenSet,
+    started: datetime,
+    answers: str,
+    retriever: str,
 ) -> dict[str, Any]:
     return {
         "started_at": started.isoformat(timespec="seconds"),
@@ -40,7 +47,7 @@ def run_metadata(
         "embedding_model": EMBEDDING_MODEL,
         "chunk_tokens": CHUNK_TOKENS,
         "chunk_overlap_tokens": OVERLAP_TOKENS,
-        "retriever": "dense",
+        "retriever": retriever,
         "pgvector_version": pgvector_version(session),
         "answers": answers,
         "generation_model": CLAUDE_MODEL if answers == "claude" else None,
@@ -57,6 +64,7 @@ def pgvector_version(session: Session) -> str | None:
 
 def retrieval_record(report: RetrievalReport) -> dict[str, Any]:
     return {
+        "retriever": report.retriever,
         "recall_at_5": report.recall_at_5,
         "hits_at_5": report.hits_at_5,
         "mrr_at_10": report.mrr_at_10,
@@ -76,6 +84,18 @@ def prefix_record(comparison: PrefixComparison) -> dict[str, Any]:
         "adopt": comparison.adopt,
         "without": retrieval_record(comparison.without),
         "with_prefix": retrieval_record(comparison.with_prefix),
+    }
+
+
+def retriever_comparison_record(comparison: RetrieverComparison) -> dict[str, Any]:
+    return {
+        "min_net_fixed": HYBRID_MIN_NET_FIXED,
+        "fixed_at_5": comparison.fixed,
+        "broken_at_5": comparison.broken,
+        "net_fixed": comparison.net_fixed,
+        "adopt_hybrid": comparison.adopt,
+        "dense": retrieval_record(comparison.dense),
+        "hybrid": retrieval_record(comparison.hybrid),
     }
 
 
@@ -122,7 +142,7 @@ def render_summary(
     n = len(report.answerable)
 
     lines = [
-        "## Retrieval evaluation (dense)",
+        f"## Retrieval evaluation ({report.retriever})",
         "",
         f"Commit {commit}; corpus `{metadata['corpus_manifest_sha256'][:12]}` "
         f"({len(chunk_counts)} documents, {sum(chunk_counts.values())} chunks); golden set "
@@ -135,13 +155,18 @@ def render_summary(
         f"| MRR@{MRR_K} (n={n}) | {report.mrr_at_10:.3f} |",
         "",
         _misses(report),
-        "",
-        "Best chunk score: answerable "
-        + _spread([result.best_score for result in report.answerable])
-        + "; unanswerable "
-        + _spread([result.best_score for result in report.unanswerable])
-        + ".",
     ]
+    if report.retriever == "dense":
+        # Fused scores are built from ranks: only dense search's say anything about a
+        # relevance threshold.
+        lines += [
+            "",
+            "Best chunk score: answerable "
+            + _spread([result.best_score for result in report.answerable])
+            + "; unanswerable "
+            + _spread([result.best_score for result in report.unanswerable])
+            + ".",
+        ]
     return "\n".join(lines)
 
 
@@ -168,6 +193,32 @@ def render_prefix(comparison: PrefixComparison) -> str:
             "",
             f"Rule: adopt only if it fixes at least {MIN_NET_FIXED} more hits than it breaks "
             f"and MRR@{MRR_K} does not fall. Decision: {decision}.",
+        ]
+    )
+
+
+def render_retriever_comparison(comparison: RetrieverComparison) -> str:
+    """The pre-registered comparison of dense and hybrid search and its verdict, as Markdown."""
+    dense, hybrid = comparison.dense, comparison.hybrid
+    n = len(dense.answerable)
+    decision = "make hybrid the default" if comparison.adopt else "keep dense the default"
+    return "\n".join(
+        [
+            "## Dense vs hybrid retrieval (pre-registered comparison)",
+            "",
+            f"Both strategies over the same collection and the same {n} answerable questions.",
+            "",
+            "| Figure | Dense | Hybrid |",
+            "| --- | --- | --- |",
+            f"| Recall@{RECALL_K} | {dense.hits_at_5}/{n} = {dense.recall_at_5:.3f} "
+            f"| {hybrid.hits_at_5}/{n} = {hybrid.recall_at_5:.3f} |",
+            f"| MRR@{MRR_K} | {dense.mrr_at_10:.3f} | {hybrid.mrr_at_10:.3f} |",
+            "",
+            f"Fixed by hybrid at {RECALL_K}: {_ids(comparison.fixed)}. Broken at {RECALL_K}: "
+            f"{_ids(comparison.broken)}. Net {comparison.net_fixed:+d}.",
+            "",
+            f"Rule: make hybrid the default only if it fixes at least {HYBRID_MIN_NET_FIXED} "
+            f"more hits than it breaks and MRR@{MRR_K} does not fall. Decision: {decision}.",
         ]
     )
 

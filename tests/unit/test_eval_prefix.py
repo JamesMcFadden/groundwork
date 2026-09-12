@@ -7,6 +7,7 @@ from eval.retrieval import AnswerableResult, RetrievalReport
 def report(*ranks: int | None) -> RetrievalReport:
     """Questions q0, q1, ... whose first hits rank as given within ten results."""
     return RetrievalReport(
+        retriever="dense",
         answerable=tuple(
             AnswerableResult(
                 question_id=f"q{n}",

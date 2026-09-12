@@ -14,9 +14,9 @@ Two rules govern it:
 
 | Area | Criterion | Measured by | Status |
 | --- | --- | --- | --- |
-| Retrieval | Recall@5 ≥ 0.90 (n=30) | `make eval` | met, exactly on target: 27/30 = 0.900 (dense, 2026-09-12, [run](evaluation.md#results)) |
-| Citations | Validation rejects 100% of invalid citations | `make eval-live` | met: 0 of 49 returned markers named an uncited chunk (n=38, `claude-opus-5`, 2026-09-12); the model cited nothing invalid, so rejection itself is shown by tests |
-| Refusal | 8/8 unanswerable questions refused | `make eval-live` | met: 8/8, with 3/30 false refusals (`claude-opus-5`, 2026-09-12) |
+| Retrieval | Recall@5 ≥ 0.90 (n=30) | `make eval` | met: 29/30 = 0.967 (hybrid, 2026-09-12, [runs](evaluation.md#results)); dense search, which hybrid replaced, was exactly on target at 27/30 |
+| Citations | Validation rejects 100% of invalid citations | `make eval-live` | met: 0 of 54 returned markers named an uncited chunk (n=38, hybrid, `claude-opus-5`, 2026-09-12); the model cited nothing invalid, so rejection itself is shown by tests |
+| Refusal | 8/8 unanswerable questions refused | `make eval-live` | met: 8/8, with 1/30 false refusals (hybrid, `claude-opus-5`, 2026-09-12); dense search had 3/30 |
 | API reliability | ≥ 99% non-5xx, 30 VU × 5 min, stubbed generator | k6 on kind | not yet measured |
 | Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | not yet measured |
 | Ingestion | 30-page PDF indexed in < 60 s | job timestamps | met locally: 4.05 s (n=1, laptop CPU via Compose, 2026-09-11) |
