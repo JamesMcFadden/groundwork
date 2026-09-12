@@ -50,6 +50,11 @@ def main(argv: list[str] | None = None) -> int:
         default=RESULTS_DIR,
         help=f"where to write the run's JSON record (default: {RESULTS_DIR})",
     )
+    parser.add_argument(
+        "--summary",
+        type=Path,
+        help="also append the Markdown summary to this file, such as $GITHUB_STEP_SUMMARY",
+    )
     args = parser.parse_args(argv)
 
     started = datetime.now(UTC)
@@ -90,9 +95,16 @@ def main(argv: list[str] | None = None) -> int:
     }
     path = write_results(record, args.results_dir, started)
 
-    print(render_summary(retrieval, metadata, ingested.chunk_counts))
-    print()
-    print(render_answering(answering, measured, metadata["generation_model"]))
+    summary = "\n\n".join(
+        [
+            render_summary(retrieval, metadata, ingested.chunk_counts),
+            render_answering(answering, measured, metadata["generation_model"]),
+        ]
+    )
+    print(summary)
+    if args.summary is not None:
+        with args.summary.open("a") as file:
+            file.write(summary + "\n")
     print(f"\nResults written to {path}")
     return 0
 

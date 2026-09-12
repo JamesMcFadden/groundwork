@@ -146,7 +146,7 @@ Planned 2026-09-12.
 - [x] `feat(eval): ingest the corpus into an isolated eval collection`
 - [x] `feat(eval): report Recall@5 and MRR@10 for dense retrieval`
 - [x] `feat(eval): report refusal and citation validity through the answering path`
-- [ ] `ci: run the retrieval eval on every pull request`
+- [x] `ci: run the retrieval eval on every pull request`
 - [ ] `feat(eval): compare retrieval with and without a query instruction prefix`
 - [ ] `feat(embeddings): embed queries with the bge instruction prefix`, only if the
       prefix rule below says to adopt it
