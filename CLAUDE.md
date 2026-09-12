@@ -61,6 +61,14 @@
 - Verify with all four checks, not a subset: `ruff check .`, `ruff format --check .`,
   `mypy .`, `pytest`. Ruff formats Python inside Markdown code blocks too.
 
+## Evaluation
+- Never change the wording of a golden-set question in `eval/golden.toml`, answerable
+  or unanswerable, not even to fix a typo or make it clearer. The questions were written
+  by a separate model from the source PDFs alone; rewording one lets whoever builds the
+  system shape what it is graded on. If a question looks wrong, report it and leave the
+  decision to the user. A change the user approves needs a dated note in
+  `docs/success-criteria.md`.
+
 ## Project docs
 - `docs/roadmap.md` — backlog and current position. Update as items complete.
 - `docs/architecture.md` — system architecture. Update as subsystems land.
