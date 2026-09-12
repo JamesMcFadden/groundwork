@@ -21,10 +21,13 @@ from eval.answering import run_answering
 from eval.corpus import CorpusError, load_corpus
 from eval.golden import GoldenSetError, check_evidence, load_golden
 from eval.ingest import ingest_corpus
+from eval.prefix import compare_prefix
 from eval.results import (
     RESULTS_DIR,
     answering_record,
+    prefix_record,
     render_answering,
+    render_prefix,
     render_summary,
     retrieval_record,
     run_metadata,
@@ -82,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     retrieval = run_retrieval(sessions, embedder.embed_query, ingested.collection_id, golden)
+    comparison = compare_prefix(sessions, embedder, ingested.collection_id, golden)
     answering = run_answering(sessions, embedder, generator, ingested, golden)
     measured = args.answers == "claude"
 
@@ -91,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         "metadata": metadata,
         "chunk_counts": ingested.chunk_counts,
         "retrieval": retrieval_record(retrieval),
+        "query_prefix": prefix_record(comparison),
         "answering": answering_record(answering, measured),
     }
     path = write_results(record, args.results_dir, started)
@@ -98,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = "\n\n".join(
         [
             render_summary(retrieval, metadata, ingested.chunk_counts),
+            render_prefix(comparison),
             render_answering(answering, measured, metadata["generation_model"]),
         ]
     )

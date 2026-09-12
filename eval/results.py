@@ -23,6 +23,7 @@ from app.services.embeddings import EMBEDDING_MODEL
 from eval.answering import STAGES, AnsweringReport
 from eval.corpus import Corpus
 from eval.golden import GoldenSet
+from eval.prefix import MIN_NET_FIXED, QUERY_INSTRUCTION, PrefixComparison
 from eval.retrieval import MRR_K, RECALL_K, RetrievalReport
 
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -62,6 +63,19 @@ def retrieval_record(report: RetrievalReport) -> dict[str, Any]:
         "answerable_count": len(report.answerable),
         "answerable": [asdict(result) for result in report.answerable],
         "unanswerable": [asdict(result) for result in report.unanswerable],
+    }
+
+
+def prefix_record(comparison: PrefixComparison) -> dict[str, Any]:
+    return {
+        "prefix": QUERY_INSTRUCTION,
+        "min_net_fixed": MIN_NET_FIXED,
+        "fixed_at_5": comparison.fixed,
+        "broken_at_5": comparison.broken,
+        "net_fixed": comparison.net_fixed,
+        "adopt": comparison.adopt,
+        "without": retrieval_record(comparison.without),
+        "with_prefix": retrieval_record(comparison.with_prefix),
     }
 
 
@@ -129,6 +143,37 @@ def render_summary(
         + ".",
     ]
     return "\n".join(lines)
+
+
+def render_prefix(comparison: PrefixComparison) -> str:
+    """The pre-registered prefix comparison and its verdict, as Markdown."""
+    without, with_prefix = comparison.without, comparison.with_prefix
+    n = len(without.answerable)
+    decision = "adopt the prefix" if comparison.adopt else "keep questions unprefixed"
+    return "\n".join(
+        [
+            "## Query instruction prefix (pre-registered comparison)",
+            "",
+            f"`{QUERY_INSTRUCTION}` added in front of questions only, over the same {n} "
+            "answerable questions.",
+            "",
+            "| Figure | Without | With |",
+            "| --- | --- | --- |",
+            f"| Recall@{RECALL_K} | {without.hits_at_5}/{n} = {without.recall_at_5:.3f} "
+            f"| {with_prefix.hits_at_5}/{n} = {with_prefix.recall_at_5:.3f} |",
+            f"| MRR@{MRR_K} | {without.mrr_at_10:.3f} | {with_prefix.mrr_at_10:.3f} |",
+            "",
+            f"Fixed at {RECALL_K}: {_ids(comparison.fixed)}. Broken at {RECALL_K}: "
+            f"{_ids(comparison.broken)}. Net {comparison.net_fixed:+d}.",
+            "",
+            f"Rule: adopt only if it fixes at least {MIN_NET_FIXED} more hits than it breaks "
+            f"and MRR@{MRR_K} does not fall. Decision: {decision}.",
+        ]
+    )
+
+
+def _ids(question_ids: Sequence[str]) -> str:
+    return ", ".join(f"`{question_id}`" for question_id in question_ids) or "none"
 
 
 def render_answering(report: AnsweringReport, measured: bool, model: str | None) -> str:
