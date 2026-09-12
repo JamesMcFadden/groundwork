@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M4 — Hybrid retrieval
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M4 — start branch `m4-hybrid-retrieval`
+**Next item:** M4 — review and merge PR #5
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, and M3 took their estimated 11h, 7h,
 9.5h, and 4h.
 
@@ -297,7 +297,7 @@ Planned 2026-09-12.
 - [x] `feat(eval): compare dense and hybrid retrieval`
 - [x] `feat(retrieval): default RETRIEVER to hybrid`, only if the adoption rule below says
       to adopt it
-- [ ] `docs: record M4 results`
+- [x] `docs: record M4 results`
 
 Hybrid search runs dense search and full-text search over the same collection and fuses
 their rankings. Dense search matches meaning, but compresses a 510-token chunk into one
@@ -380,6 +380,23 @@ and questions rather than the golden set:
   nothing.
 - **Designations split.** "X-59" is indexed as two lexemes, `'x'` and `'-59'`.
 
+Results, recorded 2026-09-12; detail in [evaluation.md](evaluation.md#results):
+
+- **Hybrid adopted.** The comparison, run by `make eval` at `38dd661`
+  (`eval/results/20260912T220646Z.json`), scored hybrid Recall@5 29/30 = 0.967 against
+  dense's 27/30, and MRR@10 0.892 against 0.763. It fixed `a23` and `a28` and broke none:
+  net +2, exactly the bar, so `feat(retrieval): default RETRIEVER to hybrid` followed.
+  `a30` is still missed, now ranked 6th. CI's Linux runner reproduced the comparison
+  exactly.
+- **Answers through hybrid**, by `make eval-live` at `e2ad10b`
+  (`eval/results/20260912T221514Z.json`): unanswerable questions refused 8/8, false
+  refusals 1/30 (`a30`) against dense's 3/30, and 0 of 54 citations invalid. Search took
+  15 / 20 ms at P50 / P95, against dense's 6 / 8.
+- **One CI failure, not a regression.** On `f930220`, a fusion test's premise that dense
+  search leaves a chunk out of its top five failed: HNSW is approximate, and CI's `chunks`
+  table is heavily churned by the time that test runs. `dd4bb58` runs the dense searches
+  in the fusion tests that assert an exact order without an index scan.
+
 ## Stack decisions
 
 Chosen during planning, with the reasoning that is not recoverable from the code.
@@ -420,10 +437,10 @@ Change them deliberately, not incidentally.
   Server-side refusal fallbacks stay off: they would route a declined request to another
   model, leaving M3 scoring answers from two models with nothing recording which one
   served each.
-- **Retrieval — `RETRIEVER=dense|hybrid` config flag.** Both strategies stay runnable
-  for the life of the project, so the ablation table is reproducible rather than
-  remembered. The flag arrives with hybrid in M4; until then dense is the only strategy,
-  and a flag with one value would be dead config.
+- **Retrieval — `RETRIEVER=dense|hybrid`, hybrid by default.** Both strategies stay
+  runnable for the life of the project, so the ablation table is reproducible rather than
+  remembered, and every eval run compares them. Hybrid became the default in M4 under the
+  rule pre-registered for it; see the M4 results.
 - **Local object storage — MinIO, built from source.** MinIO stopped distributing its
   community edition and archived its repository, and the Docker Hub images this project
   pinned were deleted in September 2026. `docker/minio/Dockerfile` builds the last
