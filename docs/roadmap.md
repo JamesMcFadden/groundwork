@@ -68,7 +68,7 @@ once review added three items: question outcomes, the pgvector pin, and the live
 workflow. The pin goes first, since search and its index both depend on the extension
 version.
 
-- [ ] `build: pin the pgvector image to an explicit version`
+- [x] `build: pin the pgvector image to an explicit version`
 - [ ] `feat(embeddings): add query embedding to the embedder protocol`
 - [ ] `feat(retrieval): add collection-filtered dense vector search`
 - [ ] `perf(db): add hnsw index for filtered vector search`

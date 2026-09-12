@@ -46,7 +46,10 @@ services:
     # transfer here. Kubernetes needs a real answer for this in M6.
 
   postgres:
-    image: pgvector/pgvector:pg16
+    # pgvector's `pg16` tag moves with each release, and index-scan options depend on the
+    # extension version. Pinned by version and digest, so a new release can never change
+    # how search behaves.
+    image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

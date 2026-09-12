@@ -30,7 +30,9 @@ construct one with their own settings. Routes:
 | `POST /documents` | Uploads to object storage, inserts document and job in one transaction, returns 202. |
 | `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
 
-**Data** — PostgreSQL 16 with pgvector. Seven tables: `users`, `collections`,
+**Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
+and digest: the `pg16` tag moves with each release, and index-scan options depend on the
+extension version. Seven tables: `users`, `collections`,
 `documents`, `chunks`, `ingestion_jobs`, `questions`, `retrieval_results`. Schema is
 managed by Alembic and applies from empty. `chunks.embedding` is `vector(384)`, fixed
 by the embedding model; `chunks.collection_id` is denormalised from `documents` so
