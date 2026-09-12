@@ -74,7 +74,7 @@ version.
 - [x] `perf(db): add hnsw index for filtered vector search`
 - [x] `feat(generation): add generator protocol, numbered context, and stub backend`
 - [x] `feat(generation): add claude backend with structured citations`
-- [ ] `feat(generation): validate citations against the supplied context`
+- [x] `feat(generation): validate citations against the supplied context`
 - [ ] `feat(db): record question outcome and invalid citation count`
 - [ ] `feat(api): add POST /questions with per-stage timings`
 - [ ] `build: move embedding weights into the shared runtime stage`

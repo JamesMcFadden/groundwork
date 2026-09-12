@@ -70,11 +70,11 @@ with the same pgvector image Compose uses and the model's weights cached between
 **Retrieval** — dense search over one collection's chunks; see
 [Retrieval](#retrieval).
 
-**Answer generation** — a generator protocol, numbered context, and Claude and stub
-backends selected by `GENERATOR`; see [Answer generation](#answer-generation).
+**Answer generation** — a generator protocol, numbered context, Claude and stub backends
+selected by `GENERATOR`, and citation validation; see
+[Answer generation](#answer-generation).
 
-**Not yet built** — citation validation, `POST /questions`, Kubernetes manifests, and
-AWS infrastructure.
+**Not yet built** — `POST /questions`, Kubernetes manifests, and AWS infrastructure.
 
 ## Ingestion
 
@@ -166,6 +166,13 @@ propagate under the SDK's own names. `GENERATOR` selects the backend and default
 `anthropic`. Selecting it without `ANTHROPIC_API_KEY` fails when the generator is built,
 and the stub answers only when named, never as a fallback.
 
+Citations are checked before an answer is returned or recorded. A cited number is valid
+only if it names a passage supplied for that request. Invalid numbers are dropped and
+counted once each, and a statement left citing nothing is dropped whole, since every
+claim must rest on a passage. Repeated numbers collapse to one citation. What survives
+is rendered as prose with `[n]` markers placed before each statement's closing
+punctuation.
+
 ## Decisions
 
 ### Job queue in PostgreSQL rather than Redis
@@ -186,5 +193,4 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: answer generation and citations, evaluation,
-Kubernetes, AWS.
+Added as each subsystem is built: evaluation, Kubernetes, AWS.
