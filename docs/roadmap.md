@@ -140,7 +140,7 @@ Unverified going in; checked 2026-09-11:
 
 Planned 2026-09-12.
 
-- [ ] `feat(eval): add frozen corpus with checksum manifest`
+- [x] `feat(eval): add frozen corpus with checksum manifest`
 - [ ] `feat(eval): add golden set format with validation`
 - [ ] `feat(eval): add golden set of 30 answerable and 8 unanswerable questions`
 - [ ] `feat(eval): ingest the corpus into an isolated eval collection`
