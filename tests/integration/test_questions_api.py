@@ -361,3 +361,48 @@ def test_an_answer_left_with_no_valid_citation_is_downgraded_to_insufficient_evi
         None,
         2,
     )
+
+
+class RecordingGenerator(StubGenerator):
+    """The stub, keeping every question it is asked."""
+
+    def __init__(self) -> None:
+        self.asked: list[str] = []
+
+    def generate(self, question: str, passages: Sequence[Passage]) -> Generation:
+        self.asked.append(question)
+        return super().generate(question, passages)
+
+
+def test_insufficient_evidence_skips_the_model_call(engine: Engine, embedder: Embedder) -> None:
+    """With nothing retrieved there is nothing to answer from, and nothing to pay for.
+
+    Another collection holds passages that match the question closely; the one asked holds
+    none, so the question is recorded as insufficient evidence without the model.
+    """
+    add_collection(engine, embedder, PASSAGES)
+    empty = add_collection(engine, embedder, [])
+    generator = RecordingGenerator()
+
+    with serving(embedder, generator) as client:
+        response = ask(client, empty)
+
+    assert generator.asked == []
+    assert response.status_code == 201
+    body = response.json()
+    assert (body["outcome"], body["answer"], body["citations"]) == (
+        "insufficient_evidence",
+        None,
+        [],
+    )
+    timings = body["timings"]
+    assert (timings["prep_ms"], timings["llm_ms"]) == (None, None)
+    assert None not in (timings["embed_ms"], timings["search_ms"], timings["total_ms"])
+    row = recorded_question(engine, empty)
+    assert (row.outcome, row.invalid_citations, row.input_tokens, row.error_class) == (
+        "insufficient_evidence",
+        None,
+        None,
+        None,
+    )
+    assert retrieval_results(engine, body["id"]) == []

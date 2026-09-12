@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M2 — RAG query path
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M2 — start branch `m2-rag-query-path`, then pin the pgvector image
+**Next item:** M2 — every item is on `m2-rag-query-path`; review and merge PR #3
 **Budget:** ~52.5h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
 
 ## Milestones
@@ -80,7 +80,7 @@ version.
 - [x] `build: move embedding weights into the shared runtime stage`
 - [x] `ci: run the live claude test on main and on demand`
 - [x] `test(integration): assert invalid citations are never returned or recorded`
-- [ ] `test(integration): assert insufficient evidence skips the model call`
+- [x] `test(integration): assert insufficient evidence skips the model call`
 
 Decisions taken while planning:
 
