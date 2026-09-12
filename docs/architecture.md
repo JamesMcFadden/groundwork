@@ -70,11 +70,11 @@ with the same pgvector image Compose uses and the model's weights cached between
 **Retrieval** — dense search over one collection's chunks; see
 [Retrieval](#retrieval).
 
-**Answer generation** — a generator protocol, numbered context, and a stub backend; see
-[Answer generation](#answer-generation).
+**Answer generation** — a generator protocol, numbered context, and Claude and stub
+backends selected by `GENERATOR`; see [Answer generation](#answer-generation).
 
-**Not yet built** — the Claude backend, citation validation, `POST /questions`,
-Kubernetes manifests, and AWS infrastructure.
+**Not yet built** — citation validation, `POST /questions`, Kubernetes manifests, and
+AWS infrastructure.
 
 ## Ingestion
 
@@ -157,6 +157,14 @@ Filenames are escaped where the context is laid out, since they come from upload
 The stub generator answers with the opening words of the top passage and cites it. It
 makes no network call and gives the same answer every time, so CI needs no API key and
 load tests measure this service rather than a model provider.
+
+The Claude backend asks `claude-opus-5` for JSON matching a schema of statements and
+cited numbers, at low effort with thinking left on. It reads the stop reason before any
+content: a safety refusal raises `GenerationDeclined` and a response cut short raises
+`GenerationIncomplete`, each keeping the tokens it used, while API errors and timeouts
+propagate under the SDK's own names. `GENERATOR` selects the backend and defaults to
+`anthropic`. Selecting it without `ANTHROPIC_API_KEY` fails when the generator is built,
+and the stub answers only when named, never as a fallback.
 
 ## Decisions
 

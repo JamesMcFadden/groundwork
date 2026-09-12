@@ -36,5 +36,34 @@ class Generation:
     output_tokens: int | None = None
 
 
+class GenerationError(Exception):
+    """Generation ended without an answer. Carries the tokens it used, where reported."""
+
+    def __init__(
+        self, message: str, input_tokens: int | None = None, output_tokens: int | None = None
+    ) -> None:
+        super().__init__(message)
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+
+
+class GenerationDeclined(GenerationError):
+    """The model declined on safety grounds.
+
+    Distinct from insufficient evidence: a safety refusal is not the service recognising
+    a question its documents cannot answer, and is never counted as one.
+    """
+
+
+class GenerationIncomplete(GenerationError):
+    """The model stopped before finishing its answer, at the token limit for instance."""
+
+
 class Generator(Protocol):
+    """Answers a question from numbered passages.
+
+    Raises `GenerationDeclined` for a safety refusal. Any other exception means
+    generation failed.
+    """
+
     def generate(self, question: str, passages: Sequence[Passage]) -> Generation: ...

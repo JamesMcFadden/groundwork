@@ -73,7 +73,7 @@ version.
 - [x] `feat(retrieval): add collection-filtered dense vector search`
 - [x] `perf(db): add hnsw index for filtered vector search`
 - [x] `feat(generation): add generator protocol, numbered context, and stub backend`
-- [ ] `feat(generation): add claude backend with structured citations`
+- [x] `feat(generation): add claude backend with structured citations`
 - [ ] `feat(generation): validate citations against the supplied context`
 - [ ] `feat(db): record question outcome and invalid citation count`
 - [ ] `feat(api): add POST /questions with per-stage timings`
@@ -123,7 +123,9 @@ Unverified going in; checked 2026-09-11:
 - **`client.messages.parse()` sends a Pydantic format and effort together** in
   `anthropic` 1.5.0, merging the model's schema into `output_config` beside `effort`.
   The effort and structured-output docs both list `claude-opus-5` and neither restricts
-  combining them. No request has been sent, so the first live call confirms it.
+  combining them. No request has been sent, so the first live call confirms it. The
+  backend sends the same merged `output_config` through `messages.create()` instead; see
+  the generation stack decision.
 - **`usage.output_tokens` includes thinking tokens**, whether thinking is summarized or
   omitted; the docs call it "the inclusive, authoritative total used for billing".
   `usage.output_tokens_details.thinking_tokens` reports the thinking share on its own.
@@ -154,11 +156,15 @@ Change them deliberately, not incidentally.
   words: the model re-tokenizes chunk text, and cutting mid-word pushed real chunks to
   511 tokens. Revised in M1 from "512, scoped to a page", which contradicted both the
   page columns and the model's window.
-- **Generation — `claude-opus-5`.** Citations come back as structured output via
-  `client.messages.parse()` with a Pydantic model; assistant prefills return 400 on
-  Opus 5, so no prefill. Thinking is on by default and `max_tokens` caps thinking plus
-  answer, so use `output_config={"effort": "low"}` with generous `max_tokens` rather
-  than disabling thinking. Handle `stop_reason == "refusal"` before reading content.
+- **Generation — `claude-opus-5`.** Citations come back as structured output: a JSON
+  schema derived from a Pydantic model by the SDK's `transform_schema`, requested with
+  `client.messages.create()`. Planned as `messages.parse()` and changed in M2: `parse()`
+  validates the JSON while it builds the response, before `stop_reason` can be read, so
+  a refusal or a truncated answer would raise a validation error instead. Assistant
+  prefills return 400 on Opus 5, so no prefill. Thinking is on by default and
+  `max_tokens` caps thinking plus answer, so use `output_config={"effort": "low"}` with
+  generous `max_tokens` rather than disabling thinking. Handle
+  `stop_reason == "refusal"` before reading content.
   Server-side refusal fallbacks stay off: they would route a declined request to another
   model, leaving M3 scoring answers from two models with nothing recording which one
   served each.

@@ -1,7 +1,9 @@
 import uuid
 from datetime import timedelta
 from functools import lru_cache
+from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -50,6 +52,17 @@ class Settings(BaseSettings):
     # the system temp dir, which a container loses on restart and CI loses every run;
     # images and CI set it so the weights download once.
     embedding_cache_dir: str | None = None
+
+    # What answers questions. The real model by default, so a deployment that forgets to
+    # choose fails for want of a key rather than quietly serving the stub's fake answers.
+    generator: Literal["anthropic", "stub"] = "anthropic"
+
+    # Needed only when the generator is the real model, so its absence is reported when
+    # the API builds its generator, not here: the worker has no use for it.
+    anthropic_api_key: SecretStr | None = None
+
+    # How long one model response may take before the question is recorded as failed.
+    generation_timeout_seconds: float = 60.0
 
     @property
     def job_stale_after(self) -> timedelta:
