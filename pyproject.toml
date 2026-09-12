@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.19.2",
+    "anthropic>=1.5.0",
     "boto3>=1.43.89",
     "fastapi>=0.141.1",
     "fastembed>=0.8.0",
@@ -59,4 +60,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-q"
+# Live tests call a paid API, so every run leaves them out unless `-m live` selects them.
+addopts = "-q -m 'not live'"
+markers = ["live: calls the real Claude API; selected only with -m live"]

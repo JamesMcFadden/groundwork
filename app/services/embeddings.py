@@ -1,8 +1,9 @@
-"""Turning passages into vectors, and deciding what counts as a token.
+"""Turning passages and questions into vectors, and deciding what counts as a token.
 
 The embedding model and its tokenizer are one decision. Chunks are sized in the model's
 tokens, so whatever embeds a chunk must also be what counted it; `Embedder` carries both
-so they cannot be paired wrongly.
+so they cannot be paired wrongly. Questions go through the same object, so a query is
+always compared with chunks in the space they were embedded in.
 """
 
 from collections.abc import Sequence
@@ -27,6 +28,8 @@ class Embedder(Protocol):
     def tokenizer(self) -> Tokenizer: ...
 
     def embed_passages(self, texts: Sequence[str]) -> list[list[float]]: ...
+
+    def embed_query(self, text: str) -> list[float]: ...
 
 
 class ModelTokenizer:
@@ -75,3 +78,10 @@ class FastEmbedder:
     def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
         # Vectors come back unit-length, so cosine similarity and inner product rank alike.
         return [vector.tolist() for vector in self._model.passage_embed(list(texts))]
+
+    def embed_query(self, text: str) -> list[float]:
+        # For this model fastembed adds no instruction prefix to queries, so a question
+        # embeds exactly as a passage with the same text would. Whether a prefix would
+        # retrieve better is for evaluation to measure, not for this code to assume.
+        vector: list[float] = next(iter(self._model.query_embed(text))).tolist()
+        return vector

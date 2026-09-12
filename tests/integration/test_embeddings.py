@@ -31,6 +31,25 @@ def test_vectors_match_the_schema_dimension_and_are_unit_length(embedder: Embedd
         assert math.isclose(math.sqrt(sum(x * x for x in vector)), 1.0, abs_tol=1e-3)
 
 
+def test_query_vectors_match_the_schema_dimension_and_are_unit_length(embedder: Embedder) -> None:
+    vector = embedder.embed_query("how is a stalled ingestion job reclaimed?")
+
+    assert len(vector) == EMBEDDING_DIM
+    assert math.isclose(math.sqrt(sum(x * x for x in vector)), 1.0, abs_tol=1e-3)
+
+
+def test_a_query_embeds_exactly_as_the_same_passage(embedder: Embedder) -> None:
+    """No instruction prefix: fastembed embeds bge-small-en-v1.5 queries as passages.
+
+    Search compares query vectors with passage vectors, so an upgrade that started
+    prefixing queries would shift every result without an error. If this fails, that
+    happened, and evaluation runs from before and after it are no longer comparable.
+    """
+    text = "how is a stalled ingestion job reclaimed?"
+
+    assert embedder.embed_query(text) == embedder.embed_passages([text])[0]
+
+
 def test_the_same_passage_embeds_the_same_way_twice(embedder: Embedder) -> None:
     """Evaluation compares runs over time, which means nothing if embedding drifts."""
     first = embedder.embed_passages(["a stable passage"])

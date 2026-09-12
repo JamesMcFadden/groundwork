@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M2 — RAG query path
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M2 — start branch `m2-rag-query-path`, then pin the pgvector image
+**Next item:** M2 — every item is on `m2-rag-query-path`; review and merge PR #3
 **Budget:** ~52.5h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
 
 ## Milestones
@@ -68,19 +68,19 @@ once review added three items: question outcomes, the pgvector pin, and the live
 workflow. The pin goes first, since search and its index both depend on the extension
 version.
 
-- [ ] `build: pin the pgvector image to an explicit version`
-- [ ] `feat(embeddings): add query embedding to the embedder protocol`
-- [ ] `feat(retrieval): add collection-filtered dense vector search`
-- [ ] `perf(db): add hnsw index for filtered vector search`
-- [ ] `feat(generation): add generator protocol, numbered context, and stub backend`
-- [ ] `feat(generation): add claude backend with structured citations`
-- [ ] `feat(generation): validate citations against the supplied context`
-- [ ] `feat(db): record question outcome and invalid citation count`
-- [ ] `feat(api): add POST /questions with per-stage timings`
-- [ ] `build: move embedding weights into the shared runtime stage`
-- [ ] `ci: run the live claude test on main and on demand`
-- [ ] `test(integration): assert invalid citations are never returned or recorded`
-- [ ] `test(integration): assert insufficient evidence skips the model call`
+- [x] `build: pin the pgvector image to an explicit version`
+- [x] `feat(embeddings): add query embedding to the embedder protocol`
+- [x] `feat(retrieval): add collection-filtered dense vector search`
+- [x] `perf(db): add hnsw index for filtered vector search`
+- [x] `feat(generation): add generator protocol, numbered context, and stub backend`
+- [x] `feat(generation): add claude backend with structured citations`
+- [x] `feat(generation): validate citations against the supplied context`
+- [x] `feat(db): record question outcome and invalid citation count`
+- [x] `feat(api): add POST /questions with per-stage timings`
+- [x] `build: move embedding weights into the shared runtime stage`
+- [x] `ci: run the live claude test on main and on demand`
+- [x] `test(integration): assert invalid citations are never returned or recorded`
+- [x] `test(integration): assert insufficient evidence skips the model call`
 
 Decisions taken while planning:
 
@@ -99,10 +99,12 @@ Decisions taken while planning:
 - **Insufficient evidence skips the model** when retrieval returns nothing, and an
   answer left with no valid citation is downgraded to it. No relevance-score threshold
   until M3 has data to tune one.
-- **Search uses inner product on unit-length vectors** through an HNSW index,
-  over-fetching with `hnsw.ef_search` because the collection filter applies after the
-  index scan. The pgvector image is pinned by version and digest first: `pg16` is a
-  floating tag, and index-scan options depend on the extension version.
+- **Search uses inner product on unit-length vectors** through an HNSW index. The
+  collection filter applies after the index scan, so search turns on
+  `hnsw.iterative_scan` rather than over-fetching with `hnsw.ef_search` as first
+  planned; the check below confirmed the pinned version supports it. The pgvector image
+  is pinned by version and digest first: `pg16` is a floating tag, and index-scan options
+  depend on the extension version.
 - **The API process embeds queries**, loading the model at startup, and ends its
   database transaction before calling the model, so a slow generation never holds a
   pooled connection.
@@ -121,7 +123,9 @@ Unverified going in; checked 2026-09-11:
 - **`client.messages.parse()` sends a Pydantic format and effort together** in
   `anthropic` 1.5.0, merging the model's schema into `output_config` beside `effort`.
   The effort and structured-output docs both list `claude-opus-5` and neither restricts
-  combining them. No request has been sent, so the first live call confirms it.
+  combining them. No request has been sent, so the first live call confirms it. The
+  backend sends the same merged `output_config` through `messages.create()` instead; see
+  the generation stack decision.
 - **`usage.output_tokens` includes thinking tokens**, whether thinking is summarized or
   omitted; the docs call it "the inclusive, authoritative total used for billing".
   `usage.output_tokens_details.thinking_tokens` reports the thinking share on its own.
@@ -134,7 +138,9 @@ Change them deliberately, not incidentally.
 - **Embeddings — `fastembed` with `bge-small-en-v1.5`, 384 dimensions.** Chosen over
   `sentence-transformers` because it runs ONNX without torch, which keeps images smaller
   and makes CI embeddings free and deterministic. As built in M1 (arm64), the api image
-  is 755 MB and the worker 883 MB, 407 MB of each the shared virtualenv. Planning had
+  is 755 MB and the worker 883 MB, 407 MB of each the shared virtualenv. In M2 both
+  images carry the weights and the `anthropic` SDK, and both are 907 MB: a 408 MB
+  virtualenv and 65 MB of weights. Planning had
   estimated 400 MB against ~2.5 GB with torch; neither figure was measured. The
   dimension is baked into `chunks.embedding`, so changing model means a migration and a
   full re-embed — which is what the reindex endpoint exists for. fastembed serves
@@ -152,11 +158,15 @@ Change them deliberately, not incidentally.
   words: the model re-tokenizes chunk text, and cutting mid-word pushed real chunks to
   511 tokens. Revised in M1 from "512, scoped to a page", which contradicted both the
   page columns and the model's window.
-- **Generation — `claude-opus-5`.** Citations come back as structured output via
-  `client.messages.parse()` with a Pydantic model; assistant prefills return 400 on
-  Opus 5, so no prefill. Thinking is on by default and `max_tokens` caps thinking plus
-  answer, so use `output_config={"effort": "low"}` with generous `max_tokens` rather
-  than disabling thinking. Handle `stop_reason == "refusal"` before reading content.
+- **Generation — `claude-opus-5`.** Citations come back as structured output: a JSON
+  schema derived from a Pydantic model by the SDK's `transform_schema`, requested with
+  `client.messages.create()`. Planned as `messages.parse()` and changed in M2: `parse()`
+  validates the JSON while it builds the response, before `stop_reason` can be read, so
+  a refusal or a truncated answer would raise a validation error instead. Assistant
+  prefills return 400 on Opus 5, so no prefill. Thinking is on by default and
+  `max_tokens` caps thinking plus answer, so use `output_config={"effort": "low"}` with
+  generous `max_tokens` rather than disabling thinking. Handle
+  `stop_reason == "refusal"` before reading content.
   Server-side refusal fallbacks stay off: they would route a declined request to another
   model, leaving M3 scoring answers from two models with nothing recording which one
   served each.
@@ -183,7 +193,7 @@ implement early; apply when the milestone is reached. Rationale in
 - **M2** — create the HNSW index on `chunks.embedding` here, not earlier: indexes
   belong with the queries that need them, and an index built over zero rows tells you
   nothing. Note that a `collection_id` predicate is not used by the HNSW index, so
-  filtered search over-fetches and post-filters, tuning `hnsw.ef_search`.
+  filtered search post-filters, and uses iterative index scan to still fill its results.
 - **M2** — chunk ids never go to the model. The prompt numbers its context `[1]`–`[5]`
   per request and the server maps those back to chunk ids. Small integers cost fewer
   tokens and are cited more reliably than UUIDs, and the mapping is what makes citation

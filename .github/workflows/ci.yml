@@ -17,8 +17,8 @@ jobs:
 
     services:
       postgres:
-        # Same image as docker-compose, so pgvector is present.
-        image: pgvector/pgvector:pg16
+        # The same pinned reference Compose runs, so tests see the same pgvector version.
+        image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: groundwork
           POSTGRES_PASSWORD: ci-password

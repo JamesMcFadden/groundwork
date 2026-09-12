@@ -9,7 +9,9 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.db.models import Collection, Document, IngestionJob, User
 from app.db.session import build_engine, build_session_factory, database_ok
+from app.generation.stub import StubGenerator
 from app.main import create_app
+from app.services.embeddings import Embedder
 from app.services.storage import build_storage
 
 MINIMAL_PDF = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
@@ -17,7 +19,7 @@ OTHER_USER_EMAIL = "someone-else@example.com"
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def client(embedder: Embedder) -> Iterator[TestClient]:
     settings = get_settings()
     engine = build_engine(settings)
     if not database_ok(engine):
@@ -34,7 +36,9 @@ def client() -> Iterator[TestClient]:
             )
 
     clear()
-    with TestClient(create_app(settings)) as test_client:
+    # The stub, because startup would otherwise build the real generator, which needs a key.
+    app = create_app(settings, embedder=embedder, generator=StubGenerator())
+    with TestClient(app) as test_client:
         yield test_client
     clear()
 

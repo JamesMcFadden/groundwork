@@ -11,12 +11,13 @@ A RAG knowledge service with two runtime components sharing one database:
 - **Worker** — ingests uploaded documents asynchronously
 
 State lives in PostgreSQL; original documents live in object storage. The worker ingests
-uploads; the API does not yet answer questions.
+uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-End of M1. Uploads are stored, then parsed, chunked, and embedded by the worker;
-nothing searches the chunks yet.
+M2 in progress. Uploads are stored, then parsed, chunked, and embedded by the worker.
+`POST /questions` searches a collection's chunks for a question, answers from the
+nearest with cited passages, and records every question with its outcome and timings.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -29,12 +30,19 @@ construct one with their own settings. Routes:
 | `GET /collections` | Keyset pagination with an opaque cursor. |
 | `POST /documents` | Uploads to object storage, inserts document and job in one transaction, returns 202. |
 | `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
+| `POST /questions` | Answers from one collection with cited passages and per-stage timings, recording every question. 201 for an answer or insufficient evidence, 502 when generation declines or fails, 404 unless the collection is the caller's. |
 
-**Data** — PostgreSQL 16 with pgvector. Seven tables: `users`, `collections`,
+**Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
+and digest: the `pg16` tag moves with each release, and index-scan options depend on the
+extension version. Seven tables: `users`, `collections`,
 `documents`, `chunks`, `ingestion_jobs`, `questions`, `retrieval_results`. Schema is
 managed by Alembic and applies from empty. `chunks.embedding` is `vector(384)`, fixed
 by the embedding model; `chunks.collection_id` is denormalised from `documents` so
-tenant-filtered vector search stays single-table.
+tenant-filtered vector search stays single-table. `questions.outcome` is `answered`,
+`insufficient_evidence`, `declined`, or `failed`, enforced by a check constraint, so
+every question asked can be counted. Declined and failed rows keep the exception's class
+name in `error_class`, never its message, and `invalid_citations` is null wherever no
+answer was checked.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
@@ -50,22 +58,35 @@ rather than falling back to a weak credential.
 **Packaging** — a multi-stage Dockerfile with `api` and `worker` targets: dependencies
 install into a virtualenv in a builder stage, which a shared slim non-root runtime stage
 copies, so the two images share one environment. Migrations ship in the api image
-alone, so a container can migrate its own database and only one image ever does. The
-worker image also carries the embedding weights, fetched at build time, and runs with
-the Hugging Face Hub offline, so a missing model fails at startup rather than
-downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
+alone, so a container can migrate its own database and only one image ever does. Both
+images carry the embedding weights, since the worker embeds passages and the API embeds
+questions. The weights are fetched at build time, and both images run with the Hugging
+Face Hub offline, so a missing model fails at startup rather than downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
 ordering, and health checks on everything but the worker, which serves no HTTP.
 
 **Verification** — unit tests with no I/O, and integration tests against real
 PostgreSQL, MinIO, and the embedding model that skip when those are unavailable. CI
 runs lint, type checking, migrations, and the suite on every push and pull request,
 with the same pgvector image Compose uses and the model's weights cached between runs.
+Those runs answer with the stub generator. Tests against the real Claude API are marked
+`live` and excluded unless selected; a separate workflow runs them on pushes to `main`
+that change more than documentation, and on manual dispatch, failing outright if its
+API key secret is missing rather than skipping.
 
 **Ingestion** — the worker turns uploads into embedded chunks; see
 [Ingestion](#ingestion).
 
-**Not yet built** — retrieval, answer generation, Kubernetes manifests, and AWS
-infrastructure.
+**Retrieval** — dense search over one collection's chunks; see
+[Retrieval](#retrieval).
+
+**Answer generation** — a generator protocol, numbered context, Claude and stub backends
+selected by `GENERATOR`, and citation validation; see
+[Answer generation](#answer-generation).
+
+**Questions** — `POST /questions` ties search, generation, and citation checks together;
+see [Answering a question](#answering-a-question).
+
+**Not yet built** — Kubernetes manifests and AWS infrastructure.
 
 ## Ingestion
 
@@ -110,6 +131,81 @@ that a transient storage error fails a document until it is re-uploaded or reind
 finishes the job in hand before exiting. On a laptop CPU a 30-page document embeds in
 under three seconds and a 300-page one in about thirty.
 
+## Retrieval
+
+Dense search returns the five chunks of one collection nearest a question's embedding.
+Similarity is the inner product, pgvector's `<#>`: bge-small-en-v1.5 vectors are
+unit-length, so it equals cosine similarity and ranks chunks the same way. Scores are
+reported as similarities, higher meaning closer.
+
+The nearest chunks are chosen from `chunks` alone, filtered on its denormalised
+`collection_id`, and only those five are then joined to `documents` for their filenames.
+Each result carries what a citation points at: chunk, document, filename, pages, and
+score. Equal scores are ordered by chunk id, so the same question retrieves the same
+chunks in the same order.
+
+An HNSW index on `chunks.embedding`, built with `vector_ip_ops` to match the `<#>`
+ordering, lets the planner find the nearest chunks without comparing the question with
+every one. The index knows nothing of collections: it yields candidates from all of them
+and the filter discards the rest, so by default a small collection in a large index can
+lose every candidate and come back short. Search therefore enables pgvector's iterative
+index scan for its own transaction (`hnsw.iterative_scan = relaxed_order`), which keeps
+reading candidates until enough match, and re-sorts the relaxed order it returns. While
+a collection is small, the planner may still prefer the `collection_id` b-tree and an
+exact sort, which returns the same answer.
+
+## Answer generation
+
+A generator takes a question and numbered passages and answers in statements, each
+citing the passage numbers it relies on, together with its own judgement of whether the
+passages answer the question at all. Structured statements, rather than prose with
+inline markers, mean citations never have to be parsed out of text.
+
+Retrieved chunks are numbered from 1 in retrieval order for each request. The passages a
+generator receives carry a number, text, filename, and pages, but no chunk or document
+id: ids never reach the model, and a cited number maps back to its chunk by position.
+Filenames are escaped where the context is laid out, since they come from uploads.
+
+The stub generator answers with the opening words of the top passage and cites it. It
+makes no network call and gives the same answer every time, so CI needs no API key and
+load tests measure this service rather than a model provider.
+
+The Claude backend asks `claude-opus-5` for JSON matching a schema of statements and
+cited numbers, at low effort with thinking left on. It reads the stop reason before any
+content: a safety refusal raises `GenerationDeclined` and a response cut short raises
+`GenerationIncomplete`, each keeping the tokens it used, while API errors and timeouts
+propagate under the SDK's own names. `GENERATOR` selects the backend and defaults to
+`anthropic`. Selecting it without `ANTHROPIC_API_KEY` fails when the generator is built,
+and the stub answers only when named, never as a fallback.
+
+Citations are checked before an answer is returned or recorded. A cited number is valid
+only if it names a passage supplied for that request. Invalid numbers are dropped and
+counted once each, and a statement left citing nothing is dropped whole, since every
+claim must rest on a passage. Repeated numbers collapse to one citation. What survives
+is rendered as prose with `[n]` markers placed before each statement's closing
+punctuation.
+
+## Answering a question
+
+`POST /questions` runs a question through four timed stages, then checks citations. The
+API process embeds the question itself, having loaded the model at startup; searches the
+collection; numbers the nearest chunks into passages; and asks the generator. The
+search's transaction is committed before the generator is called, so a generation that
+takes seconds never holds a pooled database connection. The generator is built at
+startup too, so a missing API key stops the API before it serves anything.
+
+With nothing retrieved, the model is not called and the outcome is insufficient
+evidence. Otherwise the outcome is `answered` if at least one statement survives citation
+checks, and insufficient evidence if none does or the model itself judged the passages
+inadequate; both return 201. A safety refusal is `declined` and any other generation
+error `failed`. Both are recorded with the stages that ran, the tokens reported, and the
+exception's class name, and the caller gets a 502 that says nothing of the cause.
+
+Every question writes a `questions` row and one `retrieval_results` row per retrieved
+chunk, with its rank, score, and whether the returned answer cites it. Timings are
+returned in the response and stored on the row: `embed_ms`, `search_ms`, `prep_ms`,
+`llm_ms`, and `total_ms`, which covers everything but the write that records them.
+
 ## Decisions
 
 ### Job queue in PostgreSQL rather than Redis
@@ -130,5 +226,4 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: retrieval, answer generation and citations,
-evaluation, Kubernetes, AWS.
+Added as each subsystem is built: evaluation, Kubernetes, AWS.

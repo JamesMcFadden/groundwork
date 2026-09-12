@@ -53,7 +53,19 @@ keep it somewhere that survives restarts.
 Start only these services for tests. A running `worker` container claims the jobs the
 integration tests create, and they fail unpredictably.
 
+Tests that call the real Claude API are excluded from every run unless selected, since
+each run costs money. CI runs them on pushes to `main` and on demand; to run them
+locally, export a key first:
+
+```bash
+ANTHROPIC_API_KEY=... uv run pytest -m live tests/live
+```
+
 ### Running the service
+
+The API answers with Claude by default, and refuses to start without `ANTHROPIC_API_KEY`
+in `.env`. Set `GENERATOR=stub` there to run without a key; answers are then the opening
+words of the top retrieved passage.
 
 ```bash
 docker compose up -d --build
@@ -61,6 +73,8 @@ uv run alembic upgrade head
 curl -s -X POST localhost:8000/collections -H 'content-type: application/json' -d '{"name": "demo"}'
 curl -s -X POST localhost:8000/documents -F collection_id=<collection id> -F file=@report.pdf
 curl -s localhost:8000/jobs/<job id>        # queued, running, then completed or failed
+curl -s -X POST localhost:8000/questions -H 'content-type: application/json' \
+  -d '{"collection_id": "<collection id>", "question": "What does the report conclude?"}'
 ```
 
 Stop the `api` and `worker` containers (`docker compose stop api worker`) before running

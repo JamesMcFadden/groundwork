@@ -112,6 +112,14 @@ class Chunk(Base):
     __table_args__ = (
         UniqueConstraint("document_id", "chunk_index", name="uq_chunks_document_index"),
         Index("ix_chunks_collection", "collection_id"),
+        # Approximate nearest-neighbour search. The operator class must match the
+        # search's <#> ordering, or Postgres cannot use the index for it at all.
+        Index(
+            "ix_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_ip_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -177,10 +185,17 @@ class Question(Base):
 
     Answer fields live here rather than in a separate table: the relationship is
     strictly one-to-one, and per-stage timings make latency analysis a query.
+
+    Every question gets a row, whatever happened to it, so evaluation rates always have
+    every question in the denominator.
     """
 
     __tablename__ = "questions"
     __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('answered', 'insufficient_evidence', 'declined', 'failed')",
+            name="ck_questions_outcome",
+        ),
         Index("ix_questions_collection_created", "collection_id", "created_at", "id"),
     )
 
@@ -192,8 +207,14 @@ class Question(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False)
     answer_text: Mapped[str | None] = mapped_column(Text)
-    insufficient_evidence: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Distinct cited numbers that validation rejected. None where no answer was checked,
+    # so a question that never reached validation is not counted as citing perfectly.
+    invalid_citations: Mapped[int | None] = mapped_column(Integer)
+    # A declined or failed question's exception class name. Never its message, which can
+    # carry a provider's or this service's internal detail.
+    error_class: Mapped[str | None] = mapped_column(String(100))
 
     embed_ms: Mapped[int | None] = mapped_column(Integer)
     search_ms: Mapped[int | None] = mapped_column(Integer)
