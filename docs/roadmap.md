@@ -6,8 +6,8 @@ stay one line until they are next.
 **Now:** M2 — RAG query path
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M2 — start branch `m2-rag-query-path`
-**Budget:** ~51h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
+**Next item:** M2 — start branch `m2-rag-query-path`, then pin the pgvector image
+**Budget:** ~52.5h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
 
 ## Milestones
 
@@ -16,7 +16,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 
 - [x] **M0** (11h) Foundations + document API — tooling, compose, Dockerfile, schema, upload
 - [x] **M1** (7h) Async ingestion — worker image, skip-locked queue, parse/chunk/embed
-- [ ] **M2** (8h) RAG query path — vector search, Claude call, cited answers
+- [ ] **M2** (9.5h) RAG query path — vector search, Claude call, cited answers
 - [ ] **M3** (4h) Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
       citation validity, refusal
 - [ ] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
@@ -63,13 +63,14 @@ Merged through PR #1 as `a3aa63f`.
 
 ## M2 — RAG query path
 
-Planned 2026-09-11. Estimated at about 9.5h against the 8h budget: the overrun is the
-three items added in review (question outcomes, the pgvector pin, the live-test
-workflow). Watch it rather than cut now.
+Planned 2026-09-11. Budget raised the same day from 8h to 9.5h, matching the estimate
+once review added three items: question outcomes, the pgvector pin, and the live-test
+workflow. The pin goes first, since search and its index both depend on the extension
+version.
 
+- [ ] `build: pin the pgvector image to an explicit version`
 - [ ] `feat(embeddings): add query embedding to the embedder protocol`
 - [ ] `feat(retrieval): add collection-filtered dense vector search`
-- [ ] `build: pin the pgvector image to an explicit version`
 - [ ] `perf(db): add hnsw index for filtered vector search`
 - [ ] `feat(generation): add generator protocol, numbered context, and stub backend`
 - [ ] `feat(generation): add claude backend with structured citations`
@@ -111,14 +112,19 @@ Decisions taken while planning:
   estimated at under $3 a month; every other run uses the stub. Its API key belongs to
   a dedicated Claude Console workspace with a monthly spend limit.
 
-Unverified going in; check each before building on it:
+Unverified going in; checked 2026-09-11:
 
-- Whether the pinned pgvector version supports `hnsw.iterative_scan`, believed to have
-  arrived in pgvector 0.8.0. Without it, filtered search relies on over-fetching alone.
-- Whether `client.messages.parse()` in the installed `anthropic` SDK accepts a
-  structured output format together with `output_config` effort.
-- Whether `usage.output_tokens` includes thinking tokens, as `questions.output_tokens`
-  and the live-test cost estimate assume.
+- **pgvector supports `hnsw.iterative_scan`.** It arrived in 0.8.0, and `pg16` currently
+  resolves to 0.8.6, the latest release. In that image it defaults to `off` and accepts
+  `relaxed_order` and `strict_order`, so filtered search need not rely on over-fetching
+  alone, but the query must turn it on.
+- **`client.messages.parse()` sends a Pydantic format and effort together** in
+  `anthropic` 1.5.0, merging the model's schema into `output_config` beside `effort`.
+  The effort and structured-output docs both list `claude-opus-5` and neither restricts
+  combining them. No request has been sent, so the first live call confirms it.
+- **`usage.output_tokens` includes thinking tokens**, whether thinking is summarized or
+  omitted; the docs call it "the inclusive, authoritative total used for billing".
+  `usage.output_tokens_details.thinking_tokens` reports the thinking share on its own.
 
 ## Stack decisions
 
