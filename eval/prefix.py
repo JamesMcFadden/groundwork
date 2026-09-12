@@ -86,9 +86,13 @@ def compare_prefix(
     collection_id: uuid.UUID,
     golden: GoldenSet,
 ) -> PrefixComparison:
-    """Score retrieval over the same collection and questions, without and with the prefix."""
+    """Score retrieval over the same collection and questions, without and with the prefix.
+
+    Always dense search, whatever the run's retriever: the rule was pre-registered for it,
+    and applied in M3.
+    """
     without, with_prefix = query_embedders(embedder.embed_passages)
     return PrefixComparison(
-        without=run_retrieval(sessions, without, collection_id, golden),
-        with_prefix=run_retrieval(sessions, with_prefix, collection_id, golden),
+        without=run_retrieval(sessions, without, collection_id, golden, "dense"),
+        with_prefix=run_retrieval(sessions, with_prefix, collection_id, golden, "dense"),
     )

@@ -17,6 +17,7 @@ def result(
     return AnswerResult(
         question_id=question_id,
         answerable=answerable,
+        retriever="dense",
         outcome=outcome,
         answer_text=None,
         markers=markers,

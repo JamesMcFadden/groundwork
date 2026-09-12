@@ -86,7 +86,7 @@ def test_answers_are_scored_from_what_the_service_recorded(
         decline=declined.question,
     )
 
-    report = run_answering(sessions, embedder, generator, ingested, golden)
+    report = run_answering(sessions, embedder, generator, ingested, golden, "dense")
 
     with sessions() as session:
         recorded = session.scalar(
@@ -117,9 +117,21 @@ def test_the_stub_answers_every_question_from_its_top_passage(
     ingested: IngestedCorpus,
     golden: GoldenSet,
 ) -> None:
-    report = run_answering(sessions, embedder, StubGenerator(), ingested, golden)
+    report = run_answering(sessions, embedder, StubGenerator(), ingested, golden, "dense")
 
     assert {result.outcome for result in report.results} == {"answered"}
     assert all(result.cited_ranks == (1,) == result.markers for result in report.results)
     assert report.refused == 0
     assert report.unresolved_markers == 0
+
+
+def test_each_question_is_answered_with_the_named_retriever_and_recorded_so(
+    sessions: sessionmaker[Session],
+    embedder: Embedder,
+    ingested: IngestedCorpus,
+    golden: GoldenSet,
+) -> None:
+    report = run_answering(sessions, embedder, StubGenerator(), ingested, golden, "hybrid")
+
+    assert len(report.results) == len(golden.answerable) + len(golden.unanswerable)
+    assert {result.retriever for result in report.results} == {"hybrid"}

@@ -4,6 +4,9 @@ Verifies the corpus, loads the golden set, ingests the corpus into the eval coll
 checks every quote against the parsed text, measures retrieval, puts every question
 through the answering path, and writes the results. Exits non-zero only when the harness
 cannot run: a missed target is a result to record, not a failure.
+
+Questions are retrieved with `RETRIEVER`, read as the service reads it, and the run
+records which retriever that was.
 """
 
 import argparse
@@ -84,13 +87,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"eval: {exc}", file=sys.stderr)
         return 1
 
-    retrieval = run_retrieval(sessions, embedder.embed_query, ingested.collection_id, golden)
+    retriever = settings.retriever
+    retrieval = run_retrieval(
+        sessions, embedder.embed_query, ingested.collection_id, golden, retriever
+    )
     comparison = compare_prefix(sessions, embedder, ingested.collection_id, golden)
-    answering = run_answering(sessions, embedder, generator, ingested, golden)
+    answering = run_answering(sessions, embedder, generator, ingested, golden, retriever)
     measured = args.answers == "claude"
 
     with sessions() as session:
-        metadata = run_metadata(session, corpus, golden, started, args.answers)
+        metadata = run_metadata(session, corpus, golden, started, args.answers, retriever)
     record = {
         "metadata": metadata,
         "chunk_counts": ingested.chunk_counts,

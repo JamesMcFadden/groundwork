@@ -293,7 +293,7 @@ Planned 2026-09-12.
 - [x] `feat(retrieval): fuse dense and full-text results with reciprocal rank fusion`
 - [x] `feat(db): record the retriever that served each question`
 - [x] `feat(retrieval): select dense or hybrid search with RETRIEVER`
-- [ ] `feat(eval): search through the configured retriever and record it`
+- [x] `feat(eval): search through the configured retriever and record it`
 - [ ] `feat(eval): compare dense and hybrid retrieval`
 - [ ] `feat(retrieval): default RETRIEVER to hybrid`, only if the adoption rule below says
       to adopt it

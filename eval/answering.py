@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.answering import answer_question
 from app.db.models import Question, RetrievalResult
 from app.generation.generator import Generator
+from app.retrieval.search import Retriever
 from app.services.embeddings import Embedder
 from eval.golden import GoldenSet
 from eval.ingest import IngestedCorpus
@@ -37,6 +38,7 @@ class AnswerResult:
 
     question_id: str
     answerable: bool
+    retriever: str
     outcome: str
     answer_text: str | None
     markers: tuple[int, ...]
@@ -127,6 +129,7 @@ def run_answering(
     generator: Generator,
     ingested: IngestedCorpus,
     golden: GoldenSet,
+    retriever: Retriever,
 ) -> AnsweringReport:
     """Ask every golden-set question through the answering path, then read what was recorded."""
     asked: list[tuple[str, bool, uuid.UUID]] = []
@@ -139,7 +142,7 @@ def run_answering(
                 collection_id=ingested.collection_id,
                 user_id=ingested.user_id,
                 text=text,
-                retriever="dense",
+                retriever=retriever,
             )
             asked.append((question_id, answerable, recorded.question.id))
 
@@ -169,6 +172,7 @@ def _read(session: Session, question_id: str, answerable: bool, row_id: uuid.UUI
     return AnswerResult(
         question_id=question_id,
         answerable=answerable,
+        retriever=row.retriever,
         outcome=row.outcome,
         answer_text=row.answer_text,
         markers=markers_in(row.answer_text),

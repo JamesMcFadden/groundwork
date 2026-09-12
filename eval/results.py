@@ -30,7 +30,12 @@ RESULTS_DIR = Path(__file__).parent / "results"
 
 
 def run_metadata(
-    session: Session, corpus: Corpus, golden: GoldenSet, started: datetime, answers: str
+    session: Session,
+    corpus: Corpus,
+    golden: GoldenSet,
+    started: datetime,
+    answers: str,
+    retriever: str,
 ) -> dict[str, Any]:
     return {
         "started_at": started.isoformat(timespec="seconds"),
@@ -40,7 +45,7 @@ def run_metadata(
         "embedding_model": EMBEDDING_MODEL,
         "chunk_tokens": CHUNK_TOKENS,
         "chunk_overlap_tokens": OVERLAP_TOKENS,
-        "retriever": "dense",
+        "retriever": retriever,
         "pgvector_version": pgvector_version(session),
         "answers": answers,
         "generation_model": CLAUDE_MODEL if answers == "claude" else None,
@@ -57,6 +62,7 @@ def pgvector_version(session: Session) -> str | None:
 
 def retrieval_record(report: RetrievalReport) -> dict[str, Any]:
     return {
+        "retriever": report.retriever,
         "recall_at_5": report.recall_at_5,
         "hits_at_5": report.hits_at_5,
         "mrr_at_10": report.mrr_at_10,
@@ -122,7 +128,7 @@ def render_summary(
     n = len(report.answerable)
 
     lines = [
-        "## Retrieval evaluation (dense)",
+        f"## Retrieval evaluation ({report.retriever})",
         "",
         f"Commit {commit}; corpus `{metadata['corpus_manifest_sha256'][:12]}` "
         f"({len(chunk_counts)} documents, {sum(chunk_counts.values())} chunks); golden set "
@@ -135,13 +141,18 @@ def render_summary(
         f"| MRR@{MRR_K} (n={n}) | {report.mrr_at_10:.3f} |",
         "",
         _misses(report),
-        "",
-        "Best chunk score: answerable "
-        + _spread([result.best_score for result in report.answerable])
-        + "; unanswerable "
-        + _spread([result.best_score for result in report.unanswerable])
-        + ".",
     ]
+    if report.retriever == "dense":
+        # Fused scores are built from ranks: only dense search's say anything about a
+        # relevance threshold.
+        lines += [
+            "",
+            "Best chunk score: answerable "
+            + _spread([result.best_score for result in report.answerable])
+            + "; unanswerable "
+            + _spread([result.best_score for result in report.unanswerable])
+            + ".",
+        ]
     return "\n".join(lines)
 
 
