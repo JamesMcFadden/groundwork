@@ -103,6 +103,22 @@ def run_retrieval(
     )
 
 
+def flipped_at_5(baseline: RetrievalReport, candidate: RetrievalReport, gained: bool) -> list[str]:
+    """Questions the candidate gained a hit at 5 on over the baseline, or lost one on.
+
+    Comparisons on the same questions are reported as these flips, in the candidate's
+    question order, rather than as two overlapping intervals: see success-criteria.md.
+    """
+    hit_before = {
+        result.question_id: result.rank_at_5 is not None for result in baseline.answerable
+    }
+    return [
+        result.question_id
+        for result in candidate.answerable
+        if (result.rank_at_5 is not None) == gained and hit_before[result.question_id] != gained
+    ]
+
+
 def _search(
     sessions: sessionmaker[Session],
     retriever: Retriever,

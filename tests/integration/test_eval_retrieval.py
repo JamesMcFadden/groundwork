@@ -1,4 +1,5 @@
 import re
+import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -14,6 +15,7 @@ from eval.golden import AnswerableQuestion, Evidence, GoldenSet, load_golden, no
 from eval.ingest import IngestedCorpus, ingest_corpus
 from eval.results import pgvector_version
 from eval.retrieval import MRR_K, RECALL_K, run_retrieval
+from eval.retrievers import compare_retrievers
 
 # Not the eval user: a test run must never replace a developer's eval collection.
 TEST_EMAIL = "eval-retrieval-tests@example.com"
@@ -106,13 +108,11 @@ def axis(i: int) -> list[float]:
     return vector
 
 
-def test_questions_are_scored_from_the_search_the_retriever_names(
-    sessions: sessionmaker[Session],
-) -> None:
-    """Dense search ranks the answer third here, and hybrid search ranks it first.
+def ranked_differently(sessions: sessionmaker[Session]) -> tuple[uuid.UUID, GoldenSet]:
+    """A collection and question whose answer dense search ranks third and hybrid first.
 
-    A harness that searched one way whatever it was told would score one of them wrongly.
-    Only the answer holds the question's words; the question's vector matches another chunk.
+    Only the answer holds the question's words; the question's vector, axis(0), matches
+    another chunk.
     """
     passages = [
         ("Uploads are kept in object storage.", axis(0)),
@@ -154,7 +154,14 @@ def test_questions_are_scored_from_the_search_the_retriever_names(
         question="Was the boom heard on the ground?",
         evidence=(Evidence(document="report.pdf", page=3, quote="sonic boom was heard"),),
     )
-    golden = GoldenSet(answerable=(question,), unanswerable=(), sha256="")
+    return collection_id, GoldenSet(answerable=(question,), unanswerable=(), sha256="")
+
+
+def test_questions_are_scored_from_the_search_the_retriever_names(
+    sessions: sessionmaker[Session],
+) -> None:
+    """A harness that searched one way whatever it was told would score one of these wrongly."""
+    collection_id, golden = ranked_differently(sessions)
 
     dense = run_retrieval(sessions, lambda _: axis(0), collection_id, golden, "dense")
     hybrid = run_retrieval(sessions, lambda _: axis(0), collection_id, golden, "hybrid")
@@ -166,6 +173,21 @@ def test_questions_are_scored_from_the_search_the_retriever_names(
         pytest.approx(1.0),
         None,
     )
+
+
+def test_the_retrievers_are_compared_on_the_same_questions(
+    sessions: sessionmaker[Session],
+) -> None:
+    collection_id, golden = ranked_differently(sessions)
+
+    comparison = compare_retrievers(sessions, lambda _: axis(0), collection_id, golden)
+
+    dense = run_retrieval(sessions, lambda _: axis(0), collection_id, golden, "dense")
+    hybrid = run_retrieval(sessions, lambda _: axis(0), collection_id, golden, "hybrid")
+    assert (comparison.dense, comparison.hybrid) == (dense, hybrid)
+    # Third is still a hit at 5, so hybrid's first place moves MRR@10 but flips nothing.
+    assert [r.rank_at_5 for r in (*dense.answerable, *hybrid.answerable)] == [3, 1]
+    assert (comparison.fixed, comparison.broken) == ([], [])
 
 
 def test_the_pgvector_version_is_read_from_the_database(

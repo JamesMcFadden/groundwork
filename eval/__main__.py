@@ -31,12 +31,15 @@ from eval.results import (
     prefix_record,
     render_answering,
     render_prefix,
+    render_retriever_comparison,
     render_summary,
     retrieval_record,
+    retriever_comparison_record,
     run_metadata,
     write_results,
 )
 from eval.retrieval import run_retrieval
+from eval.retrievers import compare_retrievers
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -91,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     retrieval = run_retrieval(
         sessions, embedder.embed_query, ingested.collection_id, golden, retriever
     )
+    # Both strategies, whichever RETRIEVER names: the comparison is recorded on every run.
+    retrievers = compare_retrievers(sessions, embedder.embed_query, ingested.collection_id, golden)
     comparison = compare_prefix(sessions, embedder, ingested.collection_id, golden)
     answering = run_answering(sessions, embedder, generator, ingested, golden, retriever)
     measured = args.answers == "claude"
@@ -101,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         "metadata": metadata,
         "chunk_counts": ingested.chunk_counts,
         "retrieval": retrieval_record(retrieval),
+        "retriever_comparison": retriever_comparison_record(retrievers),
         "query_prefix": prefix_record(comparison),
         "answering": answering_record(answering, measured),
     }
@@ -109,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = "\n\n".join(
         [
             render_summary(retrieval, metadata, ingested.chunk_counts),
+            render_retriever_comparison(retrievers),
             render_prefix(comparison),
             render_answering(answering, measured, metadata["generation_model"]),
         ]

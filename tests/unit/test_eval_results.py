@@ -1,6 +1,7 @@
 from app.retrieval.search import Retriever
-from eval.results import render_summary
+from eval.results import render_retriever_comparison, render_summary
 from eval.retrieval import AnswerableResult, RetrievalReport, UnanswerableResult
+from eval.retrievers import RetrieverComparison
 
 METADATA = {
     "git": {"commit": "0" * 40, "uncommitted_changes": False},
@@ -36,3 +37,21 @@ def test_best_chunk_scores_are_summarised_only_for_dense_search() -> None:
 
     assert "Best chunk score: answerable min 0.800" in dense
     assert "Best chunk score" not in hybrid
+
+
+def test_the_retriever_comparison_reports_its_flips_and_verdict() -> None:
+    hybrid = RetrievalReport(
+        retriever="hybrid",
+        answerable=(
+            AnswerableResult("a01", rank_at_5=2, rank_at_10=2, best_score=None),
+            AnswerableResult("a02", rank_at_5=3, rank_at_10=3, best_score=None),
+        ),
+        unanswerable=(),
+    )
+    comparison = RetrieverComparison(dense=report("dense", 0.8), hybrid=hybrid)
+
+    lines = render_retriever_comparison(comparison).splitlines()
+
+    assert "| Recall@5 | 1/2 = 0.500 | 2/2 = 1.000 |" in lines
+    assert "Fixed by hybrid at 5: `a02`. Broken at 5: none. Net +1." in lines
+    assert lines[-1].endswith("Decision: keep dense the default.")
