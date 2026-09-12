@@ -14,6 +14,7 @@ from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.retrieval.dense import TOP_K, dense_search
 from app.retrieval.fulltext import fulltext_search
+from app.retrieval.hybrid import hybrid_search
 from app.services.embeddings import Embedder
 
 HNSW_INDEX = "ix_chunks_embedding_hnsw"
@@ -401,3 +402,79 @@ def test_full_text_search_can_use_the_gin_index(sessions: sessionmaker[Session])
         connection.rollback()
 
     assert GIN_INDEX in "\n".join(plan)
+
+
+def leaning(similarity: float, i: int) -> list[float]:
+    """A unit vector whose inner product with axis(0) is `similarity`, the rest along axis(i)."""
+    vector = [0.0] * EMBEDDING_DIM
+    vector[0] = similarity
+    vector[i] = math.sqrt(1 - similarity**2)
+    return vector
+
+
+def test_hybrid_lifts_a_chunk_full_text_matches_above_those_dense_ranks_higher(
+    sessions: sessionmaker[Session],
+) -> None:
+    collection_id = add_collection(sessions, "hybrid-lift")
+    storage, jobs, boom = add_document(
+        sessions,
+        collection_id,
+        [
+            ("Uploads are kept in object storage.", axis(0)),
+            ("Workers claim queued jobs.", between(0, 1)),
+            ("The sonic boom was heard on the ground.", axis(2)),
+        ],
+    )
+    question = "Was the boom heard on the ground?"
+
+    with sessions() as session:
+        dense = dense_search(session, collection_id, axis(0))
+    with sessions() as session:
+        hybrid = hybrid_search(session, collection_id, question, axis(0))
+
+    assert [result.chunk_id for result in dense] == [storage, jobs, boom]
+    assert [result.chunk_id for result in hybrid] == [boom, storage, jobs]
+
+
+def test_hybrid_searches_only_the_named_collection(sessions: sessionmaker[Session]) -> None:
+    """Another collection's chunk, nearest the question and holding its words, is not returned."""
+    mine = add_collection(sessions, "mine")
+    other = add_collection(sessions, "other")
+    (own,) = add_document(sessions, mine, [("Workers claim queued jobs.", axis(1))])
+    add_document(sessions, other, [("The sonic boom was heard on the ground.", axis(0))])
+
+    with sessions() as session:
+        results = hybrid_search(session, mine, "Was the boom heard on the ground?", axis(0))
+
+    assert [result.chunk_id for result in results] == [own]
+
+
+def test_a_chunk_sixth_in_both_searches_still_makes_the_top_five(
+    sessions: sessionmaker[Session],
+) -> None:
+    """Each search is asked for candidates to a depth of its own, not the result limit.
+
+    Five chunks lie nearer the question and hold none of its words; five others hold more
+    of its words and lie further from it. Each search alone ranks sixth the chunk that is
+    both near and matching, but a place in both lists lifts it into the top five, provided
+    each search was asked for more than five.
+    """
+    collection_id = add_collection(sessions, "hybrid-depth")
+    near = [(f"Stored upload number {i}.", leaning(0.9 - 0.05 * i, i + 1)) for i in range(TOP_K)]
+    wordy = [("The boom was heard on the ground.", axis(10 + i)) for i in range(TOP_K)]
+    chunk_ids = add_document(
+        sessions, collection_id, [*near, ("A boom.", leaning(0.5, 20)), *wordy]
+    )
+    both = chunk_ids[TOP_K]
+    question = "Was the boom heard on the ground?"
+
+    with sessions() as session:
+        dense = dense_search(session, collection_id, axis(0), limit=TOP_K)
+    with sessions() as session:
+        full_text = fulltext_search(session, collection_id, question, limit=TOP_K)
+    with sessions() as session:
+        hybrid = hybrid_search(session, collection_id, question, axis(0), limit=TOP_K)
+
+    assert both not in [result.chunk_id for result in dense]
+    assert both not in [result.chunk_id for result in full_text]
+    assert both in [result.chunk_id for result in hybrid]
