@@ -1,0 +1,315 @@
+# Golden set for the M3 evaluation. Never reword a question: see CLAUDE.md.
+#
+# Written by gpt-5.6-sol on 2026-09-12 from the six PDFs in eval/corpus alone. The author
+# was not shown parsed chunks, retrieval results, generated answers, or measurements.
+# Pages count positions in each PDF, the first page being 1, not printed page numbers.
+
+[[answerable]]
+id = "a01"
+question = "Why do satellites near the upper end of the small-satellite mass range generally stop being low-cost?"
+
+[[answerable.evidence]]
+document = "small-satellite-failure-rates.pdf"
+page = 9
+quote = "satellites near the 500 kg mass size generally require a separate launch vehicle"
+
+[[answerable]]
+id = "a02"
+question = "How did the study classify an educational satellite that reached orbit but never transmitted a signal?"
+
+[[answerable.evidence]]
+document = "small-satellite-failure-rates.pdf"
+page = 12
+quote = "Educational satellites that achieve successful orbit but fail to transmit any signals are considered to be in this category."
+
+[[answerable]]
+id = "a03"
+question = "What did the author assume when no post-launch publication or news story could be found for a small satellite?"
+
+[[answerable.evidence]]
+document = "small-satellite-failure-rates.pdf"
+page = 12
+quote = "if no post-launch publications or news articles could be found, the small satellite mission was presumed to be a mission failure."
+
+[[answerable]]
+id = "a04"
+question = "How did the average annual number of small-satellite launches change between 2000-2008 and 2009-2016?"
+
+[[answerable.evidence]]
+document = "small-satellite-failure-rates.pdf"
+page = 14
+quote = "Whereas from 2000 to 2008 the average yearly launch rate was about 15 launches per year, from 2009 to 2016 the average yearly launch rate increased to 48"
+
+[[answerable]]
+id = "a05"
+question = "What mission-related explanation does the report offer for the recent rise in total small-satellite failures?"
+
+[[answerable.evidence]]
+document = "small-satellite-failure-rates.pdf"
+page = 16
+quote = "One reason for this outcome might be that the mission objectives of small satellites has become progressively more challenging."
+
+[[answerable]]
+id = "a06"
+question = "How many microphones made up FaINT's primary ground array, and how far apart were they?"
+
+[[answerable.evidence]]
+document = "faint-lateral-cutoff.pdf"
+page = 10
+quote = "The primary microphone array was linear and consisted of 60 microphones spaced 125 ft apart"
+
+[[answerable]]
+id = "a07"
+question = "Why was the TG-14's engine shut down while it recorded sonic booms?"
+
+[[answerable.evidence]]
+document = "faint-lateral-cutoff.pdf"
+page = 13
+quote = "the microphone portion of the AAMP system would not record properly when the propeller of the airplane was rotating."
+
+[[answerable]]
+id = "a08"
+question = "What rule was used to label an F-18B pass as unsteady during FaINT?"
+
+[[answerable.evidence]]
+document = "faint-lateral-cutoff.pdf"
+page = 17
+quote = "if two or more of the three flight parameters had standard deviations above the threshold, the pass was deemed to be unsteady."
+
+[[answerable]]
+id = "a09"
+question = "Why was PLSEL considered better suited than PL70 to signatures beyond lateral cutoff?"
+
+[[answerable.evidence]]
+document = "faint-lateral-cutoff.pdf"
+page = 17
+quote = "The 1-s normalized method of energy integration used for PLSEL is more applicable to the longer 500 ms to 2 s duration signatures"
+
+[[answerable]]
+id = "a10"
+question = "How far above expected levels did near-ground temperature inversions sometimes push PLSEL during FaINT?"
+
+[[answerable.evidence]]
+document = "faint-lateral-cutoff.pdf"
+page = 29
+quote = "These inversions sometimes resulted in PLSEL values that were 15 dB higher than expected."
+
+[[answerable]]
+id = "a11"
+question = "What flight schedule is planned for the X-59 community response studies?"
+
+[[answerable.evidence]]
+document = "x59-cumulative-noise-metrics.pdf"
+page = 9
+quote = "Community response studies are planned in which the X-59 aircraft will be flown over a community multiple times a day for several weeks"
+
+[[answerable]]
+id = "a12"
+question = "How did acceptance of eight daily booms change over the course of the Oklahoma City study?"
+
+[[answerable.evidence]]
+document = "x59-cumulative-noise-metrics.pdf"
+page = 10
+quote = "The reported acceptability fell from 90% after the first 11 weeks to 73% during the final 7 weeks of the study."
+
+[[answerable]]
+id = "a13"
+question = "What caused QSF18 researchers to reduce the highest noise levels they had planned?"
+
+[[answerable.evidence]]
+document = "x59-cumulative-noise-metrics.pdf"
+page = 11
+quote = "There was some negative feedback from the community during testing which prompted researchers to curb the highest planned levels."
+
+[[answerable]]
+id = "a14"
+question = "Which hours receive the nighttime penalty in DNL, and how large is that penalty?"
+
+[[answerable.evidence]]
+document = "x59-cumulative-noise-metrics.pdf"
+page = 15
+quote = "DNL is the 24-hour average frequency-weighted sound level with a 10-dB penalty added to nighttime levels from 10 p.m. to 7 a.m."
+
+[[answerable]]
+id = "a15"
+question = "What does the generalized DNL formula reduce to when its parameter b is 0.5?"
+
+[[answerable.evidence]]
+document = "x59-cumulative-noise-metrics.pdf"
+page = 16
+quote = "When 𝑏 equals 0.5, the formula performs an equal-energy summation and outputs DNL."
+
+[[answerable]]
+id = "a16"
+question = "Why could the review not predict motion-sickness rates for UAM passengers?"
+
+[[answerable.evidence]]
+document = "uam-motion-sickness.pdf"
+page = 9
+quote = "data from actual flight or full-fidelity simulation are simply not yet available."
+
+[[answerable]]
+id = "a17"
+question = "Can sopite syndrome occur without nausea or vomiting?"
+
+[[answerable.evidence]]
+document = "uam-motion-sickness.pdf"
+page = 10
+quote = "The sopite syndrome (severe drowsiness) may occur independently of other well-known motion sickness symptoms, without any accompanying nausea or vomiting."
+
+[[answerable]]
+id = "a18"
+question = "What visual strategy can help ease motion sickness caused by conflicting sensory input?"
+
+[[answerable.evidence]]
+document = "uam-motion-sickness.pdf"
+page = 12
+quote = "One way of dealing with this is to focus one’s gaze on the horizon, which will help ameliorate symptoms to some extent"
+
+[[answerable]]
+id = "a19"
+question = "How was the short Motion Sickness Susceptibility Questionnaire made shorter?"
+
+[[answerable.evidence]]
+document = "uam-motion-sickness.pdf"
+page = 12
+quote = "This form was developed by removing items with low motion sickness prevalence such as wide screen movies and head-mounted virtual reality (VR) displays."
+
+[[answerable]]
+id = "a20"
+question = "In the rotating-drum study, how much higher were control scores than scores obtained while viewing a fixation point?"
+
+[[answerable.evidence]]
+document = "uam-motion-sickness.pdf"
+page = 31
+quote = "Control condition scores were as much as 400% higher than when the fixation point was viewed."
+
+[[answerable]]
+id = "a21"
+question = "What were the three highest-priority barriers identified by the On Demand Mobility workshop, in order?"
+
+[[answerable.evidence]]
+document = "uam-risk.pdf"
+page = 6
+quote = "Of the nine challenges assessed, the highest priority was assigned to certification, followed by affordability, and then safety."
+
+[[answerable]]
+id = "a22"
+question = "What assumption does the risk report make about whether near-term UAM vehicles will have pilots?"
+
+[[answerable.evidence]]
+document = "uam-risk.pdf"
+page = 6
+quote = "We assume here that, at least for the near future, these vehicles will be piloted, but it is likely that one day they will be unmanned."
+
+[[answerable]]
+id = "a23"
+question = "Where does the report suggest predetermined urban flight routes might initially be placed?"
+
+[[answerable.evidence]]
+document = "uam-risk.pdf"
+page = 8
+quote = "These routes are likely to be along railroad tracks or over freeways."
+
+[[answerable]]
+id = "a24"
+question = "How would an auto-throttle function be classified in an unmanned vehicle?"
+
+[[answerable.evidence]]
+document = "uam-risk.pdf"
+page = 11
+quote = "an auto throttle in an unmanned vehicle is deemed Critical (must meet 1 X 10-9 probability of failure)"
+
+[[answerable]]
+id = "a25"
+question = "What passenger capacity and maximum takeoff mass does EASA's proposed small-VTOL certification framework cover?"
+
+[[answerable.evidence]]
+document = "uam-risk.pdf"
+page = 14
+quote = "This proposed framework is applicable to vehicles carrying five or fewer persons and having a takeoff mass of 2000 kg or less."
+
+[[answerable]]
+id = "a26"
+question = "What are the three stages of ISS schedule planning?"
+
+[[answerable.evidence]]
+document = "iss-crew-workload-fatigue.pdf"
+page = 9
+quote = "Because of its complexity, the scheduling process is performed in three steps: Strategic, Tactical and Increment planning."
+
+[[answerable]]
+id = "a27"
+question = "How much exercise is included in a typical ISS workday?"
+
+[[answerable.evidence]]
+document = "iss-crew-workload-fatigue.pdf"
+page = 12
+quote = "two-and-one-half hours of exercise"
+
+[[answerable]]
+id = "a28"
+question = "How many studies met the ISS workload review's inclusion criteria?"
+
+[[answerable.evidence]]
+document = "iss-crew-workload-fatigue.pdf"
+page = 14
+quote = "One hundred eighty studies met the inclusion criteria for this project."
+
+[[answerable]]
+id = "a29"
+question = "For how long did moderate caffeine intake continue to improve performance in sleep-deprived Navy SEAL operations?"
+
+[[answerable.evidence]]
+document = "iss-crew-workload-fatigue.pdf"
+page = 18
+quote = "positive performance effects persisted for eight hours."
+
+[[answerable]]
+id = "a30"
+question = "Which relaxation-related boundary-management strategy was among the most effective for long schedules and blurred work-life boundaries?"
+
+[[answerable.evidence]]
+document = "iss-crew-workload-fatigue.pdf"
+page = 29
+quote = "Blocking out time for relaxation"
+
+[[unanswerable]]
+id = "u01"
+question = "What percentage of small satellites launched from 2017 through 2020 ended in total or partial mission failure?"
+reason = "Near miss: the failure-rate report ends its study period in 2016, and none of the other five reports provides later small-satellite failure rates."
+
+[[unanswerable]]
+id = "u02"
+question = "How much farther did FaINT measure the sonic-boom carpet extending on the leeward side than on the windward side?"
+reason = "Near miss: FaINT measured on the windward side and says leeward measurements were overlooked; no report contains the requested comparison."
+
+[[unanswerable]]
+id = "u03"
+question = "After the X-59 community flights were completed, which cumulative metric best predicted residents' end-of-day annoyance?"
+reason = "Near miss: the X-59 report reviews candidate metrics for planned studies; it contains no completed X-59 community-flight results, and neither does another corpus report."
+
+[[unanswerable]]
+id = "u04"
+question = "What percentage of passengers became motion sick during actual commercial UAM flights?"
+reason = "Near miss: the motion-sickness review says actual UAM flight and full-fidelity simulation data were unavailable; the UAM risk report and the other reports give no such rate."
+
+[[unanswerable]]
+id = "u05"
+question = "What catastrophic-failure rate did an autonomous e-VTOL fleet achieve during its first year of passenger service?"
+reason = "Near miss: the risk report discusses target probabilities and emerging vehicles, not operational fleet results; none of the six reports documents a first year of autonomous e-VTOL passenger service."
+
+[[unanswerable]]
+id = "u06"
+question = "By how many hours did a workload-reduction intervention increase ISS crewmembers' nightly sleep?"
+reason = "Near miss: the ISS report proposes mitigations but reports no controlled ISS workload-reduction intervention or measured sleep increase; no other corpus report does either."
+
+[[unanswerable]]
+id = "u07"
+question = "What share of launch-vehicle failures between 2000 and 2017 was caused specifically by flight software?"
+reason = "Near miss: the small-satellite report gives aggregate launch-vehicle failure rates but no cause-by-cause percentage; the other five reports do not supply one."
+
+[[unanswerable]]
+id = "u08"
+question = "Which medication did the ISS workload review find most effective for restoring alertness after chronic sleep restriction?"
+reason = "Near miss: the ISS report discusses hypnotics and caffeine but does not compare medications for restoring alertness; the motion-sickness report evaluates drugs for a different condition, and no report answers this question."

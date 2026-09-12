@@ -15,9 +15,10 @@ uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-End of M2. Uploads are stored, then parsed, chunked, and embedded by the worker.
+End of M3. Uploads are stored, then parsed, chunked, and embedded by the worker.
 `POST /questions` searches a collection's chunks for a question, answers from the
-nearest with cited passages, and records every question with its outcome and timings.
+nearest with cited passages, and records every question with its outcome and timings. An
+evaluation harness scores retrieval and answers against a frozen corpus and golden set.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -71,7 +72,8 @@ with the same pgvector image Compose uses and the model's weights cached between
 Those runs answer with the stub generator. Tests against the real Claude API are marked
 `live` and excluded unless selected; a separate workflow runs them on pushes to `main`
 that change more than documentation, and on manual dispatch, failing outright if its
-API key secret is missing rather than skipping.
+API key secret is missing rather than skipping. After the tests, CI runs the evaluation
+harness with the stub generator and writes its retrieval figures to the run's summary.
 
 **Ingestion** — the worker turns uploads into embedded chunks; see
 [Ingestion](#ingestion).
@@ -85,6 +87,9 @@ selected by `GENERATOR`, and citation validation; see
 
 **Questions** — `POST /questions` ties search, generation, and citation checks together;
 see [Answering a question](#answering-a-question).
+
+**Evaluation** — a harness in `eval/` scores retrieval and answers against a frozen
+corpus and golden set; see [Evaluation](#evaluation).
 
 **Not yet built** — Kubernetes manifests and AWS infrastructure.
 
@@ -206,6 +211,20 @@ chunk, with its rank, score, and whether the returned answer cites it. Timings a
 returned in the response and stored on the row: `embed_ms`, `search_ms`, `prep_ms`,
 `llm_ms`, and `total_ms`, which covers everything but the write that records them.
 
+## Evaluation
+
+The harness in `eval/` runs beside the service rather than inside it, against the same
+database, and exercises the service's own code: `parse_pdf`, `chunk_pages`, and the
+embedder to index the corpus, `dense_search` to retrieve, and `answer_question` to
+answer. A run verifies six NASA reports against their SHA-256 manifest, validates the
+golden set's structure and every evidence quote against the parsed text, and replaces the
+eval user's collection with a fresh index of the corpus. It then scores Recall@5 and
+MRR@10, runs the pre-registered query-prefix comparison, and puts every question through
+the answering path, scoring refusal and citation validity from the rows
+`answer_question` records rather than from what it returns. `make eval` answers with the
+stub and leaves answering unmeasured; `make eval-live` answers with Claude. See
+[evaluation.md](evaluation.md) for how to run it, how it is scored, and the results.
+
 ## Decisions
 
 ### Job queue in PostgreSQL rather than Redis
@@ -226,4 +245,4 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: evaluation, Kubernetes, AWS.
+Added as each subsystem is built: Kubernetes, AWS.

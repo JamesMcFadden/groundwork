@@ -14,9 +14,9 @@ Two rules govern it:
 
 | Area | Criterion | Measured by | Status |
 | --- | --- | --- | --- |
-| Retrieval | Recall@5 ≥ 0.90 (n=30) | `make eval` | not yet measured |
-| Citations | Validation rejects 100% of invalid citations | `make eval` | not yet measured |
-| Refusal | 8/8 unanswerable questions refused | `make eval` | not yet measured |
+| Retrieval | Recall@5 ≥ 0.90 (n=30) | `make eval` | met, exactly on target: 27/30 = 0.900 (dense, 2026-09-12, [run](evaluation.md#results)) |
+| Citations | Validation rejects 100% of invalid citations | `make eval-live` | met: 0 of 49 returned markers named an uncited chunk (n=38, `claude-opus-5`, 2026-09-12); the model cited nothing invalid, so rejection itself is shown by tests |
+| Refusal | 8/8 unanswerable questions refused | `make eval-live` | met: 8/8, with 3/30 false refusals (`claude-opus-5`, 2026-09-12) |
 | API reliability | ≥ 99% non-5xx, 30 VU × 5 min, stubbed generator | k6 on kind | not yet measured |
 | Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | not yet measured |
 | Ingestion | 30-page PDF indexed in < 60 s | job timestamps | met locally: 4.05 s (n=1, laptop CPU via Compose, 2026-09-11) |
@@ -24,7 +24,7 @@ Two rules govern it:
 | Recovery | Pod deletion under load → zero failed requests | k6 error rate | not yet measured |
 | AWS | Reachable via LoadBalancer, answering against RDS | smoke test | not yet measured |
 | Deployment | Fresh environment from documented steps; one `docker compose up` | manual, timed | not yet measured |
-| CI | Every PR runs lint, types, tests, retrieval eval | GitHub Actions | not yet measured |
+| CI | Every PR runs lint, types, tests, retrieval eval | GitHub Actions | met: all four run on every pull request and push to `main` (from PR #4, 2026-09-12) |
 
 Reported alongside, with no target attached:
 
@@ -111,3 +111,7 @@ roadmap's Parked list; the honest statement is that grounding is enforced struct
   citations rather than invalid chunk ids: since M2, chunk ids never reach the model,
   which cites passage numbers. [Scoring](#scoring) defines hits and each golden-set
   figure, and false refusals join the figures reported alongside. No target changed.
+- **2026-09-12, recording the first results.** Citations and refusal are measured by
+  `make eval-live`, the run that answers with Claude; `make eval` answers with a stub that
+  cannot refuse or miscite, so it leaves both unmeasured. Only the command named in
+  "Measured by" changed. No target changed.

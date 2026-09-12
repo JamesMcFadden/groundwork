@@ -105,3 +105,11 @@ jobs:
         env:
           EMBEDDING_CACHE_DIR: ${{ runner.temp }}/fastembed
         run: uv run pytest -v
+
+      # Retrieval figures for the golden set, with the answering path run by the stub, so
+      # it needs no API key. The figures go to the job summary. A missed target is a result
+      # to record rather than a failure: only a harness that cannot run fails this step.
+      - name: Retrieval eval
+        env:
+          EMBEDDING_CACHE_DIR: ${{ runner.temp }}/fastembed
+        run: uv run python -m eval --summary "$GITHUB_STEP_SUMMARY"
