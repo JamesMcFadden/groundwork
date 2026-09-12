@@ -69,7 +69,7 @@ workflow. The pin goes first, since search and its index both depend on the exte
 version.
 
 - [x] `build: pin the pgvector image to an explicit version`
-- [ ] `feat(embeddings): add query embedding to the embedder protocol`
+- [x] `feat(embeddings): add query embedding to the embedder protocol`
 - [ ] `feat(retrieval): add collection-filtered dense vector search`
 - [ ] `perf(db): add hnsw index for filtered vector search`
 - [ ] `feat(generation): add generator protocol, numbered context, and stub backend`

@@ -130,6 +130,9 @@ class BrokenEmbedder:
     def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
         raise RuntimeError("embedding backend unavailable")
 
+    def embed_query(self, text: str) -> list[float]:
+        raise RuntimeError("embedding backend unavailable")
+
 
 class WorkerKilled(BaseException):
     """Stands in for SIGKILL or an out-of-memory kill: nothing in the worker can handle it."""
@@ -146,6 +149,9 @@ class DyingEmbedder:
         self.tokenizer = real.tokenizer
 
     def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
+        raise WorkerKilled
+
+    def embed_query(self, text: str) -> list[float]:
         raise WorkerKilled
 
 
