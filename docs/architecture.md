@@ -15,8 +15,9 @@ uploads; the API does not yet answer questions.
 
 ## Current state
 
-End of M1. Uploads are stored, then parsed, chunked, and embedded by the worker;
-nothing searches the chunks yet.
+M2 in progress. Uploads are stored, then parsed, chunked, and embedded by the worker,
+and a collection's chunks can be searched by similarity to a question; nothing answers
+questions yet.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -66,7 +67,10 @@ with the same pgvector image Compose uses and the model's weights cached between
 **Ingestion** — the worker turns uploads into embedded chunks; see
 [Ingestion](#ingestion).
 
-**Not yet built** — retrieval, answer generation, Kubernetes manifests, and AWS
+**Retrieval** — dense search over one collection's chunks; see
+[Retrieval](#retrieval).
+
+**Not yet built** — answer generation, `POST /questions`, Kubernetes manifests, and AWS
 infrastructure.
 
 ## Ingestion
@@ -112,6 +116,19 @@ that a transient storage error fails a document until it is re-uploaded or reind
 finishes the job in hand before exiting. On a laptop CPU a 30-page document embeds in
 under three seconds and a 300-page one in about thirty.
 
+## Retrieval
+
+Dense search returns the five chunks of one collection nearest a question's embedding.
+Similarity is the inner product, pgvector's `<#>`: bge-small-en-v1.5 vectors are
+unit-length, so it equals cosine similarity and ranks chunks the same way. Scores are
+reported as similarities, higher meaning closer.
+
+The nearest chunks are chosen from `chunks` alone, filtered on its denormalised
+`collection_id`, and only those five are then joined to `documents` for their filenames.
+Each result carries what a citation points at: chunk, document, filename, pages, and
+score. Equal scores are ordered by chunk id, so the same question retrieves the same
+chunks in the same order.
+
 ## Decisions
 
 ### Job queue in PostgreSQL rather than Redis
@@ -132,5 +149,5 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: retrieval, answer generation and citations,
-evaluation, Kubernetes, AWS.
+Added as each subsystem is built: answer generation and citations, evaluation,
+Kubernetes, AWS.

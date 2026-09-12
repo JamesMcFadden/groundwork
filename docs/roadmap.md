@@ -70,7 +70,7 @@ version.
 
 - [x] `build: pin the pgvector image to an explicit version`
 - [x] `feat(embeddings): add query embedding to the embedder protocol`
-- [ ] `feat(retrieval): add collection-filtered dense vector search`
+- [x] `feat(retrieval): add collection-filtered dense vector search`
 - [ ] `perf(db): add hnsw index for filtered vector search`
 - [ ] `feat(generation): add generator protocol, numbered context, and stub backend`
 - [ ] `feat(generation): add claude backend with structured citations`
