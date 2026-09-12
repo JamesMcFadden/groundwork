@@ -143,7 +143,7 @@ Planned 2026-09-12.
 - [x] `feat(eval): add frozen corpus with checksum manifest`
 - [x] `feat(eval): add golden set format with validation`
 - [x] `feat(eval): add golden set of 30 answerable and 8 unanswerable questions`
-- [ ] `feat(eval): ingest the corpus into an isolated eval collection`
+- [x] `feat(eval): ingest the corpus into an isolated eval collection`
 - [ ] `feat(eval): report Recall@5 and MRR@10 for dense retrieval`
 - [ ] `feat(eval): report refusal and citation validity through the answering path`
 - [ ] `ci: run the retrieval eval on every pull request`
