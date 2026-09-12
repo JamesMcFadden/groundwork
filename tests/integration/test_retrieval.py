@@ -404,6 +404,16 @@ def test_full_text_search_can_use_the_gin_index(sessions: sessionmaker[Session])
     assert GIN_INDEX in "\n".join(plan)
 
 
+def exact(session: Session) -> Session:
+    """Make vector search in this transaction exact, by leaving it no index scan to use.
+
+    HNSW is approximate. Over a table churned by earlier tests it can miss a true neighbour,
+    as it did once on CI, and the tests below are about fusion, not the index's recall.
+    """
+    session.execute(text("SET LOCAL enable_indexscan = off"))
+    return session
+
+
 def leaning(similarity: float, i: int) -> list[float]:
     """A unit vector whose inner product with axis(0) is `similarity`, the rest along axis(i)."""
     vector = [0.0] * EMBEDDING_DIM
@@ -428,9 +438,9 @@ def test_hybrid_lifts_a_chunk_full_text_matches_above_those_dense_ranks_higher(
     question = "Was the boom heard on the ground?"
 
     with sessions() as session:
-        dense = dense_search(session, collection_id, axis(0))
+        dense = dense_search(exact(session), collection_id, axis(0))
     with sessions() as session:
-        hybrid = hybrid_search(session, collection_id, question, axis(0))
+        hybrid = hybrid_search(exact(session), collection_id, question, axis(0))
 
     assert [result.chunk_id for result in dense] == [storage, jobs, boom]
     assert [result.chunk_id for result in hybrid] == [boom, storage, jobs]
@@ -469,11 +479,11 @@ def test_a_chunk_sixth_in_both_searches_still_makes_the_top_five(
     question = "Was the boom heard on the ground?"
 
     with sessions() as session:
-        dense = dense_search(session, collection_id, axis(0), limit=TOP_K)
+        dense = dense_search(exact(session), collection_id, axis(0), limit=TOP_K)
     with sessions() as session:
         full_text = fulltext_search(session, collection_id, question, limit=TOP_K)
     with sessions() as session:
-        hybrid = hybrid_search(session, collection_id, question, axis(0), limit=TOP_K)
+        hybrid = hybrid_search(exact(session), collection_id, question, axis(0), limit=TOP_K)
 
     assert both not in [result.chunk_id for result in dense]
     assert both not in [result.chunk_id for result in full_text]
