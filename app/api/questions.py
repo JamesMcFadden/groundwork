@@ -6,8 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.answering import RecordedQuestion, answer_question
+from app.config import Settings
 from app.db.models import Collection
-from app.deps import get_current_user_id, get_embedder, get_generator, get_session
+from app.deps import (
+    get_current_user_id,
+    get_embedder,
+    get_generator,
+    get_session,
+    get_settings_dep,
+)
 from app.generation.generator import Generator
 from app.schemas import CitationRead, QuestionAnswer, QuestionAsk, StageTimings
 from app.services.embeddings import Embedder
@@ -30,6 +37,7 @@ def ask_question(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     embedder: Annotated[Embedder, Depends(get_embedder)],
     generator: Annotated[Generator, Depends(get_generator)],
+    settings: Annotated[Settings, Depends(get_settings_dep)],
 ) -> QuestionAnswer:
     """Answer a question from one collection's documents, citing the passages it rests on.
 
@@ -52,6 +60,7 @@ def ask_question(
         collection_id=body.collection_id,
         user_id=user_id,
         text=body.question,
+        retriever=settings.retriever,
     )
     if recorded.question.outcome in ("declined", "failed"):
         raise HTTPException(

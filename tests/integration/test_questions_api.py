@@ -8,13 +8,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.pool import QueuePool
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db.models import Chunk, Collection, Document, User
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.generation.context import Passage
 from app.generation.generator import Generation, GenerationDeclined, Generator, Statement
 from app.generation.stub import StubGenerator
 from app.main import create_app
+from app.retrieval.hybrid import RRF_K, hybrid_search
 from app.services.embeddings import Embedder
 
 OTHER_USER_EMAIL = "questions-someone-else@example.com"
@@ -49,8 +50,10 @@ def engine() -> Iterator[Engine]:
 
 
 @contextmanager
-def serving(embedder: Embedder, generator: Generator) -> Iterator[TestClient]:
-    app = create_app(get_settings(), embedder=embedder, generator=generator)
+def serving(
+    embedder: Embedder, generator: Generator, settings: Settings | None = None
+) -> Iterator[TestClient]:
+    app = create_app(settings or get_settings(), embedder=embedder, generator=generator)
     with TestClient(app) as client:
         yield client
 
@@ -186,6 +189,31 @@ def test_a_question_is_answered_with_citations_to_retrieved_chunks(
         body["answer"],
     )
     assert (row.invalid_citations, row.error_class, row.retriever) == (0, None, "dense")
+
+
+def test_the_configured_retriever_finds_the_chunks_and_is_recorded(
+    engine: Engine, embedder: Embedder
+) -> None:
+    """With RETRIEVER=hybrid, the question is retrieved by hybrid search and recorded so.
+
+    What is recorded must be exactly what hybrid search returns: fused scores, at most
+    2 / (RRF_K + 1), where dense search's would be inner products.
+    """
+    collection_id = add_collection(engine, embedder, PASSAGES)
+    settings = get_settings().model_copy(update={"retriever": "hybrid"})
+
+    with serving(embedder, StubGenerator(), settings) as client:
+        response = ask(client, collection_id)
+
+    assert response.status_code == 201
+    with build_session_factory(engine)() as session:
+        expected = hybrid_search(session, collection_id, QUESTION, embedder.embed_query(QUESTION))
+    results = retrieval_results(engine, response.json()["id"])
+    assert [(result.chunk_id, result.score) for result in results] == [
+        (chunk.chunk_id, pytest.approx(chunk.score)) for chunk in expected
+    ]
+    assert all(result.score <= 2 / (RRF_K + 1) for result in results)
+    assert recorded_question(engine, collection_id).retriever == "hybrid"
 
 
 def test_every_stage_is_timed_and_recorded_as_reported(engine: Engine, embedder: Embedder) -> None:

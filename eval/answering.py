@@ -139,6 +139,7 @@ def run_answering(
                 collection_id=ingested.collection_id,
                 user_id=ingested.user_id,
                 text=text,
+                retriever="dense",
             )
             asked.append((question_id, answerable, recorded.question.id))
 
