@@ -45,16 +45,17 @@ def secrets_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None
         monkeypatch.setenv(name, "supplied")
 
 
-def test_retriever_defaults_to_dense(monkeypatch: pytest.MonkeyPatch, secrets_set: None) -> None:
+def test_retriever_defaults_to_hybrid(monkeypatch: pytest.MonkeyPatch, secrets_set: None) -> None:
+    """Adopted under the rule pre-registered in docs/roadmap.md; changing it needs a new result."""
     monkeypatch.delenv("RETRIEVER", raising=False)
 
-    assert Settings().retriever == "dense"  # type: ignore[call-arg]
-
-
-def test_retriever_can_be_set_to_hybrid(monkeypatch: pytest.MonkeyPatch, secrets_set: None) -> None:
-    monkeypatch.setenv("RETRIEVER", "hybrid")
-
     assert Settings().retriever == "hybrid"  # type: ignore[call-arg]
+
+
+def test_retriever_can_be_set_to_dense(monkeypatch: pytest.MonkeyPatch, secrets_set: None) -> None:
+    monkeypatch.setenv("RETRIEVER", "dense")
+
+    assert Settings().retriever == "dense"  # type: ignore[call-arg]
 
 
 def test_an_unknown_retriever_fails_at_startup(

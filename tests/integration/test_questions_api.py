@@ -188,7 +188,7 @@ def test_a_question_is_answered_with_citations_to_retrieved_chunks(
         "answered",
         body["answer"],
     )
-    assert (row.invalid_citations, row.error_class, row.retriever) == (0, None, "dense")
+    assert (row.invalid_citations, row.error_class, row.retriever) == (0, None, "hybrid")
 
 
 def test_the_configured_retriever_finds_the_chunks_and_is_recorded(

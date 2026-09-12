@@ -58,8 +58,8 @@ class Settings(BaseSettings):
     generator: Literal["anthropic", "stub"] = "anthropic"
 
     # What retrieves a question's chunks: dense search alone, or dense and full-text search
-    # fused by rank. Dense unless the pre-registered rule in docs/roadmap.md adopts hybrid.
-    retriever: Literal["dense", "hybrid"] = "dense"
+    # fused by rank. Hybrid since it met the rule pre-registered for it in docs/roadmap.md.
+    retriever: Literal["dense", "hybrid"] = "hybrid"
 
     # Needed only when the generator is the real model, so its absence is reported when
     # the API builds its generator, not here: the worker has no use for it.

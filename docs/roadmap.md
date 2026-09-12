@@ -295,7 +295,7 @@ Planned 2026-09-12.
 - [x] `feat(retrieval): select dense or hybrid search with RETRIEVER`
 - [x] `feat(eval): search through the configured retriever and record it`
 - [x] `feat(eval): compare dense and hybrid retrieval`
-- [ ] `feat(retrieval): default RETRIEVER to hybrid`, only if the adoption rule below says
+- [x] `feat(retrieval): default RETRIEVER to hybrid`, only if the adoption rule below says
       to adopt it
 - [ ] `docs: record M4 results`
 
