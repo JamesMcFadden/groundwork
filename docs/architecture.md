@@ -15,7 +15,7 @@ uploads; the API does not yet answer questions.
 
 ## Current state
 
-M1 under way. Uploads are stored, then parsed, chunked, and embedded by the worker;
+End of M1. Uploads are stored, then parsed, chunked, and embedded by the worker;
 nothing searches the chunks yet.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can

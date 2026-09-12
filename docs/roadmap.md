@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M2 — RAG query path
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M2 — plan the milestone: add its detail section before starting work
+**Next item:** M2 — start branch `m2-rag-query-path`
 **Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
 
 ## Milestones
@@ -61,6 +61,56 @@ Merged through PR #1 as `a3aa63f`.
 - [x] `test(integration): assert stalled jobs are reclaimed`
 - [x] `perf(db): add partial index for the job claim query`
 
+## M2 — RAG query path
+
+Planned 2026-09-11. Estimated at about 9.5h against the 8h budget: the overrun is the
+three items added in review (question outcomes, the pgvector pin, the live-test
+workflow). Watch it rather than cut now.
+
+- [ ] `feat(embeddings): add query embedding to the embedder protocol`
+- [ ] `feat(retrieval): add collection-filtered dense vector search`
+- [ ] `build: pin the pgvector image to an explicit version`
+- [ ] `perf(db): add hnsw index for filtered vector search`
+- [ ] `feat(generation): add generator protocol, numbered context, and stub backend`
+- [ ] `feat(generation): add claude backend with structured citations`
+- [ ] `feat(generation): validate citations against the supplied context`
+- [ ] `feat(db): record question outcome and invalid citation count`
+- [ ] `feat(api): add POST /questions with per-stage timings`
+- [ ] `build: move embedding weights into the shared runtime stage`
+- [ ] `ci: run the live claude test on main and on demand`
+- [ ] `test(integration): assert invalid citations are never returned or recorded`
+- [ ] `test(integration): assert insufficient evidence skips the model call`
+
+Decisions taken while planning:
+
+- **`POST /questions` is synchronous** and returns 201 with the answer, its `[n]`
+  markers, and one citation per marker: chunk, document, filename, pages, and score.
+  No `GET /questions/{id}` yet; M3 reads the tables directly.
+- **Every question is recorded, whatever happens.** `questions.outcome` replaces
+  `insufficient_evidence`: `answered`, `insufficient_evidence`, `declined` (a safety
+  refusal), or `failed` (a timeout or API error). Declined and failed rows keep the
+  timings of the stages that ran, their retrieval results, token counts where reported,
+  and the error class name only; callers get a generic 502. M3's rates need every
+  question in the denominator, and the table is still empty, so the change costs no data
+  migration. Safety refusals never count toward the unanswerable-question criterion.
+- **`questions.invalid_citations` counts the cited numbers validation rejected**, the
+  raw rate success-criteria.md reports alongside the hard gate.
+- **Insufficient evidence skips the model** when retrieval returns nothing, and an
+  answer left with no valid citation is downgraded to it. No relevance-score threshold
+  until M3 has data to tune one.
+- **Search uses inner product on unit-length vectors** through an HNSW index,
+  over-fetching with `hnsw.ef_search` because the collection filter applies after the
+  index scan. The pgvector image is pinned first: `pg16` is a floating tag, and
+  index-scan options depend on the extension version.
+- **The API process embeds queries**, loading the model at startup, and ends its
+  database transaction before calling the model, so a slow generation never holds a
+  pooled connection.
+- **`GENERATOR=anthropic|stub`**, defaulting to `anthropic` so an unset value never
+  serves fake answers. The deterministic stub is what CI and load tests use.
+- **The live Claude test runs only on merges to `main` and on manual dispatch**,
+  estimated at under $3 a month; every other run uses the stub. Its API key belongs to
+  a dedicated Claude Console workspace with a monthly spend limit.
+
 ## Stack decisions
 
 Chosen during planning, with the reasoning that is not recoverable from the code.
@@ -92,9 +142,13 @@ Change them deliberately, not incidentally.
   Opus 5, so no prefill. Thinking is on by default and `max_tokens` caps thinking plus
   answer, so use `output_config={"effort": "low"}` with generous `max_tokens` rather
   than disabling thinking. Handle `stop_reason == "refusal"` before reading content.
+  Server-side refusal fallbacks stay off: they would route a declined request to another
+  model, leaving M3 scoring answers from two models with nothing recording which one
+  served each.
 - **Retrieval — `RETRIEVER=dense|hybrid` config flag.** Both strategies stay runnable
   for the life of the project, so the ablation table is reproducible rather than
-  remembered.
+  remembered. The flag arrives with hybrid in M4; until then dense is the only strategy,
+  and a flag with one value would be dead config.
 - **Local object storage — MinIO, built from source.** MinIO stopped distributing its
   community edition and archived its repository, and the Docker Hub images this project
   pinned were deleted in September 2026. `docker/minio/Dockerfile` builds the last
@@ -127,6 +181,9 @@ implement early; apply when the milestone is reached. Rationale in
 - **M2** — move the baked embedding weights from the `worker` stage into the shared
   `runtime` stage once the API embeds queries. M1 bakes them into the worker alone,
   since the API had nothing to load them for.
+- **M3** — decide, with golden-set data, whether a relevance-score threshold should
+  return insufficient evidence without calling the model. M2 calls the model whenever
+  retrieval returns anything.
 - **M4** — add the `tsv` column and its GIN index here. `chunks` deliberately has no
   full-text column yet: nothing references it, so it is a self-contained migration, and
   a GIN index over zero rows is meaningless.
