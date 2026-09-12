@@ -58,10 +58,10 @@ rather than falling back to a weak credential.
 **Packaging** — a multi-stage Dockerfile with `api` and `worker` targets: dependencies
 install into a virtualenv in a builder stage, which a shared slim non-root runtime stage
 copies, so the two images share one environment. Migrations ship in the api image
-alone, so a container can migrate its own database and only one image ever does. The
-worker image also carries the embedding weights, fetched at build time, and runs with
-the Hugging Face Hub offline, so a missing model fails at startup rather than
-downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
+alone, so a container can migrate its own database and only one image ever does. Both
+images carry the embedding weights, since the worker embeds passages and the API embeds
+questions. The weights are fetched at build time, and both images run with the Hugging
+Face Hub offline, so a missing model fails at startup rather than downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
 ordering, and health checks on everything but the worker, which serves no HTTP.
 
 **Verification** — unit tests with no I/O, and integration tests against real

@@ -77,7 +77,7 @@ version.
 - [x] `feat(generation): validate citations against the supplied context`
 - [x] `feat(db): record question outcome and invalid citation count`
 - [x] `feat(api): add POST /questions with per-stage timings`
-- [ ] `build: move embedding weights into the shared runtime stage`
+- [x] `build: move embedding weights into the shared runtime stage`
 - [ ] `ci: run the live claude test on main and on demand`
 - [ ] `test(integration): assert invalid citations are never returned or recorded`
 - [ ] `test(integration): assert insufficient evidence skips the model call`
@@ -138,7 +138,9 @@ Change them deliberately, not incidentally.
 - **Embeddings — `fastembed` with `bge-small-en-v1.5`, 384 dimensions.** Chosen over
   `sentence-transformers` because it runs ONNX without torch, which keeps images smaller
   and makes CI embeddings free and deterministic. As built in M1 (arm64), the api image
-  is 755 MB and the worker 883 MB, 407 MB of each the shared virtualenv. Planning had
+  is 755 MB and the worker 883 MB, 407 MB of each the shared virtualenv. In M2 both
+  images carry the weights and the `anthropic` SDK, and both are 907 MB: a 408 MB
+  virtualenv and 65 MB of weights. Planning had
   estimated 400 MB against ~2.5 GB with torch; neither figure was measured. The
   dimension is baked into `chunks.embedding`, so changing model means a migration and a
   full re-embed — which is what the reindex endpoint exists for. fastembed serves
