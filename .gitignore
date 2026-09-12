@@ -17,6 +17,9 @@ htmlcov/
 .env
 .env.local
 
+# Evaluation runs; a run cited in the docs is committed with `git add -f`
+eval/results/
+
 # OS / editor
 .DS_Store
 .idea/
