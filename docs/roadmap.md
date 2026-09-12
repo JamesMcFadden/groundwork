@@ -7,7 +7,8 @@ stay one line until they are next.
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
 **Next item:** M3 — plan the milestone: add its detail section before starting work
-**Budget:** ~52.5h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
+**Budget:** ~52.5h total, range 44–60h. M0, M1, and M2 took their estimated 11h, 7h, and
+9.5h.
 
 ## Milestones
 
@@ -114,7 +115,10 @@ Decisions taken while planning:
   serves fake answers. The deterministic stub is what CI and load tests use.
 - **The live Claude test runs only on merges to `main` and on manual dispatch**,
   estimated at under $3 a month; every other run uses the stub. Its API key belongs to
-  a dedicated Claude Console workspace with a monthly spend limit.
+  a dedicated Claude Console workspace with a monthly spend limit, is stored as the
+  `ANTHROPIC_API_KEY` repository secret, and expires on 2027-12-31. After that date the
+  workflow fails with a 401 until a new key replaces it (`gh secret set
+  ANTHROPIC_API_KEY`).
 
 Unverified going in; checked 2026-09-11:
 
@@ -220,6 +224,9 @@ implement early; apply when the milestone is reached. Rationale in
   requests, so breakage from outside the repository waits for the next push: MinIO's
   Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
   a docs commit happened to follow.
+- **M8** — make the live test log list each test by name. `live-claude.yml` runs
+  `pytest -v`, but `addopts` in `pyproject.toml` already passes `-q` and the two cancel,
+  so passing tests show as dots. Failures are still named in pytest's summary.
 
 ## Parked
 

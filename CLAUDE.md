@@ -49,6 +49,15 @@
 - Run integration tests with only the data services up
   (`docker compose up -d postgres minio createbucket`). A running `worker` container
   claims the jobs tests create, and they fail unpredictably.
+- Run one test run against the dev database at a time, and do not test the API by hand
+  against it while one runs. Integration fixtures delete every collection belonging to
+  the default user before and after each test, so concurrent runs delete each other's
+  data.
+- On macOS, `pytest` occasionally exits 134 after every test has passed, printing
+  `libc++abi: ... recursive_mutex lock failed` as the interpreter shuts down. The cause
+  is unknown; it was seen in about 2 of 14 full runs during M2 and never on CI. Gate on
+  the exit code, and when it is 134 after a clean summary, rerun rather than treat it as
+  a regression.
 - Verify with all four checks, not a subset: `ruff check .`, `ruff format --check .`,
   `mypy .`, `pytest`. Ruff formats Python inside Markdown code blocks too.
 
