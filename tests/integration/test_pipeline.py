@@ -4,12 +4,19 @@ from collections.abc import Iterator, Sequence
 
 import pymupdf
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
 from app.db.jobs import claim_job
-from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document, IngestionJob
+from app.db.models import (
+    EMBEDDING_DIM,
+    TEXT_SEARCH_CONFIG,
+    Chunk,
+    Collection,
+    Document,
+    IngestionJob,
+)
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.ingest.chunk import chunk_pages
 from app.ingest.parse import parse_pdf
@@ -194,6 +201,33 @@ def test_a_queued_pdf_is_indexed_into_embedded_chunks(
     assert (chunks[0].page_start, chunks[-1].page_end) == (1, 3)
     assert all(chunk.collection_id == collection_id for chunk in chunks)
     assert all(len(chunk.embedding) == EMBEDDING_DIM for chunk in chunks)
+
+
+def test_indexed_chunks_carry_the_full_text_vector_of_their_text(
+    sessions: sessionmaker[Session],
+    storage: ObjectStorage,
+    embedder: Embedder,
+    collection_id: uuid.UUID,
+) -> None:
+    """Full-text search reads `tsv`; a chunk without it could never be found by its words."""
+    job_id = upload(sessions, storage, collection_id, make_pdf([prose(300, n) for n in range(2)]))
+
+    process_job(claim(sessions), sessions, storage, embedder)
+
+    assert job_state(sessions, job_id)[0] == "completed"
+    with sessions() as session:
+        chunks, differing = session.execute(
+            select(
+                func.count(),
+                func.count().filter(
+                    Chunk.tsv.is_distinct_from(func.to_tsvector(TEXT_SEARCH_CONFIG, Chunk.text))
+                ),
+            )
+            .select_from(Chunk)
+            .where(Chunk.collection_id == collection_id)
+        ).one()
+    assert chunks > 1
+    assert differing == 0
 
 
 def test_an_unreadable_file_fails_the_job_with_its_reason(

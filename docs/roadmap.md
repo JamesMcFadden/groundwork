@@ -288,7 +288,7 @@ Results, recorded 2026-09-12 from a run of commit `2047afb`
 
 Planned 2026-09-12.
 
-- [ ] `feat(db): add generated full-text column and gin index to chunks`
+- [x] `feat(db): add generated full-text column and gin index to chunks`
 - [ ] `feat(retrieval): add collection-filtered full-text search`
 - [ ] `feat(retrieval): fuse dense and full-text results with reciprocal rank fusion`
 - [ ] `feat(db): record the retriever that served each question`

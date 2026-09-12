@@ -5,7 +5,7 @@ from sqlalchemy import Engine, func, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from app.db.models import Chunk, Collection, Document, User
+from app.db.models import TEXT_SEARCH_CONFIG, Chunk, Collection, Document, User
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.services.embeddings import Embedder
 from eval.corpus import CorpusDocument, load_corpus
@@ -70,6 +70,32 @@ def test_the_corpus_is_indexed_into_a_collection_of_its_own(
     assert len(chunks) == ingested.chunk_counts[SMALL_REPORT] > 0
     assert all(chunk.collection_id == collection.id for chunk in chunks)
     assert all(1 <= chunk.page_start <= chunk.page_end <= 17 for chunk in chunks)
+
+
+def test_eval_chunks_carry_the_full_text_vector_of_their_text(
+    sessions: sessionmaker[Session], embedder: Embedder, small_report: list[CorpusDocument]
+) -> None:
+    """The harness writes chunks itself rather than through the worker.
+
+    If only the worker filled `tsv`, every eval run would compare hybrid search against a
+    full-text index with nothing in it.
+    """
+    ingested = ingest_corpus(sessions, embedder, small_report, email=TEST_EMAIL)
+
+    with sessions() as session:
+        chunks, differing = session.execute(
+            select(
+                func.count(),
+                func.count().filter(
+                    Chunk.tsv.is_distinct_from(func.to_tsvector(TEXT_SEARCH_CONFIG, Chunk.text))
+                ),
+            )
+            .select_from(Chunk)
+            .where(Chunk.collection_id == ingested.collection_id)
+        ).one()
+
+    assert chunks == ingested.chunk_counts[SMALL_REPORT] > 0
+    assert differing == 0
 
 
 def test_ingesting_again_replaces_the_previous_collection(
