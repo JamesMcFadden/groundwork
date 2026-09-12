@@ -291,7 +291,7 @@ Planned 2026-09-12.
 - [x] `feat(db): add generated full-text column and gin index to chunks`
 - [x] `feat(retrieval): add collection-filtered full-text search`
 - [x] `feat(retrieval): fuse dense and full-text results with reciprocal rank fusion`
-- [ ] `feat(db): record the retriever that served each question`
+- [x] `feat(db): record the retriever that served each question`
 - [ ] `feat(retrieval): select dense or hybrid search with RETRIEVER`
 - [ ] `feat(eval): search through the configured retriever and record it`
 - [ ] `feat(eval): compare dense and hybrid retrieval`

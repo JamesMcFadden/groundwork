@@ -185,7 +185,7 @@ def test_a_question_is_answered_with_citations_to_retrieved_chunks(
         "answered",
         body["answer"],
     )
-    assert (row.invalid_citations, row.error_class) == (0, None)
+    assert (row.invalid_citations, row.error_class, row.retriever) == (0, None, "dense")
 
 
 def test_every_stage_is_timed_and_recorded_as_reported(engine: Engine, embedder: Embedder) -> None:

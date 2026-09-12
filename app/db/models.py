@@ -211,6 +211,7 @@ class Question(Base):
             "outcome IN ('answered', 'insufficient_evidence', 'declined', 'failed')",
             name="ck_questions_outcome",
         ),
+        CheckConstraint("retriever IN ('dense', 'hybrid')", name="ck_questions_retriever"),
         Index("ix_questions_collection_created", "collection_id", "created_at", "id"),
     )
 
@@ -223,6 +224,9 @@ class Question(Base):
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    # The search that retrieved this question's chunks. Their recorded scores are inner
+    # products under dense search and fused ranks under hybrid, unreadable without it.
+    retriever: Mapped[str] = mapped_column(String(20), nullable=False)
     answer_text: Mapped[str | None] = mapped_column(Text)
     # Distinct cited numbers that validation rejected. None where no answer was checked,
     # so a question that never reached validation is not counted as citing perfectly.

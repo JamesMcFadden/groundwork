@@ -83,7 +83,9 @@ def answer_question(
     # model call that can take seconds.
     session.commit()
 
-    question = Question(collection_id=collection_id, user_id=user_id, question_text=text)
+    question = Question(
+        collection_id=collection_id, user_id=user_id, question_text=text, retriever="dense"
+    )
     checked: CheckedAnswer | None = None
     if chunks:
         checked = _generate(question, text, chunks, generator, watch)
