@@ -3,10 +3,10 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M2 — RAG query path
+**Now:** M3 — Eval harness
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M2 — every item is on `m2-rag-query-path`; review and merge PR #3
+**Next item:** M3 — plan the milestone: add its detail section before starting work
 **Budget:** ~52.5h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
 
 ## Milestones
@@ -16,7 +16,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 
 - [x] **M0** (11h) Foundations + document API — tooling, compose, Dockerfile, schema, upload
 - [x] **M1** (7h) Async ingestion — worker image, skip-locked queue, parse/chunk/embed
-- [ ] **M2** (9.5h) RAG query path — vector search, Claude call, cited answers
+- [x] **M2** (9.5h) RAG query path — vector search, Claude call, cited answers
 - [ ] **M3** (4h) Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
       citation validity, refusal
 - [ ] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
@@ -62,6 +62,8 @@ Merged through PR #1 as `a3aa63f`.
 - [x] `perf(db): add partial index for the job claim query`
 
 ## M2 — RAG query path
+
+Merged through PR #3 as `18c732b`.
 
 Planned 2026-09-11. Budget raised the same day from 8h to 9.5h, matching the estimate
 once review added three items: question outcomes, the pgvector pin, and the live-test
@@ -123,9 +125,9 @@ Unverified going in; checked 2026-09-11:
 - **`client.messages.parse()` sends a Pydantic format and effort together** in
   `anthropic` 1.5.0, merging the model's schema into `output_config` beside `effort`.
   The effort and structured-output docs both list `claude-opus-5` and neither restricts
-  combining them. No request has been sent, so the first live call confirms it. The
-  backend sends the same merged `output_config` through `messages.create()` instead; see
-  the generation stack decision.
+  combining them. The backend sends the same merged `output_config` through
+  `messages.create()` instead; see the generation stack decision. Confirmed against the
+  API by the first live Claude run, on the merge to `main` on 2026-09-12.
 - **`usage.output_tokens` includes thinking tokens**, whether thinking is summarized or
   omitted; the docs call it "the inclusive, authoritative total used for billing".
   `usage.output_tokens_details.thinking_tokens` reports the thinking share on its own.
@@ -190,23 +192,10 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M2** — create the HNSW index on `chunks.embedding` here, not earlier: indexes
-  belong with the queries that need them, and an index built over zero rows tells you
-  nothing. Note that a `collection_id` predicate is not used by the HNSW index, so
-  filtered search post-filters, and uses iterative index scan to still fill its results.
-- **M2** — chunk ids never go to the model. The prompt numbers its context `[1]`–`[5]`
-  per request and the server maps those back to chunk ids. Small integers cost fewer
-  tokens and are cited more reliably than UUIDs, and the mapping is what makes citation
-  validation deterministic.
-- **M2** — add a `GENERATOR=stub` flag selecting the fake answer generator, so load
-  tests measure this service rather than the LLM provider.
-- **M2** — bge vectors come back unit-length, so cosine distance and inner product
-  rank identically; choose the HNSW operator class knowing that. fastembed embeds
-  queries exactly as it embeds passages for this model, so whether a query instruction
-  prefix helps is an M3 measurement rather than an assumption.
-- **M2** — move the baked embedding weights from the `worker` stage into the shared
-  `runtime` stage once the API embeds queries. M1 bakes them into the worker alone,
-  since the API had nothing to load them for.
+- **M3** — measure whether a query instruction prefix helps retrieval, rather than
+  assume it. fastembed embeds bge-small-en-v1.5 queries exactly as it embeds passages,
+  and a test asserts that, so adding a prefix is a deliberate change to compare on the
+  golden set.
 - **M3** — decide, with golden-set data, whether a relevance-score threshold should
   return insufficient evidence without calling the model. M2 calls the model whenever
   retrieval returns anything.

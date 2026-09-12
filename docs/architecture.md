@@ -15,7 +15,7 @@ uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-M2 in progress. Uploads are stored, then parsed, chunked, and embedded by the worker.
+End of M2. Uploads are stored, then parsed, chunked, and embedded by the worker.
 `POST /questions` searches a collection's chunks for a question, answers from the
 nearest with cited passages, and records every question with its outcome and timings.
 
