@@ -19,6 +19,10 @@
   roadmap item, use its subject as written.
 - Milestone work goes through a branch and a CI-gated PR; docs-only changes may be
   committed straight to `main`.
+- Tick a roadmap item in the commit that completes it, and keep the milestone PR's
+  description current as commits land.
+- Never let two agents run git in the same checkout at once: one agent's branch switch or
+  commit changes the other's working tree.
 - Do not implement future roadmap items early.
 
 ## Merging pull requests

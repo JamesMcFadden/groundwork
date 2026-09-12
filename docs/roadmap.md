@@ -347,6 +347,19 @@ implement early; apply when the milestone is reached. Rationale in
 - **M4** — add the `tsv` column and its GIN index here. `chunks` deliberately has no
   full-text column yet: nothing references it, so it is a self-contained migration, and
   a GIN index over zero rows is meaningless.
+- **M4** — fill `tsv` in the database, not in the worker. The eval harness indexes its
+  corpus itself: `eval/ingest.py` writes chunks directly rather than through
+  `app/ingest/pipeline.py`, so a `tsv` computed in the pipeline would be empty in every
+  eval run, and the ablation would measure hybrid retrieval with no full-text index. A
+  generated column (`GENERATED ALWAYS AS (to_tsvector(...)) STORED`) serves both paths;
+  otherwise `eval/ingest.py` must compute it too, with a test that eval chunks carry it.
+- **M4** — route the eval harness through `RETRIEVER`. `eval/retrieval.py` calls
+  `dense_search` directly and `eval/results.py` records `"retriever": "dense"`
+  unconditionally, so hybrid needs the harness to search through the same selection the
+  service uses and to record the strategy that ran. Run the ablation on one ingested
+  collection and the same questions, and report it as flip counts, as `eval/prefix.py`
+  does for the query prefix. Dense Recall@5 sits exactly on its target (27/30), so a
+  strategy that breaks one more question than it fixes misses it.
 - **M5** — decide how much of a job's recorded error `GET /jobs/{job_id}` returns. For
   unexpected failures the worker records the exception's type and message, which can
   carry internal detail such as storage error text; callers may warrant a generic

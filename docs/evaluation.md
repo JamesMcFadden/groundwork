@@ -18,12 +18,19 @@ or the worker.
 | `make eval` | the stub generator | free | retrieval and the prefix comparison; runs the answering path without measuring it |
 | `make eval-live` | `claude-opus-5`, on `ANTHROPIC_API_KEY` | about $1–2 a run | everything above, plus refusal, citation validity, and false refusals |
 
+`make eval-live` reads `ANTHROPIC_API_KEY` from `.env` or from the environment of the shell
+that runs it, whatever `GENERATOR` says; `make eval` needs no key.
+
 CI runs `make eval`'s equivalent after the tests on every pull request and push to
 `main`, and writes the summary to the run's page. A missed target is recorded there, never
 failed: only a harness that cannot run fails the step.
 
 Each run prints a Markdown summary and writes `eval/results/<UTC start time>.json`, which
 git ignores. A run cited in the documentation is committed with `git add -f`.
+
+To record a run worth citing, start it from a clean commit and leave tracked files alone
+until it finishes. The run reads git's state when it writes its record, at the end, so an
+edit made mid-run marks it as having uncommitted changes. Untracked files do not count.
 
 Run one evaluation at a time against a database: each run replaces the eval collection
 the previous one wrote.
