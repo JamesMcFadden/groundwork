@@ -1,0 +1,47 @@
+name: live-claude
+
+# The one workflow that calls the real Claude API. Every other run uses the stub
+# generator, so this costs a couple of cents a run rather than a charge per push.
+on:
+  push:
+    branches: [main]
+    # Documentation changes cannot change what the model is asked or how it is read.
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+# One run at a time: a second concurrent run spends money and learns nothing new.
+concurrency:
+  group: live-claude
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+
+    env:
+      # From the Claude Console workspace kept for CI, which has a monthly spend limit.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      # The tests skip without a key, which would show green while testing nothing.
+      - name: Require the API key
+        if: env.ANTHROPIC_API_KEY == ''
+        run: |
+          echo "::error::The ANTHROPIC_API_KEY repository secret is not set."
+          exit 1
+
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        # setup-uv publishes no moving major tag, so the release is pinned exactly.
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Live Claude tests
+        run: uv run pytest -m live tests/live -v

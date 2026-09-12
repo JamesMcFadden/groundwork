@@ -68,6 +68,10 @@ ordering, and health checks on everything but the worker, which serves no HTTP.
 PostgreSQL, MinIO, and the embedding model that skip when those are unavailable. CI
 runs lint, type checking, migrations, and the suite on every push and pull request,
 with the same pgvector image Compose uses and the model's weights cached between runs.
+Those runs answer with the stub generator. Tests against the real Claude API are marked
+`live` and excluded unless selected; a separate workflow runs them on pushes to `main`
+that change more than documentation, and on manual dispatch, failing outright if its
+API key secret is missing rather than skipping.
 
 **Ingestion** — the worker turns uploads into embedded chunks; see
 [Ingestion](#ingestion).

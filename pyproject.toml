@@ -60,4 +60,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-q"
+# Live tests call a paid API, so every run leaves them out unless `-m live` selects them.
+addopts = "-q -m 'not live'"
+markers = ["live: calls the real Claude API; selected only with -m live"]

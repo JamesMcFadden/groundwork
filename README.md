@@ -53,6 +53,14 @@ keep it somewhere that survives restarts.
 Start only these services for tests. A running `worker` container claims the jobs the
 integration tests create, and they fail unpredictably.
 
+Tests that call the real Claude API are excluded from every run unless selected, since
+each run costs money. CI runs them on pushes to `main` and on demand; to run them
+locally, export a key first:
+
+```bash
+ANTHROPIC_API_KEY=... uv run pytest -m live tests/live
+```
+
 ### Running the service
 
 The API answers with Claude by default, and refuses to start without `ANTHROPIC_API_KEY`
