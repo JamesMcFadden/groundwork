@@ -3,12 +3,12 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M3 — Eval harness
+**Now:** M4 — Hybrid retrieval
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M3 — review and merge PR #4
-**Budget:** ~52.5h total, range 44–60h. M0, M1, and M2 took their estimated 11h, 7h, and
-9.5h.
+**Next item:** M4 — plan the milestone: add its detail section before starting work
+**Budget:** ~52.5h total, range 44–60h. M0, M1, M2, and M3 took their estimated 11h, 7h,
+9.5h, and 4h.
 
 ## Milestones
 
@@ -18,7 +18,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 - [x] **M0** (11h) Foundations + document API — tooling, compose, Dockerfile, schema, upload
 - [x] **M1** (7h) Async ingestion — worker image, skip-locked queue, parse/chunk/embed
 - [x] **M2** (9.5h) RAG query path — vector search, Claude call, cited answers
-- [ ] **M3** (4h) Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
+- [x] **M3** (4h) Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
       citation validity, refusal
 - [ ] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
 - [ ] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
@@ -137,6 +137,8 @@ Unverified going in; checked 2026-09-11:
   `usage.output_tokens_details.thinking_tokens` reports the thinking share on its own.
 
 ## M3 — Eval harness
+
+Merged through PR #4 as `4549aa2`.
 
 Planned 2026-09-12.
 
