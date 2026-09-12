@@ -6,12 +6,19 @@
 - Do not modify unrelated files.
 - Keep functions reasonably small.
 - Use type hints.
+- Before adopting a dependency or container image, check that its project is
+  maintained, not archived or in maintenance mode.
+- Pin container images by digest, not by tag alone.
 
 ## Workflow
 - Before major changes, explain the proposed implementation.
 - Work on one roadmap item at a time.
 - Do not commit changes unless explicitly instructed.
 - Commit messages must be approved before commits are finalized.
+- Commit messages are a single conventional-commit subject line with no body. For a
+  roadmap item, use its subject as written.
+- Milestone work goes through a branch and a CI-gated PR; docs-only changes may be
+  committed straight to `main`.
 - Do not implement future roadmap items early.
 
 ## Merging pull requests
@@ -30,6 +37,8 @@
 
 ## Testing
 - Add tests for meaningful functionality.
+- When a test guards a specific failure, break the guarded code once, confirm the test
+  fails for the expected reason, then restore it from git.
 - Run the relevant tests after changes.
 - Report test results.
 - Never mock the database. The vector query is the system; a mocked session proves
@@ -37,6 +46,9 @@
 - `tests/unit/` does no I/O and always runs. `tests/integration/` needs the Compose
   stack and skips with a helpful message when it is unavailable, so the suite stays
   green without Docker and runs fully in CI.
+- Run integration tests with only the data services up
+  (`docker compose up -d postgres minio createbucket`). A running `worker` container
+  claims the jobs tests create, and they fail unpredictably.
 - Verify with all four checks, not a subset: `ruff check .`, `ruff format --check .`,
   `mypy .`, `pytest`. Ruff formats Python inside Markdown code blocks too.
 

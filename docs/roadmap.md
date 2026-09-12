@@ -7,7 +7,7 @@ stay one line until they are next.
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
 **Next item:** M2 — start branch `m2-rag-query-path`
-**Budget:** ~51h total, range 44–60h. M0 took its estimated 11h.
+**Budget:** ~51h total, range 44–60h. M0 and M1 took their estimated 11h and 7h.
 
 ## Milestones
 
@@ -23,7 +23,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 - [ ] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
 - [ ] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
 - [ ] **M7** (6h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
-- [ ] **M8** (3h) CI/CD + write-up — ECR push, README results, runbook
+- [ ] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
 
 M3 and M4 are what distinguish this from an LLM demo. If time runs short, cut M7 to
 a single deploy-and-teardown; do not cut the evaluation milestones.
@@ -100,8 +100,8 @@ Decisions taken while planning:
   until M3 has data to tune one.
 - **Search uses inner product on unit-length vectors** through an HNSW index,
   over-fetching with `hnsw.ef_search` because the collection filter applies after the
-  index scan. The pgvector image is pinned first: `pg16` is a floating tag, and
-  index-scan options depend on the extension version.
+  index scan. The pgvector image is pinned by version and digest first: `pg16` is a
+  floating tag, and index-scan options depend on the extension version.
 - **The API process embeds queries**, loading the model at startup, and ends its
   database transaction before calling the model, so a slow generation never holds a
   pooled connection.
@@ -110,6 +110,15 @@ Decisions taken while planning:
 - **The live Claude test runs only on merges to `main` and on manual dispatch**,
   estimated at under $3 a month; every other run uses the stub. Its API key belongs to
   a dedicated Claude Console workspace with a monthly spend limit.
+
+Unverified going in; check each before building on it:
+
+- Whether the pinned pgvector version supports `hnsw.iterative_scan`, believed to have
+  arrived in pgvector 0.8.0. Without it, filtered search relies on over-fetching alone.
+- Whether `client.messages.parse()` in the installed `anthropic` SDK accepts a
+  structured output format together with `output_config` effort.
+- Whether `usage.output_tokens` includes thinking tokens, as `questions.output_tokens`
+  and the live-test cost estimate assume.
 
 ## Stack decisions
 
@@ -153,7 +162,8 @@ Change them deliberately, not incidentally.
   community edition and archived its repository, and the Docker Hub images this project
   pinned were deleted in September 2026. `docker/minio/Dockerfile` builds the last
   community release, `RELEASE.2025-10-15T17-29-55Z`, and a workflow publishes it once to
-  `ghcr.io/jamesmcfadden/groundwork-minio`, which Compose and CI pin by digest. It is
+  `ghcr.io/jamesmcfadden/groundwork-minio`, which Compose and CI pin by digest. The
+  package is public, permanently: GitHub never lets a public package go private. It is
   unmaintained: seven 2026 security advisories are fixed only in releases never
   published as source. Acceptable because it stands in for S3 on localhost and CI
   runners and never leaves them; production uses S3.
@@ -201,6 +211,10 @@ implement early; apply when the milestone is reached. Rationale in
   is worse than no probe at all.
 - **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
   the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
+- **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
+  requests, so breakage from outside the repository waits for the next push: MinIO's
+  Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
+  a docs commit happened to follow.
 
 ## Parked
 

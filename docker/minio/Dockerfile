@@ -8,7 +8,16 @@
 # patched, including against its 2026 security advisories: it stands in for S3 on
 # localhost and CI runners only. Production uses S3.
 #
-# Published by .github/workflows/minio-image.yml, which reads MINIO_TAG from this file.
+# Published by .github/workflows/minio-image.yml, which reads MINIO_TAG from this file,
+# to ghcr.io/jamesmcfadden/groundwork-minio. That package is public, and GitHub never
+# lets a public package go private again.
+#
+# To move to another MinIO release:
+#   1. Set MINIO_TAG and MINIO_COMMIT below, and push. The workflow publishes the new
+#      tag; a tag that is already published is never rebuilt.
+#   2. Copy the pinned reference from that workflow run's summary.
+#   3. Pin it in both docker-compose.yml and .github/workflows/ci.yml. Nothing checks
+#      that the two agree.
 
 ARG MINIO_TAG=RELEASE.2025-10-15T17-29-55Z
 ARG MINIO_COMMIT=9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a
