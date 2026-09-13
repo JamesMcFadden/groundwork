@@ -17,11 +17,11 @@ Two rules govern it:
 | Retrieval | Recall@5 ≥ 0.90 (n=30) | `make eval` | met: 29/30 = 0.967 (hybrid, 2026-09-12, [runs](evaluation.md#results)); dense search, which hybrid replaced, was exactly on target at 27/30 |
 | Citations | Validation rejects 100% of invalid citations | `make eval-live` | met: 0 of 54 returned markers named an uncited chunk (n=38, hybrid, `claude-opus-5`, 2026-09-12); the model cited nothing invalid, so rejection itself is shown by tests |
 | Refusal | 8/8 unanswerable questions refused | `make eval-live` | met: 8/8, with 1/30 false refusals (hybrid, `claude-opus-5`, 2026-09-12); dense search had 3/30 |
-| API reliability | ≥ 99% non-5xx, 30 VU × 5 min, stubbed generator | k6 on kind | not yet measured |
-| Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | not yet measured |
+| API reliability | ≥ 99% non-5xx, 30 VU × 5 min, stubbed generator | k6 on kind | met: 100% in each of 6 runs, 140,828 requests with no 5xx and none unanswered (2026-09-13, [runs](roadmap.md#m6--kubernetes-on-kind)) |
+| Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | met: 243 ms over 94,095 questions in the 3-replica load runs on kind; 249 ms at 1 replica (2026-09-13) |
 | Ingestion | 30-page PDF indexed in < 60 s | job timestamps | met locally: 4.05 s (n=1, laptop CPU via Compose, 2026-09-11) |
-| Scaling | 1→3 API replicas ≥ 1.8× throughput, P95 no worse | k6 on kind | not yet measured |
-| Recovery | Graceful pod deletion under load → zero failed requests | k6 error rate | not yet measured |
+| Scaling | 1→3 API replicas ≥ 1.8× throughput, P95 no worse | k6 on kind | met: 2.12× median throughput, 111.4 against 52.6 requests/s, and median P95 381 against 941 ms (n=3 runs each, 2026-09-13); the third pair alone gave 1.64× |
+| Recovery | Graceful pod deletion under load → zero failed requests | k6 error rate | met: 0 failed requests in each of 3 runs, one of 3 API pods deleted 2 minutes in (2026-09-13) |
 | AWS | Reachable via LoadBalancer, answering against RDS | smoke test | not yet measured |
 | Deployment | Fresh environment from documented steps; one `docker compose up` | manual, timed | not yet measured |
 | CI | Every PR runs lint, types, tests, retrieval eval | GitHub Actions | met: all four run on every pull request and push to `main` (from PR #4, 2026-09-12) |
