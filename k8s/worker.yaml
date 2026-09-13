@@ -1,0 +1,62 @@
+# The ingestion worker. It serves no HTTP, so its probes read the age of a file it touches
+# at the start of every pass and before every embedding batch.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      # No Docker-link variables for the namespace's Services; see migrate.yaml.
+      enableServiceLinks: false
+      containers:
+        - name: worker
+          # Built and loaded by `make kind-images`, and never pulled; see migrate.yaml.
+          image: groundwork-worker:kind
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: groundwork-config
+            - secretRef:
+                name: groundwork-secrets
+          env:
+            # One ONNX Runtime thread for the one CPU the limit below allows; see api.yaml.
+            - name: EMBEDDING_THREADS
+              value: "1"
+            - name: WORKER_LIVENESS_FILE
+              value: /tmp/worker-alive
+          # Fails once the file is 120 seconds old. The longest gap between touches is one
+          # embedding batch, 8.3 seconds on one CPU. The file says nothing about the
+          # database, so an outage never restarts the worker. Startup allows two minutes to
+          # load the embedding model and begin the first pass.
+          startupProbe:
+            exec:
+              command: &fresh
+                - sh
+                - -c
+                - test "$(( $(date +%s) - $(stat -c %Y "$WORKER_LIVENESS_FILE") ))" -lt 120
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            exec:
+              command: *fresh
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 2
+          # One CPU, requested and limited, as for the API. Memory peaked at 1,402 MiB while
+          # ingesting a 434-page, 24.9 MB document, near the 25 MiB upload cap; an idle
+          # worker holds about 245 MiB.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1536Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi

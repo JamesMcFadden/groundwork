@@ -10,6 +10,8 @@ resources:
   - minio.yaml
   - migrate.yaml
   - create-bucket.yaml
+  - api.yaml
+  - worker.yaml
 
 # Settings that are not secret, for every workload that reads them. The generated name
 # changes with the content, so a changed value rolls the pods that read it.

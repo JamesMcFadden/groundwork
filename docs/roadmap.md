@@ -519,7 +519,7 @@ to 104 ms at P50.
 - [x] `build: add kind cluster config with a pinned node image`
 - [x] `feat(k8s): add postgres and minio with persistent volumes`
 - [x] `feat(k8s): run migrations and bucket creation as jobs`
-- [ ] `feat(k8s): add api and worker deployments with probes and resources`
+- [x] `feat(k8s): add api and worker deployments with probes and resources`
 - [ ] `feat(k8s): take api pods out of rotation before they stop`
 - [ ] `feat(load): add k6 question load test and corpus seeding`
 - [ ] `docs: record M6 scaling and recovery results`

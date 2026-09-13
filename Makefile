@@ -10,12 +10,12 @@ eval:
 eval-live:
 	uv run python -m eval --answers claude
 
-# The application image for the kind cluster, built from the working tree and loaded into
-# its node, which never pulls it. The tag stays `kind`, so the manifests never change; the
-# commit it was built from, marked `-dirty` for uncommitted changes, is the image's
+# The application images for the kind cluster, built from the working tree and loaded into
+# its node, which never pulls them. Tags stay `kind`, so the manifests never change; the
+# commit they were built from, marked `-dirty` for uncommitted changes, is each image's
 # revision label, which load results record.
 kind-images:
-	docker build --target api \
-		--label org.opencontainers.image.revision=$$(git describe --always --dirty --abbrev=40) \
-		-t groundwork-api:kind .
-	kind load docker-image --name groundwork groundwork-api:kind
+	revision=$$(git describe --always --dirty --abbrev=40) && \
+	docker build --target api --label org.opencontainers.image.revision=$$revision -t groundwork-api:kind . && \
+	docker build --target worker --label org.opencontainers.image.revision=$$revision -t groundwork-worker:kind .
+	kind load docker-image --name groundwork groundwork-api:kind groundwork-worker:kind
