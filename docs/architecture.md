@@ -115,7 +115,13 @@ copies, so the two images share one environment. Migrations ship in the api imag
 alone, so a container can migrate its own database and only one image ever does. Both
 images carry the embedding weights, since the worker embeds passages and the API embeds
 questions. The weights are fetched at build time, and both images run with the Hugging
-Face Hub offline, so a missing model fails at startup rather than downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
+Face Hub offline, so a missing model fails at startup rather than downloading.
+`EMBEDDING_THREADS` sets ONNX Runtime's thread count in both processes. Unset, as under
+Compose, in CI, and in the evaluation harness, ONNX Runtime sizes its pools from the
+machine's CPUs, which a container's CPU limit does not change: in the api image under a
+1-CPU limit, query embedding took 104 ms at P50 with its default threads and 6.9 ms with
+one. The count changes speed, not results: two passages embedded with default threads and
+with one gave identical vectors. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
 ordering, and health checks on everything but the worker, which serves no HTTP.
 
 **Verification** — unit tests with no I/O, and integration tests against real

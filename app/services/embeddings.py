@@ -56,8 +56,10 @@ class ModelTokenizer:
 class FastEmbedder:
     """bge-small-en-v1.5 through fastembed: quantized ONNX on CPU, no torch."""
 
-    def __init__(self, cache_dir: str | None = None) -> None:
-        self._model = TextEmbedding(EMBEDDING_MODEL, cache_dir=cache_dir)
+    def __init__(self, cache_dir: str | None = None, threads: int | None = None) -> None:
+        # Unset, ONNX Runtime sizes its thread pools from the machine's CPUs, even in a
+        # container limited to fewer, where the limit then throttles every embedding.
+        self._model = TextEmbedding(EMBEDDING_MODEL, cache_dir=cache_dir, threads=threads)
         if self._model.embedding_size != EMBEDDING_DIM:
             raise EmbeddingModelError(
                 f"{EMBEDDING_MODEL} produces {self._model.embedding_size} dimensions; "

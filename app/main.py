@@ -36,7 +36,9 @@ def create_app(
         # Built at startup rather than for the first request, so a missing API_KEY, missing
         # weights, or a missing ANTHROPIC_API_KEY stop the process before it serves anything.
         app.state.api_key = configured_api_key(resolved)
-        app.state.embedder = embedder or FastEmbedder(cache_dir=resolved.embedding_cache_dir)
+        app.state.embedder = embedder or FastEmbedder(
+            cache_dir=resolved.embedding_cache_dir, threads=resolved.embedding_threads
+        )
         app.state.generator = generator or build_generator(resolved)
         yield
 

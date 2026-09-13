@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import PositiveInt, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     # the system temp dir, which a container loses on restart and CI loses every run;
     # images and CI set it so the weights download once.
     embedding_cache_dir: str | None = None
+
+    # ONNX Runtime's thread count for embedding. Unset, it sizes its pools from the
+    # machine's CPUs, which a container's CPU limit does not change: wherever there is a
+    # limit, set this to it, or the limit throttles every embedding. Zero is ONNX Runtime's
+    # own "choose for me", so it is refused.
+    embedding_threads: PositiveInt | None = None
 
     # What answers questions. The real model by default, so a deployment that forgets to
     # choose fails for want of a key rather than quietly serving the stub's fake answers.

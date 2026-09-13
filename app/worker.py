@@ -118,7 +118,9 @@ def main() -> None:
 
     # Loaded before the first claim, so missing weights stop the worker at startup
     # rather than failing the first job that needs them.
-    embedder = FastEmbedder(cache_dir=settings.embedding_cache_dir)
+    embedder = FastEmbedder(
+        cache_dir=settings.embedding_cache_dir, threads=settings.embedding_threads
+    )
     alive = liveness_signal(settings.worker_liveness_file)
     poll = partial(
         poll_once,
