@@ -2,9 +2,9 @@ import uuid
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import PositiveInt, SecretStr
+from pydantic import PositiveInt, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,8 +45,13 @@ class Settings(BaseSettings):
     # Uploads are held in memory while hashing, so the cap is deliberate.
     max_upload_bytes: int = 25 * 1024 * 1024
     s3_bucket: str = "groundwork-documents"
-    s3_access_key: str = "minioadmin"
-    s3_secret_key: str
+
+    # Static keys, which MinIO needs, so both are required whenever an endpoint is set. On
+    # AWS both stay unset and boto3 finds credentials through its default chain, which in a
+    # pod reads the IAM role its service account names. A default key would be sent in place
+    # of that role, so neither has one.
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
 
     # How long the worker waits before asking for work again. ADR 0001 accepts roughly
     # one second of pickup latency as the price of not running a broker.
@@ -89,6 +94,17 @@ class Settings(BaseSettings):
 
     # How long one model response may take before the question is recorded as failed.
     generation_timeout_seconds: float = 60.0
+
+    @model_validator(mode="after")
+    def _require_usable_s3_keys(self) -> Self:
+        """Refuse S3 keys that cannot sign a request, at startup rather than at an upload."""
+        keys = {"s3_access_key": self.s3_access_key, "s3_secret_key": self.s3_secret_key}
+        missing = [name for name, value in keys.items() if not value]
+        if self.s3_endpoint and missing:
+            raise ValueError(f"{' and '.join(missing)} required when s3_endpoint is set")
+        if len(missing) == 1:
+            raise ValueError(f"{missing[0]} is unset while the other S3 key is set")
+        return self
 
     @property
     def job_stale_after(self) -> timedelta:

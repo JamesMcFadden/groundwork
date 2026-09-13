@@ -760,7 +760,7 @@ committed found it on the paid plan rather than the Free plan, which removed the
 for the node type first chosen: the nodes changed from `m7i-flex.large` to `t4g.medium`,
 and a budget alert was added.
 
-- [ ] `feat(storage): use the default aws credential chain when no s3 keys are set`
+- [x] `feat(storage): use the default aws credential chain when no s3 keys are set`
 - [ ] `refactor(k8s): split manifests into a base and a kind overlay`
 - [ ] `feat(infra): add terraform for the dns zone and certificate`
 - [ ] `feat(infra): add terraform for s3, ecr, and rds`

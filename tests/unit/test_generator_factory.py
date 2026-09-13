@@ -14,6 +14,7 @@ def settings(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> Setting
     """Settings from a clean environment: no local .env, and no generator configuration."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("POSTGRES_PASSWORD", "unused")
+    monkeypatch.setenv("S3_ACCESS_KEY", "unused")
     monkeypatch.setenv("S3_SECRET_KEY", "unused")
     for name in ("GENERATOR", "ANTHROPIC_API_KEY"):
         monkeypatch.delenv(name, raising=False)

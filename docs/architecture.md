@@ -115,7 +115,12 @@ score, and whether it was cited, losing only which chunk it was.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
-environments; only the endpoint differs. MinIO no longer publishes images, so Compose
+environments, which differ in the endpoint and in where credentials come from. With an
+endpoint, as for MinIO, the client signs with `S3_ACCESS_KEY` and `S3_SECRET_KEY`, both
+required at startup, and addresses buckets by path. With none, boto3 resolves S3 itself,
+and with no keys it takes credentials from its default chain, so a pod on AWS signs as the
+IAM role its service account names; half a key pair is refused at startup. MinIO no longer
+publishes images, so Compose
 and CI run one built from its last community source release by
 [docker/minio/Dockerfile](../docker/minio/Dockerfile), published to GitHub's container
 registry and pinned by digest.
