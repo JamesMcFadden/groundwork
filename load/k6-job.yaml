@@ -1,0 +1,56 @@
+# One k6 run, created by load/run.py, which fills in the placeholders. Kept out of
+# k8s/kustomization.yaml: applying the manifests must never start a load run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${NAME}
+  labels:
+    app: k6
+spec:
+  # A failed run is a result to look at, never one to retry quietly.
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: k6
+    spec:
+      restartPolicy: Never
+      enableServiceLinks: false
+      containers:
+        - name: k6
+          image: grafana/k6:2.2.0@sha256:9bd01d6941fca969cb61bb57d2da5ee9b385fe2aa8881df3798c196564d6ace6
+          args: ["run", "--quiet", "/scripts/questions.js"]
+          env:
+            # The Service, not a pod: kube-proxy spreads the users' connections across the
+            # API's pods, where a port-forward would send everything to one.
+            - name: TARGET
+              value: http://api:8000
+            - name: VUS
+              value: "${VUS}"
+            - name: DURATION
+              value: "${DURATION}"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ${SECRET}
+                  key: API_KEY
+          # The request reserves room beside the API pods. No CPU limit: the load generator
+          # must never be the throttled component.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: input
+              mountPath: /input
+      volumes:
+        - name: script
+          configMap:
+            name: k6-script
+        - name: input
+          configMap:
+            name: load-input

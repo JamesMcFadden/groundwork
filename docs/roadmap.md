@@ -525,7 +525,7 @@ to the API would have waited as long for its 503.
 - [x] `feat(k8s): add api and worker deployments with probes and resources`
 - [x] `fix(db): time out database connection attempts`
 - [x] `feat(k8s): take api pods out of rotation before they stop`
-- [ ] `feat(load): add k6 question load test and corpus seeding`
+- [x] `feat(load): add k6 question load test and corpus seeding`
 - [ ] `docs: record M6 scaling and recovery results`
 - [ ] `docs: add kubernetes doc`
 
