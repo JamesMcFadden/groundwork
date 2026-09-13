@@ -95,9 +95,22 @@ resource "aws_ecr_repository" "image" {
   name                 = each.key
   image_tag_mutability = "IMMUTABLE"
   force_delete         = true
+}
 
-  image_scanning_configuration {
-    scan_on_push = true
+# ECR scans on push only for repositories a registry-level rule matches; with no rule, every
+# repository is scanned only on request, whatever its own scan-on-push setting says. Basic
+# scanning, which is free. The registry has one scanning configuration, which destroying
+# this root returns to AWS's default of no rules.
+resource "aws_ecr_registry_scanning_configuration" "images" {
+  scan_type = "BASIC"
+
+  rule {
+    scan_frequency = "SCAN_ON_PUSH"
+
+    repository_filter {
+      filter      = "groundwork-*"
+      filter_type = "WILDCARD"
+    }
   }
 }
 

@@ -770,7 +770,7 @@ the Dockerfile names by tag alone, against the rule that images are pinned by di
 - [x] `feat(infra): add terraform for s3, ecr, and rds`
 - [x] `feat(infra): add eksctl cluster config`
 - [x] `build: push api and worker images to ecr`
-- [ ] `fix(infra): scan pushed images with a registry scan-on-push rule`
+- [x] `fix(infra): scan pushed images with a registry scan-on-push rule`
 - [ ] `build: pin base images by digest`
 - [ ] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
 - [ ] `feat(k8s): serve the api over https through a network load balancer`
