@@ -7,8 +7,8 @@ stay one line until they are next.
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
 **Next item:** M7 — plan the milestone: add its detail section before starting work
-**Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
-7h, 9.5h, 4h, and 4h.
+**Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, and M6 took their
+estimated 11h, 7h, 9.5h, 4h, 4h, 2h, and 6h.
 
 ## Milestones
 
