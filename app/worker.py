@@ -10,6 +10,7 @@ import signal
 import threading
 from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 from types import FrameType
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -41,7 +42,25 @@ def install_signal_handlers(stop: threading.Event) -> None:
     signal.signal(signal.SIGINT, handle)
 
 
-def run_worker(poll: Callable[[], bool], poll_seconds: float, stop: threading.Event) -> None:
+def liveness_signal(path: Path | None) -> Callable[[], None]:
+    """Return what the worker calls to show it is still making progress.
+
+    The worker serves no HTTP, so its liveness probe reads how recently this file was
+    touched. The file says nothing about the database on purpose: `heartbeat_at` is fresh
+    only while a job runs, so an idle worker would look stuck, and a probe that needed the
+    database would restart every worker during an outage. Unset, nothing is written.
+    """
+    if path is None:
+        return lambda: None
+    return path.touch
+
+
+def run_worker(
+    poll: Callable[[], bool],
+    poll_seconds: float,
+    stop: threading.Event,
+    alive: Callable[[], None] = lambda: None,
+) -> None:
     """Call `poll` until asked to stop, waiting between calls only when it found no work.
 
     `poll` reports whether it did anything, so a backlog drains back to back and only an
@@ -52,9 +71,13 @@ def run_worker(poll: Callable[[], bool], poll_seconds: float, stop: threading.Ev
     on immediately instead of after the remainder of the interval — a worker that slept
     through its interval would be killed before noticing SIGTERM once that interval
     exceeded the grace period.
+
+    `alive` is called at the start of every pass, a failed one included, so a worker riding
+    out a database outage never looks stuck to its liveness probe.
     """
     logger.info("worker started, polling every %.1fs", poll_seconds)
     while not stop.is_set():
+        alive()
         try:
             worked = poll()
         except Exception:
@@ -70,6 +93,7 @@ def poll_once(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,
     embedder: Embedder,
+    alive: Callable[[], None] = lambda: None,
 ) -> bool:
     """Expire abandoned jobs, then claim and process one. Return whether one was claimed."""
     with sessions() as session:
@@ -80,7 +104,7 @@ def poll_once(
     if job is None:
         return False
     logger.info("claimed job %s, attempt %d", job.id, job.attempts)
-    process_job(job, sessions, storage, embedder)
+    process_job(job, sessions, storage, embedder, alive)
     return True
 
 
@@ -95,14 +119,20 @@ def main() -> None:
     # Loaded before the first claim, so missing weights stop the worker at startup
     # rather than failing the first job that needs them.
     embedder = FastEmbedder(cache_dir=settings.embedding_cache_dir)
+    alive = liveness_signal(settings.worker_liveness_file)
     poll = partial(
-        poll_once, settings, build_session_factory(engine), build_storage(settings), embedder
+        poll_once,
+        settings,
+        build_session_factory(engine),
+        build_storage(settings),
+        embedder,
+        alive,
     )
 
     stop = threading.Event()
     install_signal_handlers(stop)
     try:
-        run_worker(poll, settings.worker_poll_seconds, stop)
+        run_worker(poll, settings.worker_poll_seconds, stop, alive)
     finally:
         engine.dispose()
 

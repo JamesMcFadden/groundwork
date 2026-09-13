@@ -1,6 +1,7 @@
 import uuid
 from datetime import timedelta
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import SecretStr
@@ -51,6 +52,11 @@ class Settings(BaseSettings):
 
     # Bounds reclaim, so a document that reliably kills its worker cannot cycle forever.
     job_max_attempts: int = 3
+
+    # A file the worker touches on every pass and before every embedding batch. The worker
+    # serves no HTTP, so its liveness probe reads this file's age instead. Unset, nothing
+    # is written.
+    worker_liveness_file: Path | None = None
 
     # Where the embedding model's weights live. Unset, fastembed uses a directory under
     # the system temp dir, which a container loses on restart and CI loses every run;

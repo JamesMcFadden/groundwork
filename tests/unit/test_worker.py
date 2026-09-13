@@ -76,3 +76,39 @@ def test_a_failing_poll_is_logged_and_survived(caplog: pytest.LogCaptureFixture)
 
     assert poll.calls == 2
     assert "poll failed" in caplog.text
+
+
+class Signals:
+    """Counts the liveness signals a worker gives."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def __call__(self) -> None:
+        self.count += 1
+
+
+def test_signals_liveness_before_every_poll_idle_or_busy() -> None:
+    stop = threading.Event()
+    poll = ScriptedPoll(stop, True, False, True)
+    alive = Signals()
+
+    run_worker(poll, poll_seconds=0.01, stop=stop, alive=alive)
+
+    assert (poll.calls, alive.count) == (4, 4)
+
+
+def test_signals_liveness_while_polls_fail() -> None:
+    """A worker riding out a database outage is paused, not stuck.
+
+    Were failed passes left unsignalled, the liveness probe would restart every worker
+    during an outage: the failure the probe reads a file rather than the database to avoid.
+    """
+    stop = threading.Event()
+    outage = RuntimeError("database unavailable")
+    poll = ScriptedPoll(stop, outage, outage)
+    alive = Signals()
+
+    run_worker(poll, poll_seconds=0.01, stop=stop, alive=alive)
+
+    assert (poll.calls, alive.count) == (3, 3)

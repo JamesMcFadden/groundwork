@@ -514,7 +514,7 @@ agreed: ONNX Runtime sizes its threads from the node rather than the container, 
 CPU limits the scaling comparison needs would throttle query embedding from about 7 ms
 to 104 ms at P50.
 
-- [ ] `feat(worker): add a liveness heartbeat for its probe`
+- [x] `feat(worker): add a liveness heartbeat for its probe`
 - [ ] `feat(embeddings): size onnx runtime threads with EMBEDDING_THREADS`
 - [ ] `build: add kind cluster config with a pinned node image`
 - [ ] `feat(k8s): add postgres and minio with persistent volumes`

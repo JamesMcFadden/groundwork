@@ -204,6 +204,15 @@ that a transient storage error fails a document until it is re-uploaded or reind
 finishes the job in hand before exiting. On a laptop CPU a 30-page document embeds in
 under three seconds and a 300-page one in about thirty.
 
+**Liveness.** With `WORKER_LIVENESS_FILE` set, the worker touches that file at the start
+of every pass and before every embedding batch, so the file's age tells a probe how long
+the worker has gone without making progress. A pass that fails, as each does while the
+database is down, still touches it: an outage pauses a worker without making it look
+stuck. A probe reading `heartbeat_at` instead would find nothing fresh on an idle worker,
+and would restart every worker at once during an outage. Unset, as under Compose, nothing
+is written. With one CPU and one ONNX Runtime thread, the longest gap between touches on a
+434-page document was one embedding batch, 8.3 seconds.
+
 ## Retrieval
 
 `RETRIEVER` chooses how a question's five chunks are found: `hybrid`, the default, or
