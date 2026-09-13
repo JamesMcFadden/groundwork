@@ -8,7 +8,7 @@ its document — and walks away without writing anything.
 
 import logging
 
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.jobs import complete_job, fail_job, heartbeat
@@ -91,6 +91,13 @@ def _ingest(
         # chunk is written. Leaving the block without committing rolls everything back.
         if not complete_job(session, job.id, job.attempts):
             raise ClaimLost
+        # A reindexed document's old chunks go in the transaction that writes the new ones,
+        # so search sees one set or the other, never both or neither. Past questions keep
+        # their retrieval results, which lose only the chunk id.
+        session.execute(
+            delete(Chunk).where(Chunk.document_id == job.document_id),
+            execution_options={"synchronize_session": False},
+        )
         session.add_all(
             Chunk(
                 document_id=job.document_id,

@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M5 — Hardening
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M5 — start branch `m5-hardening`
+**Next item:** M5 — review and merge PR #6
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -411,7 +411,7 @@ for unexpected ingestion failures, the decision carried to this milestone.
 - [x] `feat(ingest): record a generic reason for unexpected ingestion failures`
 - [x] `feat(api): return 503 when the database is unavailable`
 - [x] `feat(db): keep retrieval results when their chunk is deleted`
-- [ ] `feat(api): add document reindex endpoint`
+- [x] `feat(api): add document reindex endpoint`
 
 The milestone's line was written in M0, before most of what it hardens existed. Every
 route that reads by id already checks ownership, so query scoping is now consolidation

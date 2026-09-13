@@ -17,6 +17,8 @@ from app.db.models import (
     Collection,
     Document,
     IngestionJob,
+    Question,
+    RetrievalResult,
 )
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.ingest.chunk import chunk_pages
@@ -202,6 +204,60 @@ def test_a_queued_pdf_is_indexed_into_embedded_chunks(
     assert (chunks[0].page_start, chunks[-1].page_end) == (1, 3)
     assert all(chunk.collection_id == collection_id for chunk in chunks)
     assert all(len(chunk.embedding) == EMBEDDING_DIM for chunk in chunks)
+
+
+def test_reindexing_replaces_a_documents_chunks_and_keeps_past_results(
+    sessions: sessionmaker[Session],
+    storage: ObjectStorage,
+    embedder: Embedder,
+    collection_id: uuid.UUID,
+) -> None:
+    """A second job for an indexed document swaps its chunks: none are left duplicated, and a
+    past question's retrieval result survives, losing only its chunk."""
+    first_job = upload(
+        sessions, storage, collection_id, make_pdf([prose(300, n) for n in range(2)])
+    )
+    process_job(claim(sessions), sessions, storage, embedder)
+
+    with sessions() as session:
+        document_id = session.scalars(
+            select(IngestionJob.document_id).where(IngestionJob.id == first_job)
+        ).one()
+        old_ids = set(session.scalars(select(Chunk.id).where(Chunk.document_id == document_id)))
+        question = Question(
+            collection_id=collection_id,
+            user_id=get_settings().default_user_id,
+            question_text="What happens to a job whose worker stalls?",
+            outcome="answered",
+            retriever="hybrid",
+            retrieval_results=[
+                RetrievalResult(chunk_id=min(old_ids), rank=1, score=0.03, cited=True)
+            ],
+        )
+        # The job POST /documents/{document_id}/reindex queues.
+        reindex = IngestionJob(document_id=document_id, status="queued")
+        session.add_all([question, reindex])
+        session.commit()
+        question_id, reindex_id = question.id, reindex.id
+
+    process_job(claim(sessions), sessions, storage, embedder)
+
+    with sessions() as session:
+        new = session.execute(
+            select(Chunk.id, Chunk.chunk_index)
+            .where(Chunk.document_id == document_id)
+            .order_by(Chunk.chunk_index)
+        ).all()
+        result = session.execute(
+            select(RetrievalResult.chunk_id, RetrievalResult.cited).where(
+                RetrievalResult.question_id == question_id
+            )
+        ).one()
+
+    assert job_state(sessions, reindex_id)[:2] == ("completed", None)
+    assert [row.chunk_index for row in new] == list(range(len(old_ids)))
+    assert not old_ids & {row.id for row in new}
+    assert tuple(result) == (None, True)
 
 
 def test_indexed_chunks_carry_the_full_text_vector_of_their_text(

@@ -32,6 +32,7 @@ construct one with their own settings. Routes:
 | `POST /collections` | Creates a collection. 409 on a duplicate name. |
 | `GET /collections` | Keyset pagination with an opaque cursor. |
 | `POST /documents` | Uploads to object storage, inserts document and job in one transaction, returns 202. |
+| `POST /documents/{document_id}/reindex` | Queues a stored document for ingestion again and returns 202 with the new job, whose completion replaces the document's chunks. 409 while one of its jobs is queued or running, 404 unless the document is the caller's. |
 | `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
 | `POST /questions` | Answers from one collection with cited passages and per-stage timings, recording every question. 201 for an answer or insufficient evidence, 502 when generation declines or fails, 404 unless the collection is the caller's. |
 
@@ -168,6 +169,17 @@ A job then runs in four steps:
 
 Chunks, `page_count`, and the job's completion commit in one transaction, so a document
 is indexed fully or not at all and a retry never has partial output to clean up.
+
+**Reindexing.** `POST /documents/{document_id}/reindex` queues a new job for a document
+already stored, to retry a failed ingestion or re-embed after the chunker or the model
+changes. It locks the document's row before looking for a job in flight, so of two
+concurrent requests one queues and the other waits, then gets 409. The job runs as any
+other, reading the stored object, which is keyed by content hash and never deleted, and
+its final transaction deletes the document's existing chunks before writing the new ones:
+search sees the old chunks or the new, never both or neither. Past questions' retrieval
+results survive with a null chunk id. A new job rather than a reset one keeps every
+attempt's record, so an earlier job id still reports what happened to it. Reindexing a
+whole collection is one call per document.
 
 **Fencing.** `attempts` doubles as a fencing token. Heartbeat, completion, and failure
 all require the attempt a worker claimed with, so a worker that stalls past the

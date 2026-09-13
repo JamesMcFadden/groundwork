@@ -89,6 +89,7 @@ curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
 curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
   -F collection_id=<collection id> -F file=@report.pdf
 curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"   # queued, running, then completed or failed
+curl -s -X POST localhost:8000/documents/<document id>/reindex -H "x-api-key: $KEY"   # ingest it again
 curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d '{"collection_id": "<collection id>", "question": "What does the report conclude?"}'
 ```

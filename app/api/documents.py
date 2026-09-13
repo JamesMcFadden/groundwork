@@ -3,11 +3,12 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db.models import Document, IngestionJob
-from app.db.ownership import owned_collection
+from app.db.ownership import owned_collection, owned_document
 from app.deps import get_current_user_id, get_session, get_settings_dep, get_storage
 from app.schemas import DocumentAccepted
 from app.services.storage import ObjectStorage, content_key
@@ -83,3 +84,48 @@ def upload_document(
     logger.info("queued ingestion job", extra={"document_id": document.id, "job_id": job.id})
 
     return DocumentAccepted(document_id=document.id, job_id=job.id, status=job.status)
+
+
+@router.post(
+    "/{document_id}/reindex",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        status.HTTP_409_CONFLICT: {"description": "The document already has a job in flight."}
+    },
+)
+def reindex_document(
+    document_id: uuid.UUID,
+    session: Annotated[Session, Depends(get_session)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> DocumentAccepted:
+    """Ingest a stored document again, replacing its chunks when the new job completes.
+
+    For retrying a failed ingestion, or re-embedding after the chunker or the model
+    changes, without uploading the file again. The document's row is locked before looking
+    for a job in flight, so of two concurrent requests one queues and the other waits for it
+    and gets 409. A new job rather than a reset one keeps the record of every attempt.
+    """
+    if owned_document(session, document_id, user_id, for_update=True) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document not found")
+
+    in_flight = session.scalar(
+        select(IngestionJob.id)
+        .where(
+            IngestionJob.document_id == document_id,
+            IngestionJob.status.in_(("queued", "running")),
+        )
+        .limit(1)
+    )
+    if in_flight is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="document already has an ingestion job queued or running",
+        )
+
+    job = IngestionJob(document_id=document_id, status="queued")
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    logger.info("queued ingestion job", extra={"document_id": document_id, "job_id": job.id})
+
+    return DocumentAccepted(document_id=document_id, job_id=job.id, status=job.status)

@@ -24,6 +24,23 @@ def owned_collection(
     )
 
 
+def owned_document(
+    session: Session, document_id: uuid.UUID, user_id: uuid.UUID, *, for_update: bool = False
+) -> Document | None:
+    """The document, if it exists and its collection belongs to the user.
+
+    `for_update` locks the document's row, and only that row, until the transaction ends.
+    """
+    statement = (
+        select(Document)
+        .join(Collection, Collection.id == Document.collection_id)
+        .where(Document.id == document_id, Collection.user_id == user_id)
+    )
+    if for_update:
+        statement = statement.with_for_update(of=Document)
+    return session.scalar(statement)
+
+
 def owned_job(session: Session, job_id: uuid.UUID, user_id: uuid.UUID) -> IngestionJob | None:
     """The job, if it exists and its document's collection belongs to the user."""
     return session.scalar(
