@@ -18,6 +18,11 @@ htmlcov/
 .env.local
 k8s/*/secrets.env
 
+# Terraform: downloaded providers, and local state, which can hold secrets
+infra/**/.terraform/
+infra/**/terraform.tfstate
+infra/**/terraform.tfstate.backup
+
 # Evaluation runs; a run cited in the docs is committed with `git add -f`
 eval/results/
 

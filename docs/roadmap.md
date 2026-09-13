@@ -762,7 +762,7 @@ and a budget alert was added.
 
 - [x] `feat(storage): use the default aws credential chain when no s3 keys are set`
 - [x] `refactor(k8s): split manifests into a base and a kind overlay`
-- [ ] `feat(infra): add terraform for the dns zone and certificate`
+- [x] `feat(infra): add terraform for the dns zone and certificate`
 - [ ] `feat(infra): add terraform for s3, ecr, and rds`
 - [ ] `feat(infra): add eksctl cluster config`
 - [ ] `build: push api and worker images to ecr`
