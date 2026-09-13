@@ -90,3 +90,15 @@ def test_zero_embedding_threads_fail_at_startup(
         Settings()  # type: ignore[call-arg]
 
     assert "embedding_threads" in str(error.value)
+
+
+def test_a_zero_database_connect_timeout_fails_at_startup(
+    monkeypatch: pytest.MonkeyPatch, secrets_set: None
+) -> None:
+    """psycopg reads zero as its own 130 seconds, the wait the setting exists to bound."""
+    monkeypatch.setenv("DATABASE_CONNECT_TIMEOUT_SECONDS", "0")
+
+    with pytest.raises(ValidationError) as error:
+        Settings()  # type: ignore[call-arg]
+
+    assert "database_connect_timeout_seconds" in str(error.value)

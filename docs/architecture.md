@@ -80,6 +80,11 @@ serialization failures, cancelled queries, and every other database error stay 5
 after the model has answered gets the 503 too, and its answer is lost: the service never
 returns an answer it has not recorded. Object storage outages are still 500s.
 
+Every attempt to connect gives up after `DATABASE_CONNECT_TIMEOUT_SECONDS`, 5 by default,
+in the API, the worker, and migrations alike. psycopg alone waits 130 seconds: with
+PostgreSQL stopped in the kind cluster, the worker's first poll hung that long before
+failing, and a request arriving then would have waited as long for its 503.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,

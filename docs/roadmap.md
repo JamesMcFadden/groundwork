@@ -512,7 +512,10 @@ versions in `uv.lock`:
 Planned 2026-09-13. Checking what the plan rests on added one item to the nine first
 agreed: ONNX Runtime sizes its threads from the node rather than the container, so the
 CPU limits the scaling comparison needs would throttle query embedding from about 7 ms
-to 104 ms at P50.
+to 104 ms at P50. Testing the deployments added a second the same day: with PostgreSQL
+stopped, the worker's first poll hung for 131 s on psycopg's default 130-second connect
+timeout before failing, aging its liveness file past the probe's threshold, and a request
+to the API would have waited as long for its 503.
 
 - [x] `feat(worker): add a liveness heartbeat for its probe`
 - [x] `feat(embeddings): size onnx runtime threads with EMBEDDING_THREADS`
@@ -520,6 +523,7 @@ to 104 ms at P50.
 - [x] `feat(k8s): add postgres and minio with persistent volumes`
 - [x] `feat(k8s): run migrations and bucket creation as jobs`
 - [x] `feat(k8s): add api and worker deployments with probes and resources`
+- [x] `fix(db): time out database connection attempts`
 - [ ] `feat(k8s): take api pods out of rotation before they stop`
 - [ ] `feat(load): add k6 question load test and corpus seeding`
 - [ ] `docs: record M6 scaling and recovery results`

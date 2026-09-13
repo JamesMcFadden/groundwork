@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
 
+    # How long one attempt to connect to the database may take. Left to psycopg it is 130
+    # seconds, which a database whose address stops answering holds an API request or a
+    # worker's poll for. psycopg treats anything under 2 as 2, and zero as its own 130, so
+    # zero is refused.
+    database_connect_timeout_seconds: PositiveInt = 5
+
     # The API key maps every request to this seeded user. The row is created by a data
     # migration so foreign keys stay NOT NULL.
     default_user_id: uuid.UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
