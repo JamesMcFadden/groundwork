@@ -21,7 +21,7 @@ Two rules govern it:
 | Latency | P95 `POST /questions` < 500 ms excluding LLM | timings in `questions` | not yet measured |
 | Ingestion | 30-page PDF indexed in < 60 s | job timestamps | met locally: 4.05 s (n=1, laptop CPU via Compose, 2026-09-11) |
 | Scaling | 1→3 API replicas ≥ 1.8× throughput, P95 no worse | k6 on kind | not yet measured |
-| Recovery | Pod deletion under load → zero failed requests | k6 error rate | not yet measured |
+| Recovery | Graceful pod deletion under load → zero failed requests | k6 error rate | not yet measured |
 | AWS | Reachable via LoadBalancer, answering against RDS | smoke test | not yet measured |
 | Deployment | Fresh environment from documented steps; one `docker compose up` | manual, timed | not yet measured |
 | CI | Every PR runs lint, types, tests, retrieval eval | GitHub Actions | met: all four run on every pull request and push to `main` (from PR #4, 2026-09-12) |
@@ -115,3 +115,10 @@ roadmap's Parked list; the honest statement is that grounding is enforced struct
   `make eval-live`, the run that answers with Claude; `make eval` answers with a stub that
   cannot refuse or miscite, so it leaves both unmeasured. Only the command named in
   "Measured by" changed. No target changed.
+- **2026-09-13, before any measurement.** Recovery names graceful pod deletion: a pod
+  deleted with its grace period, as `kubectl delete pod` does by default. A forced
+  deletion or a crash loses the requests in flight on that pod whatever the service does,
+  so zero failures could never be met for one. The wording was reviewed while planning
+  M6, when uvicorn's source showed that its shutdown can fail a request sent on an idle
+  connection; the target stayed at zero, and the plan drains connections before shutdown
+  instead. No target changed.

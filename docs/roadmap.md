@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M6 — Kubernetes on kind
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M6 — plan the milestone: add its detail section before starting work
+**Next item:** M6 — start branch `m6-kubernetes`
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -507,6 +507,184 @@ versions in `uv.lock`:
 - **The eval harness reads no chunk ids from `retrieval_results`.** It scores citations
   from `rank` and `cited` alone.
 
+## M6 — Kubernetes on kind
+
+Planned 2026-09-13. Checking what the plan rests on added one item to the nine first
+agreed: ONNX Runtime sizes its threads from the node rather than the container, so the
+CPU limits the scaling comparison needs would throttle query embedding from about 7 ms
+to 104 ms at P50.
+
+- [ ] `feat(worker): add a liveness heartbeat for its probe`
+- [ ] `feat(embeddings): size onnx runtime threads with EMBEDDING_THREADS`
+- [ ] `build: add kind cluster config with a pinned node image`
+- [ ] `feat(k8s): add postgres and minio with persistent volumes`
+- [ ] `feat(k8s): run migrations and bucket creation as jobs`
+- [ ] `feat(k8s): add api and worker deployments with probes and resources`
+- [ ] `feat(k8s): take api pods out of rotation before they stop`
+- [ ] `feat(load): add k6 question load test and corpus seeding`
+- [ ] `docs: record M6 scaling and recovery results`
+- [ ] `docs: add kubernetes doc`
+
+The milestone fills three rows of [success-criteria.md](success-criteria.md), API
+reliability, scaling, and recovery, all measured by k6 on kind, and the latency row,
+whose timings the load runs record. Five decisions were carried to it; each is settled
+below.
+
+Decisions taken while planning:
+
+- **One kind node, Kubernetes 1.34.** `k8s/kind-cluster.yaml` pins
+  `kindest/node:v1.34.11` by digest. kind v0.33.0 defaults to 1.37, but the `kubectl`
+  Docker Desktop ships is 1.34.1, which supports one minor version of skew. Every kind
+  node is a container on the same Docker VM, so more nodes would add scheduling
+  boundaries and no capacity. kind is installed from its release binary with the
+  checksum verified, not through a package manager, so the documented steps name one
+  version.
+- **Plain manifests under `k8s/`, applied with `kubectl apply -k`.** Kustomize ships in
+  kubectl, so there is no new tool. Whether M7 needs a base and overlays is M7's
+  decision.
+- **Data services run in the cluster**, from the images Compose and CI pin: PostgreSQL
+  and MinIO each as a one-replica StatefulSet with a volume on kind's default `standard`
+  class, behind a Service named as in Compose, so `POSTGRES_HOST` and `S3_ENDPOINT` take
+  the values Compose gives them. Deleting the cluster deletes their data.
+- **Secrets come from a gitignored file.** A Kustomize `secretGenerator` reads
+  `k8s/secrets.env`, holding `POSTGRES_PASSWORD`, `S3_SECRET_KEY`, and `API_KEY`, with
+  `secrets.env.example` committed beside it. Applying without the file fails, and the
+  Secret's generated name changes with its content, so a new value rolls the pods that
+  read it. PostgreSQL and MinIO take their passwords from the same Secret. The cluster
+  sets `GENERATOR=stub` and holds no `ANTHROPIC_API_KEY`: load tests measure this
+  service, not a model provider.
+- **Application images are built locally and loaded into kind**, tagged with the commit
+  they were built from and run with `imagePullPolicy: Never`, so an image that was never
+  loaded fails to start rather than being looked for on Docker Hub. They are not pinned
+  by digest: an image never pushed has no registry digest, and its tag names its commit.
+  Every image pulled from a registry, the node, PostgreSQL, MinIO, and k6, is pinned by
+  digest.
+- **Migrations and the bucket are Jobs**, run from the api image as Compose's
+  `createbucket` is. An init container would run `alembic upgrade` in every API pod at
+  once. The documented steps wait for both Jobs to complete before the API takes load.
+- **One uvicorn process per API pod, with 1 CPU requested and limited**, as carried:
+  without limits one replica could use every CPU on the node, and the 1→3 comparison
+  would measure contention rather than scaling. The worker gets the same. Memory requests
+  and limits are set in that commit from usage measured under load; an idle API
+  container used 270 MiB.
+- **`EMBEDDING_THREADS` sizes ONNX Runtime's thread pools**, and the cluster sets it to
+  each pod's CPU limit. Unset, fastembed leaves ONNX Runtime to size them from the node's
+  10 CPUs, which a 1-CPU limit then throttles: query embedding took 104 ms at P50 and
+  300 ms at P95, against 6.9 and 7.6 ms with one thread. Left unset elsewhere, it changes
+  nothing for Compose, CI, or the eval harness.
+- **The API's probes use the endpoints it has.** A startup probe on `/health/live`
+  covers loading the model, the liveness probe reads the same path, and the readiness
+  probe `/health/ready`.
+- **The worker's liveness is a file it touches.** The loop touches `/tmp/worker-alive` at
+  the start of every pass, and ingestion at every job heartbeat. An `exec` probe fails
+  when the file is more than 120 seconds old, read with `stat` and `date`, both in the
+  image. The threshold must exceed the longest gap between touches, which that commit
+  measures on a 300-page document. Both candidates carried here were rejected:
+  `heartbeat_at` changes only while a job runs, so an idle worker would look wedged, and
+  a probe that reads the database would restart every worker during a database outage,
+  the failure `/health/live` is written to avoid. A probe-only HTTP endpoint would still
+  have to check the loop's freshness, which the file does without a server.
+- **An API pod drains before it is told to stop.** Its `preStop` hook runs
+  `sh -c 'kill -USR1 1; sleep 10'`. SIGUSR1 marks the API as draining, and from then on
+  every response carries `Connection: close`, so each client's next request opens a new
+  connection, which kube-proxy routes to another pod. The sleep holds off SIGTERM while
+  the pod's removal from the Service's endpoints reaches kube-proxy and open connections
+  close, so when uvicorn stops it has no idle connection to close under a client. The
+  default 30-second grace period covers the sleep and uvicorn finishing its requests. The
+  carried decision proposed failing readiness, but deleting a pod already marks its
+  endpoint terminating and not ready: failing readiness would reach kube-proxy no sooner,
+  and would do nothing for connections already open. A signal starts draining rather
+  than an HTTP hook because the health routes take no API key, so a drain endpoint would
+  let anyone who reaches the Service take pods out of rotation. The API runs as PID 1,
+  and `kill` is built into `sh`. A test asserts that responses carry `Connection: close`
+  once draining starts.
+- **k6 runs inside the cluster**, as a Job from `grafana/k6:2.2.0` pinned by digest,
+  against the API's ClusterIP Service: `kubectl port-forward` sends every request to one
+  pod, which would make three replicas indistinguishable from one. The script sends
+  `X-API-Key` from the Secret. Each virtual user keeps its connection, as a real client
+  would, so kube-proxy balances connections rather than requests; every run reports how
+  many requests each API pod served, from the pods' request logs.
+- **The corpus is seeded through the API.** A script in `load/` creates a collection,
+  uploads the six eval corpus PDFs so the worker in the cluster ingests them, waits for
+  their jobs, and writes the collection id and the golden set's 38 questions, read from
+  `eval/golden.toml` unchanged, into the ConfigMap the k6 script reads. It reaches the
+  API through `kubectl port-forward`, where one pod is enough. Workers are then scaled to
+  0 for every load run, as carried, so ingestion never competes for CPU.
+- **Pool waits are checked before errors are attributed**, as carried. Each API process
+  has SQLAlchemy's default pool, 5 connections and 10 overflow with a 30-second wait, and
+  a pool timeout is a 503. Every run reports its 503s and the API's logged 503 warnings,
+  and a run with any is read against pool waits before its errors or throughput are put
+  down to the service or the replica count.
+- **Results are committed** under `load/results/`, one JSON file per run: k6's summary
+  with the commit, replica count, node image, k6 version, and requests served per pod.
+
+Pre-registered rules, fixed before any load run:
+
+- **Every run.** 30 virtual users post golden-set questions in turn, with no pause
+  between requests, for 5 minutes, after a 1-minute warm-up run at 30 users whose figures
+  are discarded. Every API pod is ready, workers are at 0, and the seeded collection is
+  the same.
+- **Scaling.** Six runs, alternating 1 and 3 API replicas and starting with 1, so drift
+  across the session falls on both. Throughput is completed requests per second, and P95
+  is k6's `http_req_duration` P95 over the run. Met if the median throughput of the
+  3-replica runs is at least 1.8 times that of the 1-replica runs, and their median P95
+  is no higher.
+- **API reliability.** Met if each of the six runs has at least 99% of requests answered
+  with a status other than 5xx; a request with no response counts against it. The worst
+  run is the figure reported.
+- **Latency.** The P95 of `total_ms − llm_ms` over the `questions` rows recorded during
+  the three 3-replica runs, met below 500 ms, with the 1-replica runs' figure reported
+  beside it. The timings are taken inside the service, so they leave out time a request
+  waits before its handler runs, which k6's P95 includes.
+- **Recovery.** Three 5-minute runs at 3 replicas, each after a warm-up. Two minutes into
+  each, the API pod first in name order is deleted with `kubectl delete pod` and its
+  default grace period. Met if all three record no failed request, a failure being any
+  status other than 201 or a request with no response.
+- **Wiring checks** before the measured runs use a few users for seconds, are never
+  recorded, and are read for status codes only, so no throughput or latency figure is
+  seen before these rules apply.
+- **A miss is recorded, not retuned.** A change made after a miss, such as a longer
+  `preStop` sleep, is recorded as a new result beside the miss, not in its place.
+
+Checked 2026-09-13 on this machine, an Apple Silicon Mac running Docker Desktop with 10
+CPUs and 8 GB for containers:
+
+- **kind v0.33.0** was released 2026-08-26, and its repository is active and not
+  archived. Its `kind-darwin-arm64` binary matched the published SHA-256, `0c8c7dbe…`.
+  The release notes list pre-built node images for 1.37.0, 1.36.4, 1.35.8, and 1.34.11,
+  to be used by digest. A cluster from `v1.34.11` reported server version 1.34.11, 10
+  CPUs and 8,024,852 KiB of memory allocatable, and a default `standard` StorageClass
+  (`rancher.io/local-path`, binding when a pod first uses a volume).
+- **The 1.34 API accepts a `preStop` sleep.** `kubectl explain` lists
+  `lifecycle.preStop.sleep.seconds`. That shows the field exists, not that it prevents
+  lost requests; the recovery runs show that.
+- **k6 v2.2.0** was released 2026-08-10 with no breaking changes, and its repository is
+  active and not archived. `grafana/k6:2.2.0` is a multi-platform index,
+  `sha256:9bd01d6941fca969cb61bb57d2da5ee9b385fe2aa8881df3798c196564d6ace6`, with amd64
+  and arm64 images.
+- **uvicorn 0.52.4 closes idle keep-alive connections at once on shutdown.** It stops
+  listening, closes every connection with no request in flight, marks in-flight responses
+  `connection: close`, and by default waits for them without a timeout. A client that
+  sends a request on an idle connection as it closes gets no response, and a POST cannot
+  safely be retried. This is the main risk to the recovery criterion, and a `preStop`
+  sleep alone does not remove it: kube-proxy balances new connections, and one already
+  open keeps reaching its pod after the pod leaves the endpoints. A `connection: close`
+  header the application sets makes uvicorn close that connection once the response is
+  sent, which draining relies on. On Unix the server handles only SIGINT and SIGTERM;
+  SIGUSR1 appears only in uvicorn's gunicorn worker class, which this service does not
+  run.
+- **ONNX Runtime ignores a container's CPU limit.** fastembed sets its thread counts only
+  when given `threads`. In the api image, with and without `--cpus=1`, `nproc` reported
+  10 and the started API ran 25 threads. Timing 300 query embeddings after 20 warm-up
+  calls, one caller at a time: 3.8 / 5.9 ms at P50 / P95 with no limit and default
+  threads, 7.1 / 7.6 ms with no limit and one thread, 104.1 / 300.1 ms (at most 600 ms)
+  under `--cpus=1` with default threads, and 6.9 / 7.6 ms under `--cpus=1` with one.
+- **An idle API container uses about 270 MiB** once the model has loaded, with the stub
+  generator, with or without a CPU limit (n=1 each). Three replicas, the worker,
+  PostgreSQL, MinIO, k6, and the control plane must share about 7.65 GiB.
+- **The runtime image has `stat`, `date`, and `sleep`**, so the worker's probe needs
+  nothing added to it.
+
 ## Stack decisions
 
 Chosen during planning, with the reasoning that is not recoverable from the code.
@@ -567,29 +745,6 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M6** — scale workers to 0 and set explicit CPU requests/limits during load runs, or
-  the 1→3 replica comparison measures contention rather than scaling.
-- **M6** — the worker needs a liveness probe of its own. The API's probe is an HTTP
-  GET; the worker has no HTTP surface, so that pattern does not transfer. Two
-  candidates: an `exec` probe reading `heartbeat_at` freshness from the database, or
-  a minimal HTTP endpoint on the worker serving probes only. Decide there — a probe
-  that only checks the process is alive would pass for a worker wedged mid-job, which
-  is worse than no probe at all.
-- **M6** — give the kind deployment `API_KEY` as a Kubernetes Secret, and have every k6
-  script send it in `X-API-Key`. Since M5 the API refuses to start without the key and
-  answers every route but health with 401 without it, so a load run that forgets the
-  header measures nothing but refusals.
-- **M6** — make an API pod's readiness fail as soon as it is asked to stop, so it leaves
-  rotation before it stops serving. Readiness fails today only when the database is
-  unreachable, so a terminating pod stays routable while it shuts down, and requests sent
-  to it then fail, which the pod-deletion criterion counts. Left to M6 by M5's plan;
-  decide the mechanism there.
-- **M6** — read load results against the database connection pool. `build_engine` sets
-  no pool options, so each API process has SQLAlchemy's defaults: 5 connections plus 10
-  overflow, with a request waiting up to 30 seconds for one. Since M5 a pool timeout is a
-  503, which counts against the ≥ 99% non-5xx criterion. Whether 30 virtual users exhaust
-  it is unmeasured; a run's errors and throughput should be checked against pool waits
-  before they are attributed to the service or to the replica count.
 - **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
   the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
 - **M7** — serve the API over HTTPS before its LoadBalancer takes traffic. Since M5 every
