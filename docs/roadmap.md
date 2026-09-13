@@ -6,8 +6,8 @@ stay one line until they are next.
 **Now:** M7 — AWS
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M7 — plan the milestone: add its detail section before starting work
-**Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, and M6 took their
+**Next item:** M7 — start branch `m7-aws`
+**Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, and M6 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, and 6h.
 
 ## Milestones
@@ -23,7 +23,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 - [x] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
 - [x] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
 - [x] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
-- [ ] **M7** (6h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
+- [ ] **M7** (9h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
 - [ ] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
 
 M3 and M4 are what distinguish this from an LLM demo. If time runs short, cut M7 to
@@ -749,6 +749,191 @@ against the corpus seeded as `load-corpus-20260913T163342Z`. Each run's record i
   `scaling-1-a`, and 91 of 36,614 in `scaling-3-a`. Throughput and k6's latencies come
   from k6's own summary and are unaffected.
 
+## M7 — AWS
+
+Planned 2026-09-13. The estimate was raised the same day from 6h to 9h. The milestone's
+line was written in M0, and four things it did not foresee each add work: reaching S3
+through a pod's role rather than static keys, a domain and certificate for the carried
+HTTPS decision, overlays that leave the kind deployment unchanged, and a load balancer
+controller that is not in maintenance mode.
+
+- [ ] `feat(storage): use the default aws credential chain when no s3 keys are set`
+- [ ] `refactor(k8s): split manifests into a base and a kind overlay`
+- [ ] `feat(infra): add terraform for the dns zone and certificate`
+- [ ] `feat(infra): add terraform for s3, ecr, and rds`
+- [ ] `feat(infra): add eksctl cluster config`
+- [ ] `build: push amd64 api and worker images to ecr`
+- [ ] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
+- [ ] `feat(k8s): serve the api over https through a network load balancer`
+- [ ] `feat(load): add an aws smoke test`
+- [ ] `docs: record M7 deployment, smoke test, and teardown`
+- [ ] `docs: add aws doc`
+
+The milestone fills the AWS row of [success-criteria.md](success-criteria.md): reachable
+through a load balancer and answering against RDS, shown by a smoke test. It proves the
+deployment path; scaling and recovery stay measured on kind. Two decisions were carried
+to it; each is settled below. [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md)
+is still Proposed, and `docs: add aws doc` marks it Accepted with what planning changed:
+a load balancer controller installed into the cluster, and a Terraform root for DNS.
+
+Decisions taken while planning:
+
+- **One AWS account, in us-east-1, on the Free plan.** Created 2026-09-13 through the
+  standard sign-up. The Free plan charges nothing: new accounts get $100 in credits and
+  can earn $100 more, and the account closes after six months or when the credits run
+  out, whichever comes first. AWS's new sign-up flow was avoided: the policies it applies
+  deny `iam:*Provider*` on both of its plans, which blocks the OIDC provider IRSA needs.
+  The CLI signs in with `aws login` as an IAM user with MFA, so no access key exists. IAM
+  Identity Center is not used: it needs AWS Organizations, and joining an organization
+  moves a Free plan account to the paid plan.
+- **Terraform for data and DNS, eksctl for the cluster, as ADR 0002 decides.** Terraform,
+  eksctl, and OpenTofu are all maintained; the ADR names Terraform, and its licence does
+  not restrict this use. There are two roots under `infra/`, each with local, gitignored
+  state, since one person operates them and the state holds the database password.
+  `infra/dns` holds the Route 53 zone and the certificate and survives teardown, so the
+  domain's nameservers are set once and the certificate stays issued, for about $0.50 a
+  month. `infra/data` holds the bucket, the ECR repositories, RDS, and the bucket policy,
+  and is destroyed with the cluster.
+- **The API is served at `api.groundworkproj.com`.** The domain was registered at Porkbun
+  on 2026-09-13, until 2027-09-13, rather than through Route 53: credits never pay for
+  domain registration. Its nameservers are changed by hand to the zone's, once, and ACM
+  validates the certificate through a record Terraform writes in that zone.
+- **HTTPS terminates at a Network Load Balancer created by the AWS Load Balancer
+  Controller**, as carried: every request carries the API key, which plain HTTP would
+  expose. The controller built into EKS would create one from annotations with nothing to
+  install, but AWS says it "is only receiving critical bug fixes", and a component in
+  maintenance mode is not adopted. The controller, v3.5.0, is installed from its Helm
+  chart pinned by version; Helm v4.3.0 is a new tool, installed from its release binary
+  with the checksum verified. The API's Service is internet-facing with IP targets,
+  listens only on 443 with the certificate from `infra/dns` and a TLS 1.3 and 1.2 policy,
+  and forwards to port 8000. There is still no ingress controller, as the ADR decides.
+  The controller creates the load balancer, so the alias record for
+  `api.groundworkproj.com` is written by a documented `aws` command once it exists, and
+  deleted before teardown. The EKS overlay's commit creates no public Service; the load
+  balancer arrives with TLS in the commit after, so plain HTTP never takes traffic. AWS's
+  EKS documentation cites controller 2.7.2 or later, so the annotations are checked
+  against v3's documentation in that commit.
+- **The cluster runs EKS 1.35 on two `m7i-flex.large` nodes in the default VPC.** 1.35 has
+  standard support until 2027-03-27 and is within one minor version of the `kubectl`
+  Docker Desktop ships, 1.34.1. The nodes, a managed node group, sit in the default VPC's
+  public subnets in two availability zones with public addresses, so there is no NAT
+  gateway; the ADR records that as a demo-grade choice. `m7i-flex.large` has 2 vCPUs and
+  8 GiB, and is on the Free Tier's list of eligible instance types; the Graviton types on
+  that list have 2 GiB, which cannot hold the worker's 1.5 GiB memory request. A flex
+  instance is guaranteed 40% of its CPU and may use all of it 95% of the time over 24
+  hours: enough for a smoke test, and one more reason load tests stay on kind.
+- **Images are built for amd64 and pushed to ECR.** The nodes are x86 and this Mac is
+  arm64, so `docker buildx` builds `linux/amd64` under emulation. Images are labelled
+  with their commit as on kind, tagged with it, and deployed by digest. Pushing from CI is
+  M8's.
+- **The manifests become a base with two overlays**, the choice M6 left to M7.
+  `k8s/base/` holds what both clusters run. `k8s/kind/` adds PostgreSQL, MinIO, bucket
+  creation, and never-pulled `:kind` images, and must render exactly what
+  `kubectl kustomize k8s` renders today, which its commit checks with a diff. `k8s/eks/`
+  adds none of the data services. Its account-specific values, the image digests, role
+  and certificate ARNs, database host, and bucket, come from a gitignored `deploy.env`
+  generated from Terraform outputs and the pushed digests. They reach the manifests
+  through Kustomize `replacements` from a ConfigMap marked
+  `config.kubernetes.io/local-config`, which is never deployed, so the repository holds no
+  account id. Secrets come from a gitignored `secrets.env`, as on kind: the database
+  password Terraform generated, and a new `API_KEY`.
+- **Pods reach S3 through an IAM role, with IRSA.** `S3_ACCESS_KEY` and `S3_SECRET_KEY`
+  become optional; unset, boto3 finds credentials through its default chain, which reads
+  the service account's web identity token. Today the access key defaults to
+  `minioadmin`, which boto3 would send to S3 instead. Path-style addressing, which MinIO
+  needs, is used only when `S3_ENDPOINT` is set. Compose, CI, `.env.example`, and kind
+  already set both keys. eksctl creates the OIDC provider, a role for the service and one
+  for the controller, and the overlay's ServiceAccount names the service's. That role may
+  get and put objects under `documents/` in the one bucket and nothing more. EKS Pod
+  Identity needs no OIDC provider and was considered; IRSA stays, as the ADR decides,
+  since this account allows it.
+- **RDS runs PostgreSQL 16.15 on `db.t4g.micro`.** 16.15 is the version the pinned Compose
+  image runs. RDS ships it with pgvector 0.8.2, against Compose's 0.8.6; search needs
+  0.8.0 or later for `hnsw.iterative_scan`. `db.t3.micro` and `db.t4g.micro` are the Free
+  plan's RDS classes, and 1 GiB is enough for one document. The instance has 20 GiB of
+  storage in one availability zone, no public address, a security group admitting port
+  5432 from the default VPC alone, and no final snapshot on destroy. The migrate Job runs
+  as on kind, and the initial migration's `CREATE EXTENSION` runs as the master user. RDS
+  refuses unencrypted connections by default from PostgreSQL 15, and psycopg's default
+  `sslmode=prefer` negotiates TLS but does not verify the server's certificate: recorded
+  as a demo-grade gap, not built around.
+- **Two API replicas and one worker, each requesting 750m CPU with a limit of 1.** A
+  2-vCPU node leaves a little under 2 CPUs allocatable, so pods requesting a whole CPU
+  would fit one to a node; lower requests fit all three on two nodes beside the system
+  pods. The limit, and `EMBEDDING_THREADS=1` with it, is unchanged. The API answers with
+  `GENERATOR=stub` and the cluster holds no `ANTHROPIC_API_KEY`: answering against RDS
+  needs retrieval, not a model.
+- **The smoke test is a script in `load/`**, run from this Mac against the public
+  hostname, recording each check and the upload's ingestion time as JSON in
+  `load/results/`.
+- **Teardown leaves only DNS.** The documented steps delete the alias record and the API's
+  Service, so the controller deletes the load balancer, then uninstall the controller,
+  delete the cluster with eksctl, and destroy `infra/data`. They then list what remains
+  through the Resource Groups Tagging API, EC2, Elastic Load Balancing, and RDS, expecting
+  the zone and certificate alone. The ADR's warning stands: `terraform destroy` does not
+  remove the cluster.
+- **Prices are stated before anything is created**, from the AWS Price List API, and the
+  day's cost is read from billing afterwards, as credits used.
+- **EKS gets one day**, as carried. If the cluster is not serving traffic by then, the
+  Terraform, the eksctl config, and the runbook ship, and the README says so plainly.
+
+Pre-registered rules, fixed before any deployment:
+
+- **AWS.** One run of the smoke test from this Mac against `https://api.groundworkproj.com`
+  after deployment. Met if, in that run, the certificate verifies against the system's
+  trust store for that name; `GET /health/ready` returns 200; `POST /collections` without
+  a key returns 401; port 80 accepts no connection; `uam-risk.pdf` from the eval corpus
+  uploads with 202 and its job completes; and the first answerable golden-set question in
+  file order whose evidence is in `uam-risk.pdf`, asked unchanged, returns 201 with
+  outcome `answered` and a citation naming that file. Ingestion time is reported
+  alongside, with no target.
+- **A failure is recorded, not replaced.** A run after a fix is recorded beside the
+  failed one.
+- **Wiring checks** through `kubectl port-forward` before the load balancer exists are not
+  recorded.
+
+Checked 2026-09-13:
+
+- **AWS lists the Free plan's services for its new sign-up flow**, and the list includes
+  EKS, EC2, RDS, Elastic Load Balancing, ECR, S3, Certificate Manager, Route 53, IAM, and
+  CloudFormation. AWS's promotional credit terms exclude Route 53 domain registration. The
+  instance types marked Free Tier eligible for accounts created from 2025-07-15 are
+  `t3.micro`, `t3.small`, `t4g.micro`, `t4g.small`, `c7i-flex.large`, and
+  `m7i-flex.large`.
+- **Every tool is maintained.** None of these repositories is archived: Terraform v1.16.2
+  (released 2026-09-09), the Terraform AWS provider v6.64.0 (2026-09-09), eksctl v0.230.0
+  (2026-08-14), the AWS Load Balancer Controller v3.5.0 (2026-08-03), Helm v4.3.0
+  (2026-09-09), and OpenTofu v1.12.6 (2026-08-19). The AWS CLI's repository is active.
+- **EKS standard support** covers 1.34 until 2026-12-02, 1.35 until 2027-03-27, and 1.36
+  until 2027-08-02.
+- **The controller built into EKS** creates Classic Load Balancers unless annotated for an
+  NLB, registers instance targets only, and "is only receiving critical bug fixes". AWS
+  recommends the AWS Load Balancer Controller instead.
+- **RDS for PostgreSQL 16** ships pgvector 0.8.2 with 16.14 and 16.15, 0.8.1 with 16.12 and
+  16.13, and 0.8.0 from 16.7 to 16.11. `rds.force_ssl` defaults to 1 from PostgreSQL 15.
+- **EKS Pod Identity needs no OIDC provider**, and boto3 1.34.41 or later; `uv.lock` has
+  1.43.89.
+- **kubectl's built-in Kustomize, v5.7.1, fills fields from a file it does not deploy.**
+  With made-up values, `replacements` from a generated ConfigMap marked
+  `config.kubernetes.io/local-config` set a container image to an ECR digest reference and
+  a Service annotation to a certificate ARN, and the ConfigMap was left out of the output.
+- **`aws login`** gives the CLI credentials from a console sign-in, lasting 15 minutes and
+  refreshed for up to 12 hours, with no access key.
+- **Flex instances** are guaranteed 40% of their CPU and may use all of it 95% of the time
+  over 24 hours.
+
+Unverified going in; checked with the account before anything billable is created:
+
+- **The standard sign-up's Free plan allows EKS and launches `m7i-flex.large` in a managed
+  node group.** AWS publishes its service list only for the new sign-up flow, and lists
+  eligible instance types without saying that others are refused.
+- **The EC2 quota for On-Demand Standard instances is at least 4 vCPUs.** New accounts
+  have been reported with 1, and an increase can take time.
+- **us-east-1 offers** EKS 1.35 in two of the default VPC's availability zones, and RDS
+  PostgreSQL 16.15 on `db.t4g.micro`.
+- **An `m7i-flex.large` node fits** two 750m pods beside the system pods and the controller.
+- **The hourly prices**, stated before creation.
+
 ## Stack decisions
 
 Chosen during planning, with the reasoning that is not recoverable from the code.
@@ -809,15 +994,6 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
-  the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
-- **M7** — serve the API over HTTPS before its LoadBalancer takes traffic. Since M5 every
-  request carries the API key in the `X-API-Key` header, which plain HTTP exposes to
-  anyone on the path, and a key read in transit admits its reader as the seeded user and
-  spends the service's Claude budget. Terminating TLS at the load balancer with an ACM
-  certificate is the likely route; ACM validates a certificate against a domain, so one is
-  needed, not just the load balancer's generated hostname. Kind in M6 is reached on
-  localhost, where plain HTTP exposes nothing.
 - **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
   requests, so breakage from outside the repository waits for the next push: MinIO's
   Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
