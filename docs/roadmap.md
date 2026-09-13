@@ -758,14 +758,20 @@ HTTPS decision, overlays that leave the kind deployment unchanged, and a load ba
 controller that is not in maintenance mode. Checking the account after the plan was
 committed found it on the paid plan rather than the Free plan, which removed the reason
 for the node type first chosen: the nodes changed from `m7i-flex.large` to `t4g.medium`,
-and a budget alert was added.
+and a budget alert was added. Pushing the first images added two items the same day: ECR
+scans on push only for repositories a registry-level rule matches, and the registry had
+none, so the repositories' own scan-on-push setting did nothing; and a manual scan found 4
+critical and 16 high findings in both images, all in Debian 12 packages from base images
+the Dockerfile names by tag alone, against the rule that images are pinned by digest.
 
 - [x] `feat(storage): use the default aws credential chain when no s3 keys are set`
 - [x] `refactor(k8s): split manifests into a base and a kind overlay`
 - [x] `feat(infra): add terraform for the dns zone and certificate`
 - [x] `feat(infra): add terraform for s3, ecr, and rds`
 - [x] `feat(infra): add eksctl cluster config`
-- [ ] `build: push api and worker images to ecr`
+- [x] `build: push api and worker images to ecr`
+- [ ] `fix(infra): scan pushed images with a registry scan-on-push rule`
+- [ ] `build: pin base images by digest`
 - [ ] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
 - [ ] `feat(k8s): serve the api over https through a network load balancer`
 - [ ] `feat(load): add an aws smoke test`
@@ -1054,3 +1060,9 @@ have somewhere to go that is not the current branch.
   sentence's embedding barely moves (0.989 similarity to its plain form, checked
   2026-09-12), and the M3 corpus contains none. Every chunk would change, so any
   baseline recorded before the fix must be re-run.
+- Move the base images to Debian 13. On 2026-09-13 ECR's basic scan found 4 critical and
+  16 high findings in both application images, all in Debian 12 packages from
+  `python:3.12-slim-bookworm`: `openssl`, `perl`, `util-linux`, `pcre2`, and `zlib`. The
+  image then current on Docker Hub held the same versions, and Debian 12's security archive
+  had a fix for `pcre2` alone, so refreshing or upgrading the image leaves the rest. Moving
+  changes the images kind runs too.
