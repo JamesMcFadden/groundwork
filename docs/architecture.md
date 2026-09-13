@@ -15,7 +15,7 @@ uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-End of M5. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
+End of M6. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
 stored document can be reindexed without a second upload. `POST /questions` searches a
 collection's chunks for a question by meaning and by its words, answers from the
 best-ranked with cited passages, and records every question with its outcome, timings,
@@ -23,7 +23,8 @@ and the search that served it. Every route but the health checks requires an API
 both processes log JSON lines, every request carries an id through its log lines, and a
 request that cannot reach the database gets 503. An evaluation harness scores retrieval
 and answers against a frozen corpus and golden set, and compares dense with hybrid search
-on every run.
+on every run. The same images run on a local Kubernetes cluster, where the API's scaling
+and its recovery from a deleted pod have been measured under load.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -80,6 +81,20 @@ serialization failures, cancelled queries, and every other database error stay 5
 after the model has answered gets the 503 too, and its answer is lost: the service never
 returns an answer it has not recorded. Object storage outages are still 500s.
 
+Every attempt to connect gives up after `DATABASE_CONNECT_TIMEOUT_SECONDS`, 5 by default,
+in the API, the worker, and migrations alike. psycopg alone waits 130 seconds: with
+PostgreSQL stopped in the kind cluster, the worker's first poll hung that long before
+failing, and a request arriving then would have waited as long for its 503.
+
+**Draining** — SIGUSR1 sets the API draining, and from then on every response carries
+`Connection: close`, after which uvicorn closes the connection. In Kubernetes the pod's
+preStop hook sends it, then waits 10 seconds before SIGTERM. Deleting a pod takes it out of
+its Service, but a connection a client already holds keeps reaching the pod, and uvicorn
+closes idle connections the moment it stops, so a request sent on one as it closes gets no
+response. Draining makes each client reconnect, through the Service to another pod, before
+that. The handler is installed before the server starts; until then, a signal sent inside
+the container does not reach its PID 1.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,
@@ -115,7 +130,13 @@ copies, so the two images share one environment. Migrations ship in the api imag
 alone, so a container can migrate its own database and only one image ever does. Both
 images carry the embedding weights, since the worker embeds passages and the API embeds
 questions. The weights are fetched at build time, and both images run with the Hugging
-Face Hub offline, so a missing model fails at startup rather than downloading. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
+Face Hub offline, so a missing model fails at startup rather than downloading.
+`EMBEDDING_THREADS` sets ONNX Runtime's thread count in both processes. Unset, as under
+Compose, in CI, and in the evaluation harness, ONNX Runtime sizes its pools from the
+machine's CPUs, which a container's CPU limit does not change: in the api image under a
+1-CPU limit, query embedding took 104 ms at P50 with its default threads and 6.9 ms with
+one. The count changes speed, not results: two passages embedded with default threads and
+with one gave identical vectors. Compose runs the API, the worker, PostgreSQL, and MinIO with dependency
 ordering, and health checks on everything but the worker, which serves no HTTP.
 
 **Verification** — unit tests with no I/O, and integration tests against real
@@ -145,7 +166,11 @@ see [Answering a question](#answering-a-question).
 **Evaluation** — a harness in `eval/` scores retrieval and answers against a frozen
 corpus and golden set; see [Evaluation](#evaluation).
 
-**Not yet built** — Kubernetes manifests and AWS infrastructure.
+**Kubernetes** — the API, the worker, PostgreSQL, and MinIO run on a one-node kind
+cluster from the manifests in `k8s/`, and `load/` seeds and load tests it; see
+[kubernetes.md](kubernetes.md).
+
+**Not yet built** — AWS infrastructure.
 
 ## Ingestion
 
@@ -203,6 +228,15 @@ that a transient storage error fails a document until it is re-uploaded or reind
 **Shutdown.** SIGTERM and SIGINT set a flag the loop checks between jobs, so a worker
 finishes the job in hand before exiting. On a laptop CPU a 30-page document embeds in
 under three seconds and a 300-page one in about thirty.
+
+**Liveness.** With `WORKER_LIVENESS_FILE` set, the worker touches that file at the start
+of every pass and before every embedding batch, so the file's age tells a probe how long
+the worker has gone without making progress. A pass that fails, as each does while the
+database is down, still touches it: an outage pauses a worker without making it look
+stuck. A probe reading `heartbeat_at` instead would find nothing fresh on an idle worker,
+and would restart every worker at once during an outage. Unset, as under Compose, nothing
+is written. With one CPU and one ONNX Runtime thread, the longest gap between touches on a
+434-page document was one embedding batch, 8.3 seconds.
 
 ## Retrieval
 
@@ -340,4 +374,4 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: Kubernetes, AWS.
+Added as each subsystem is built: AWS.

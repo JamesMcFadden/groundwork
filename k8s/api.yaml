@@ -1,0 +1,98 @@
+# The API, one uvicorn process per pod, so replicas are the unit of scaling. It answers
+# with the stub generator: load tests measure this service rather than a model provider,
+# and the cluster holds no ANTHROPIC_API_KEY.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  # The deployment latency and recovery are measured at. The scaling runs set 1 or 3 with
+  # `kubectl scale`, which applying the manifests again resets.
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      # No Docker-link variables for the namespace's Services; see migrate.yaml.
+      enableServiceLinks: false
+      containers:
+        - name: api
+          # Built and loaded by `make kind-images`, and never pulled; see migrate.yaml.
+          image: groundwork-api:kind
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: groundwork-config
+            - secretRef:
+                name: groundwork-secrets
+          env:
+            - name: GENERATOR
+              value: stub
+            # One ONNX Runtime thread for the one CPU the limit below allows. Left to choose,
+            # ONNX Runtime sizes its pools from the node's CPUs, and the limit throttles
+            # every embedding.
+            - name: EMBEDDING_THREADS
+              value: "1"
+          # Startup and liveness read /health/live, which checks nothing external, so a
+          # database outage never restarts the API. Startup allows two minutes to load the
+          # embedding model.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness reads /health/ready, which fails while the database is unreachable, so
+          # the pod leaves the Service until it recovers.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 2
+          # Run before SIGTERM. SIGUSR1 starts draining, after which every response carries
+          # `Connection: close`, so clients reconnect through the Service to other pods while
+          # this one still serves. The sleep holds off SIGTERM while the pod's removal from
+          # the Service reaches kube-proxy and open connections close; the default 30-second
+          # grace period covers it and uvicorn finishing its requests.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "kill -USR1 1; sleep 10"]
+          # One CPU, requested and limited: without a limit, one replica could use the whole
+          # node, and the 1→3 comparison would measure contention rather than scaling.
+          # Memory peaked at 326 MiB under 30 concurrent questions, against 275 MiB idle.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

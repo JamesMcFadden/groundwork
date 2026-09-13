@@ -1,0 +1,86 @@
+# PostgreSQL with pgvector, standing in for RDS as Compose's does. Its data lives on a
+# volume that outlives the pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      # No Docker-link variables for the namespace's Services: they would add POSTGRES_* and
+      # MINIO_* variables holding URLs, in the prefixes these images read settings from.
+      enableServiceLinks: false
+      containers:
+        - name: postgres
+          # The reference Compose and CI pin: `pg16` moves with each release, and index-scan
+          # options depend on the extension version.
+          image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: groundwork-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: groundwork-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: groundwork-secrets
+                  key: POSTGRES_PASSWORD
+            # A directory inside the volume rather than its root, so initdb always finds an
+            # empty directory, whatever the volume's root holds.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          # Readiness only. A database slow under load must not be restarted in the middle
+          # of a measurement, and it stands in for a managed service whose health is not
+          # this deployment's to judge.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+            periodSeconds: 5
+            timeoutSeconds: 5
+          # The request reserves room on the node beside the API pods. No CPU limit: in a
+          # comparison of API replicas, the database must never be the throttled component.
+          resources:
+            requests:
+              cpu: "2"
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

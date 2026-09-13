@@ -35,6 +35,9 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        # Bounded as the application's engine is, so a migration against a database that
+        # cannot be reached fails in seconds, and its Job retries, rather than in 130.
+        connect_args={"connect_timeout": get_settings().database_connect_timeout_seconds},
     )
     with connectable.connect() as connection:
         context.configure(

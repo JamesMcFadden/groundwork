@@ -7,6 +7,7 @@ its document — and walks away without writing anything.
 """
 
 import logging
+from collections.abc import Callable
 
 from sqlalchemy import delete, update
 from sqlalchemy.orm import Session, sessionmaker
@@ -39,6 +40,7 @@ def process_job(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,
     embedder: Embedder,
+    alive: Callable[[], None] = lambda: None,
 ) -> None:
     """Take a claimed job to its end: completed, failed, or left to whoever holds it now.
 
@@ -48,9 +50,12 @@ def process_job(
     outright has its job retried, through reclaim. If recording the failure itself
     fails because the database is down, the exception propagates, the job stays
     running, and reclaim picks it up once the heartbeat goes stale — as after a crash.
+
+    `alive` is called before each embedding batch, beside the database heartbeat, so the
+    worker's liveness probe sees progress through a long document.
     """
     try:
-        _ingest(job, sessions, storage, embedder)
+        _ingest(job, sessions, storage, embedder, alive)
     except ClaimLost:
         logger.warning("job %s is held elsewhere now; discarding attempt %d", job.id, job.attempts)
     except ParseError as exc:
@@ -68,6 +73,7 @@ def _ingest(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,
     embedder: Embedder,
+    alive: Callable[[], None],
 ) -> None:
     # Read what the job needs and release the connection: nothing below holds one while
     # the slow work runs.
@@ -82,6 +88,7 @@ def _ingest(
 
     vectors: list[list[float]] = []
     for offset in range(0, len(chunks), EMBED_BATCH):
+        alive()
         _heartbeat(job, sessions)
         batch = chunks[offset : offset + EMBED_BATCH]
         vectors.extend(embedder.embed_passages([chunk.text for chunk in batch]))

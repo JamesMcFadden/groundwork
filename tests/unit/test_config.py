@@ -68,3 +68,37 @@ def test_an_unknown_retriever_fails_at_startup(
         Settings()  # type: ignore[call-arg]
 
     assert "retriever" in str(error.value)
+
+
+def test_embedding_threads_are_left_to_onnx_runtime_unless_set(
+    monkeypatch: pytest.MonkeyPatch, secrets_set: None
+) -> None:
+    monkeypatch.delenv("EMBEDDING_THREADS", raising=False)
+    assert Settings().embedding_threads is None  # type: ignore[call-arg]
+
+    monkeypatch.setenv("EMBEDDING_THREADS", "2")
+    assert Settings().embedding_threads == 2  # type: ignore[call-arg]
+
+
+def test_zero_embedding_threads_fail_at_startup(
+    monkeypatch: pytest.MonkeyPatch, secrets_set: None
+) -> None:
+    """Zero is ONNX Runtime's own "choose for me", which a pod with a CPU limit must not get."""
+    monkeypatch.setenv("EMBEDDING_THREADS", "0")
+
+    with pytest.raises(ValidationError) as error:
+        Settings()  # type: ignore[call-arg]
+
+    assert "embedding_threads" in str(error.value)
+
+
+def test_a_zero_database_connect_timeout_fails_at_startup(
+    monkeypatch: pytest.MonkeyPatch, secrets_set: None
+) -> None:
+    """psycopg reads zero as its own 130 seconds, the wait the setting exists to bound."""
+    monkeypatch.setenv("DATABASE_CONNECT_TIMEOUT_SECONDS", "0")
+
+    with pytest.raises(ValidationError) as error:
+        Settings()  # type: ignore[call-arg]
+
+    assert "database_connect_timeout_seconds" in str(error.value)

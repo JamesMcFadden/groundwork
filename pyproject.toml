@@ -45,7 +45,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["app", "eval", "tests"]
+files = ["app", "eval", "load", "tests"]
 disallow_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true

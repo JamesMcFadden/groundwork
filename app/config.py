@@ -1,9 +1,10 @@
 import uuid
 from datetime import timedelta
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import PositiveInt, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +23,12 @@ class Settings(BaseSettings):
     postgres_db: str = "groundwork"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+
+    # How long one attempt to connect to the database may take. Left to psycopg it is 130
+    # seconds, which a database whose address stops answering holds an API request or a
+    # worker's poll for. psycopg treats anything under 2 as 2, and zero as its own 130, so
+    # zero is refused.
+    database_connect_timeout_seconds: PositiveInt = 5
 
     # The API key maps every request to this seeded user. The row is created by a data
     # migration so foreign keys stay NOT NULL.
@@ -52,10 +59,21 @@ class Settings(BaseSettings):
     # Bounds reclaim, so a document that reliably kills its worker cannot cycle forever.
     job_max_attempts: int = 3
 
+    # A file the worker touches on every pass and before every embedding batch. The worker
+    # serves no HTTP, so its liveness probe reads this file's age instead. Unset, nothing
+    # is written.
+    worker_liveness_file: Path | None = None
+
     # Where the embedding model's weights live. Unset, fastembed uses a directory under
     # the system temp dir, which a container loses on restart and CI loses every run;
     # images and CI set it so the weights download once.
     embedding_cache_dir: str | None = None
+
+    # ONNX Runtime's thread count for embedding. Unset, it sizes its pools from the
+    # machine's CPUs, which a container's CPU limit does not change: wherever there is a
+    # limit, set this to it, or the limit throttles every embedding. Zero is ONNX Runtime's
+    # own "choose for me", so it is refused.
+    embedding_threads: PositiveInt | None = None
 
     # What answers questions. The real model by default, so a deployment that forgets to
     # choose fails for want of a key rather than quietly serving the stub's fake answers.

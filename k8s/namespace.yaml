@@ -1,0 +1,6 @@
+# The whole deployment lives in one namespace, so deleting it removes everything this
+# project runs, its volumes included, and leaves the cluster itself alone.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: groundwork

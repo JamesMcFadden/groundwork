@@ -1,0 +1,37 @@
+# Brings the schema to the latest migration, from the api image, the one that ships
+# migrations. A Job rather than an init container on the API, which would run
+# `alembic upgrade` in every API pod at once.
+#
+# Until PostgreSQL accepts connections the migration fails, and the Job retries it with
+# backoff. Applying the manifests again does not rerun a finished Job; delete it first.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      # Kubernetes otherwise gives a pod Docker-link variables for every Service in its
+      # namespace, POSTGRES_PORT=tcp://10.96.x.x:5432 among them, which the application's
+      # settings read as the database port and refuse.
+      enableServiceLinks: false
+      containers:
+        - name: migrate
+          # Built from the working tree and loaded into the node by `make kind-images`.
+          # Never pulled, so an image that was not loaded fails to start rather than being
+          # looked for on a registry.
+          image: groundwork-api:kind
+          imagePullPolicy: Never
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: groundwork-config
+            - secretRef:
+                name: groundwork-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi

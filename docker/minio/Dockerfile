@@ -16,8 +16,8 @@
 #   1. Set MINIO_TAG and MINIO_COMMIT below, and push. The workflow publishes the new
 #      tag; a tag that is already published is never rebuilt.
 #   2. Copy the pinned reference from that workflow run's summary.
-#   3. Pin it in both docker-compose.yml and .github/workflows/ci.yml. Nothing checks
-#      that the two agree.
+#   3. Pin it in docker-compose.yml, .github/workflows/ci.yml, and k8s/minio.yaml.
+#      Nothing checks that they agree.
 
 ARG MINIO_TAG=RELEASE.2025-10-15T17-29-55Z
 ARG MINIO_COMMIT=9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a

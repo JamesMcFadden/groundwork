@@ -1,0 +1,32 @@
+# Creates the documents bucket on a fresh MinIO, as Compose's `createbucket` does, with the
+# application's own storage code. Safe to run any number of times.
+#
+# Until MinIO is ready the Job retries with backoff. Applying the manifests again does not
+# rerun a finished Job; delete it first.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-bucket
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      # No Docker-link variables for the namespace's Services; see migrate.yaml.
+      enableServiceLinks: false
+      containers:
+        - name: create-bucket
+          # Built and loaded by `make kind-images`, and never pulled; see migrate.yaml.
+          image: groundwork-api:kind
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.services.storage"]
+          envFrom:
+            - configMapRef:
+                name: groundwork-config
+            - secretRef:
+                name: groundwork-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi

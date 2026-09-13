@@ -379,6 +379,27 @@ def test_one_poll_claims_and_indexes_a_queued_upload(
     assert poll_once(settings, sessions, storage, embedder) is False
 
 
+def test_a_polled_job_signals_liveness_before_every_embedding_batch(
+    sessions: sessionmaker[Session],
+    storage: ObjectStorage,
+    embedder: Embedder,
+    collection_id: uuid.UUID,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Embedding is the one step of a job long enough to matter to the worker's liveness
+    probe, so a long document must signal before each batch, not only between polls."""
+    monkeypatch.setattr("app.ingest.pipeline.EMBED_BATCH", 2)
+    job_id = upload(sessions, storage, collection_id, make_pdf([prose(300, n) for n in range(4)]))
+    signals: list[None] = []
+
+    assert poll_once(get_settings(), sessions, storage, embedder, lambda: signals.append(None))
+
+    status, _, chunks = job_state(sessions, job_id)
+    assert status == "completed"
+    assert chunks > 2
+    assert len(signals) == len(range(0, chunks, 2))
+
+
 def test_a_job_whose_worker_died_is_reclaimed_and_indexed_once(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,

@@ -1,10 +1,11 @@
 import math
 import random
 
+from app.config import get_settings
 from app.db.models import EMBEDDING_DIM
 from app.ingest.chunk import CHUNK_TOKENS, chunk_pages
 from app.ingest.parse import Page
-from app.services.embeddings import Embedder
+from app.services.embeddings import Embedder, FastEmbedder
 
 MODEL_WINDOW = 512
 
@@ -20,6 +21,18 @@ VOCABULARY = (
 def prose(words: int, seed: int = 0) -> str:
     rng = random.Random(seed)
     return " ".join(rng.choice(VOCABULARY) for _ in range(words))
+
+
+def onnx_threads(embedder: FastEmbedder) -> tuple[int, int]:
+    """The intra-op and inter-op thread counts the embedder's ONNX Runtime session was given.
+
+    fastembed exposes no accessor for its session, so this reaches in as the tokenizer
+    check in `FastEmbedder` does.
+    """
+    session = getattr(embedder._model.model, "model", None)
+    assert session is not None, "fastembed no longer keeps its session where this looks"
+    options = session.get_session_options()
+    return int(options.intra_op_num_threads), int(options.inter_op_num_threads)
 
 
 def test_vectors_match_the_schema_dimension_and_are_unit_length(embedder: Embedder) -> None:
@@ -56,6 +69,20 @@ def test_the_same_passage_embeds_the_same_way_twice(embedder: Embedder) -> None:
     second = embedder.embed_passages(["a stable passage"])
 
     assert first == second
+
+
+def test_a_thread_count_reaches_onnx_runtime_and_unset_leaves_it_to_choose(
+    embedder: Embedder,
+) -> None:
+    """ONNX Runtime sizes its pools from the machine's CPUs, which a container's CPU limit
+    does not change: under a 1-CPU limit, its default threads took query embedding from
+    about 7 ms to 104 ms at P50. Pods with a limit set a count; unset, zero leaves the
+    choice to ONNX Runtime, as before."""
+    assert isinstance(embedder, FastEmbedder)
+    capped = FastEmbedder(cache_dir=get_settings().embedding_cache_dir, threads=1)
+
+    assert onnx_threads(embedder) == (0, 0)
+    assert onnx_threads(capped) == (1, 1)
 
 
 def test_the_tokenizer_reports_every_token_not_the_first_512(embedder: Embedder) -> None:

@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M6 — Kubernetes on kind
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M6 — start branch `m6-kubernetes`
+**Next item:** M6 — review and merge PR #7
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -512,18 +512,22 @@ versions in `uv.lock`:
 Planned 2026-09-13. Checking what the plan rests on added one item to the nine first
 agreed: ONNX Runtime sizes its threads from the node rather than the container, so the
 CPU limits the scaling comparison needs would throttle query embedding from about 7 ms
-to 104 ms at P50.
+to 104 ms at P50. Testing the deployments added a second the same day: with PostgreSQL
+stopped, the worker's first poll hung for 131 s on psycopg's default 130-second connect
+timeout before failing, aging its liveness file past the probe's threshold, and a request
+to the API would have waited as long for its 503.
 
-- [ ] `feat(worker): add a liveness heartbeat for its probe`
-- [ ] `feat(embeddings): size onnx runtime threads with EMBEDDING_THREADS`
-- [ ] `build: add kind cluster config with a pinned node image`
-- [ ] `feat(k8s): add postgres and minio with persistent volumes`
-- [ ] `feat(k8s): run migrations and bucket creation as jobs`
-- [ ] `feat(k8s): add api and worker deployments with probes and resources`
-- [ ] `feat(k8s): take api pods out of rotation before they stop`
-- [ ] `feat(load): add k6 question load test and corpus seeding`
-- [ ] `docs: record M6 scaling and recovery results`
-- [ ] `docs: add kubernetes doc`
+- [x] `feat(worker): add a liveness heartbeat for its probe`
+- [x] `feat(embeddings): size onnx runtime threads with EMBEDDING_THREADS`
+- [x] `build: add kind cluster config with a pinned node image`
+- [x] `feat(k8s): add postgres and minio with persistent volumes`
+- [x] `feat(k8s): run migrations and bucket creation as jobs`
+- [x] `feat(k8s): add api and worker deployments with probes and resources`
+- [x] `fix(db): time out database connection attempts`
+- [x] `feat(k8s): take api pods out of rotation before they stop`
+- [x] `feat(load): add k6 question load test and corpus seeding`
+- [x] `docs: record M6 scaling and recovery results`
+- [x] `docs: add kubernetes doc`
 
 The milestone fills three rows of [success-criteria.md](success-criteria.md), API
 reliability, scaling, and recovery, all measured by k6 on kind, and the latency row,
@@ -553,12 +557,16 @@ Decisions taken while planning:
   read it. PostgreSQL and MinIO take their passwords from the same Secret. The cluster
   sets `GENERATOR=stub` and holds no `ANTHROPIC_API_KEY`: load tests measure this
   service, not a model provider.
-- **Application images are built locally and loaded into kind**, tagged with the commit
-  they were built from and run with `imagePullPolicy: Never`, so an image that was never
-  loaded fails to start rather than being looked for on Docker Hub. They are not pinned
-  by digest: an image never pushed has no registry digest, and its tag names its commit.
-  Every image pulled from a registry, the node, PostgreSQL, MinIO, and k6, is pinned by
-  digest.
+- **Application images are built locally and loaded into kind**, tagged `kind`, labelled
+  with the commit they were built from, and run with `imagePullPolicy: Never`, so an
+  image that was never loaded fails to start rather than being looked for on Docker Hub.
+  They are not pinned by digest: an image never pushed has no registry digest, and its
+  `org.opencontainers.image.revision` label names its commit, marked `-dirty` when built
+  from uncommitted changes. Every image pulled from a registry, the node, PostgreSQL,
+  MinIO, and k6, is pinned by digest. Revised 2026-09-13 while building the Jobs, from
+  "tagged with the commit": the Kustomize built into kubectl cannot set an image tag from
+  the command line, so a tag per commit would mean editing a committed file for every
+  build, while a fixed tag leaves the manifests unchanged.
 - **Migrations and the bucket are Jobs**, run from the api image as Compose's
   `createbucket` is. An init container would run `alembic upgrade` in every API pod at
   once. The documented steps wait for both Jobs to complete before the API takes load.
@@ -684,6 +692,60 @@ CPUs and 8 GB for containers:
   PostgreSQL, MinIO, k6, and the control plane must share about 7.65 GiB.
 - **The runtime image has `stat`, `date`, and `sleep`**, so the worker's probe needs
   nothing added to it.
+
+Results, recorded 2026-09-13 from the nine runs the rules above fix, made one after
+another from 16:36 to 17:33 UTC by `load/run.py` with images built from `be91ef6`,
+against the corpus seeded as `load-corpus-20260913T163342Z`. Each run's record is in
+`load/results/`.
+
+| Run | API replicas | Throughput (/s) | P95 (ms) | Median (ms) | Requests |
+| --- | --- | --- | --- | --- | --- |
+| `scaling-1-a` | 1 | 52.9 | 914 | 537 | 15,883 |
+| `scaling-3-a` | 3 | 121.9 | 358 | 231 | 36,614 |
+| `scaling-1-b` | 1 | 52.6 | 941 | 539 | 15,792 |
+| `scaling-3-b` | 3 | 111.4 | 381 | 268 | 33,429 |
+| `scaling-1-c` | 1 | 49.3 | 990 | 562 | 14,801 |
+| `scaling-3-c` | 3 | 81.0 | 559 | 382 | 24,309 |
+| `recovery-1` | 3, one deleted at 121.0 s | 90.4 | 477 | 339 | 27,136 |
+| `recovery-2` | 3, one deleted at 120.2 s | 87.4 | 535 | 334 | 26,239 |
+| `recovery-3` | 3, one deleted at 120.5 s | 69.2 | 707 | 413 | 20,770 |
+
+- **Scaling met.** The median of the 3-replica runs' throughput, 111.4 requests/s, is
+  2.12 times the 1-replica runs' median of 52.6, against the 1.8 the rule required, and
+  their median P95 is 381 ms against 941. Pair by pair the ratios were 2.30, 2.12, and
+  1.64: the third pair alone would have missed, which is what taking medians over
+  alternated runs was fixed to absorb.
+- **Throughput fell through the session, most in `scaling-3-c` and `recovery-3`.** In
+  those runs the questions they recorded took longer to embed, 71 and 58 ms at P50
+  against 43–48 elsewhere, as well as to search. Embedding is CPU-bound work inside a
+  pod held to one CPU, and search time in the 1-replica runs held at 105, 105, and 108
+  ms at P50 while the `questions` table grew to 270,000 rows and `retrieval_results` to
+  1.35 million, so the slowdown points to contention on the host rather than to the
+  database. Its cause is not established; macOS reported no thermal or performance
+  warning afterwards, which records only the state then.
+- **API reliability met.** Every scaling run answered 100% of its requests with a status
+  other than 5xx: across 140,828 requests none was a 5xx, none had a status other than
+  201, and none went without a response. No API pod logged a database-unavailable
+  warning or restarted in any run, so pool waits played no part, and PostgreSQL's 64 MB
+  `/dev/shm` raised no error.
+- **Latency met.** The P95 of `total_ms − llm_ms` over the 94,095 `questions` rows
+  recorded during the three 3-replica runs is 243 ms, against the 500 ms target; over
+  the 46,363 rows of the 1-replica runs it is 249 ms. Those timings start when the
+  handler runs, so the gap to k6's P95 of 941 ms at one replica is time spent waiting
+  for the handler, which a single CPU-limited pod cannot shorten.
+- **Recovery met.** In all three runs, deleting the API pod first in name order two
+  minutes in failed no request: no status other than 201, and no request without a
+  response. The deleted pod served 4,363, 4,428, and 3,428 requests before it drained,
+  and its replacement served none for the rest of each run: k6's users reconnected to
+  the two pods left when the draining pod closed their connections, and kept those
+  connections, so a pod that joins later receives traffic only as clients reconnect.
+- **Load was spread evenly.** kube-proxy balances connections rather than requests, but
+  in each 3-replica scaling run the busiest pod served within 7% of the quietest.
+- **Each record's window starts up to a second late.** `load/run.py` opens it when its
+  once-a-second poll first finds k6's pod running, so the pod request counts and
+  `questions` rows miss the run's first requests: 23 rows of 15,883 requests in
+  `scaling-1-a`, and 91 of 36,614 in `scaling-3-a`. Throughput and k6's latencies come
+  from k6's own summary and are unaffected.
 
 ## Stack decisions
 
