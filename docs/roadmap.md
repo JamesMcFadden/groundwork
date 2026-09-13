@@ -409,7 +409,7 @@ for unexpected ingestion failures, the decision carried to this milestone.
 - [x] `feat(auth): scope queries by user id`
 - [x] `feat(obs): add json logging with request id propagation`
 - [x] `feat(ingest): record a generic reason for unexpected ingestion failures`
-- [ ] `feat(api): return 503 when the database is unavailable`
+- [x] `feat(api): return 503 when the database is unavailable`
 - [ ] `feat(db): keep retrieval results when their chunk is deleted`
 - [ ] `feat(api): add document reindex endpoint`
 

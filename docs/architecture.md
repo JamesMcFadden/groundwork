@@ -64,6 +64,18 @@ outside the middleware, so it carries no `X-Request-ID` header. No line carries 
 or a body, so the API key and question text never reach the logs. An upload logs the job
 it queued, which leads from a request id to the worker's lines about that job.
 
+**Unavailable database** — a request that cannot reach the database gets 503 with
+`Retry-After: 5` and `{"detail": "database unavailable"}`, rather than a 500, so a client
+can tell an outage to wait out from a fault. SQLAlchemy raises `OperationalError` for an
+unreachable database and for failed queries alike, so `app/api/errors.py` answers 503 only
+when the error has no SQLSTATE (the connection failed before any server answered), is a
+class 08 connection exception, or is 57P01–57P03 (the server shutting down, crashed, or
+not yet accepting connections), and when the connection pool times out. Deadlocks,
+serialization failures, cancelled queries, and every other database error stay 500s. Each
+503 is logged as a warning with its request id. A question whose row cannot be recorded
+after the model has answered gets the 503 too, and its answer is lost: the service never
+returns an answer it has not recorded. Object storage outages are still 500s.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,

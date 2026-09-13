@@ -1,6 +1,5 @@
 import re
 import uuid
-from collections.abc import Sequence
 
 import pytest
 from fastapi import FastAPI
@@ -10,9 +9,9 @@ from pydantic import SecretStr
 from app.auth import ApiKeyConfigError
 from app.config import get_settings
 from app.generation.stub import StubGenerator
-from app.ingest.chunk import Tokenizer
 from app.main import create_app
 from tests.auth import AUTH_HEADERS, TEST_API_KEY
+from tests.fakes import UnusedEmbedder
 
 # Present in the app today, and asserted by the walk over routes, so no test can pass by
 # finding none.
@@ -23,20 +22,6 @@ KNOWN_PROTECTED = {
     ("GET", "/jobs/{job_id}"),
     ("POST", "/questions"),
 }
-
-
-class UnusedEmbedder:
-    """Stands in for the model, which no request in these tests may reach."""
-
-    @property
-    def tokenizer(self) -> Tokenizer:
-        raise AssertionError("the embedder was used")
-
-    def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
-        raise AssertionError("the embedder was used")
-
-    def embed_query(self, text: str) -> list[float]:
-        raise AssertionError("the embedder was used")
 
 
 def build(api_key: str | None) -> FastAPI:

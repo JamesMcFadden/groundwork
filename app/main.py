@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import Depends, FastAPI
 
 from app import api
+from app.api.errors import add_database_error_handlers
 from app.auth import configured_api_key, require_api_key
 from app.config import Settings, get_settings
 from app.db.session import build_engine, build_session_factory
@@ -56,6 +57,7 @@ def create_app(
     for router in api.protected_routers:
         app.include_router(router, dependencies=[Depends(require_api_key)])
     app.add_middleware(RequestLogMiddleware)
+    add_database_error_handlers(app)
     return app
 
 
