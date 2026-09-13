@@ -90,7 +90,9 @@ every question asked can be counted. Declined and failed rows keep the exception
 name in `error_class`, never its message, and `invalid_citations` is null wherever no
 answer was checked. `questions.retriever` is `dense` or `hybrid`, also enforced by a check
 constraint: a recorded retrieval score is an inner product under one and a fused score
-under the other.
+under the other. `retrieval_results.chunk_id` is set to null when its chunk is deleted, as
+reindexing a document deletes its chunks, so a past question keeps each result's rank,
+score, and whether it was cited, losing only which chunk it was.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
