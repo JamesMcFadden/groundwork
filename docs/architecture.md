@@ -43,6 +43,13 @@ user, and the API refuses to start without one; the worker and the evaluation ha
 serve no HTTP and never read it. One static key is enough to prove the service enforces
 authentication; a table of hashed keys, which a second tenant would need, is parked.
 
+**Ownership** — routes find a caller's collections and jobs by id through the lookups in
+`app/db/ownership.py`, each filtering on the caller's user id, and listing collections
+filters on it too. Another user's resource therefore comes back exactly as a missing one
+does, a 404 with the same body, so a response never confirms that someone else's id is
+real. Search filters by collection alone, once a lookup has established ownership:
+`chunks` carries no user id, and a join would defeat its indexes.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,

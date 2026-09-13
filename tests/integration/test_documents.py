@@ -6,13 +6,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.config import get_settings
-from app.db.session import build_engine, database_ok
+from app.db.models import Collection, User
+from app.db.session import build_engine, build_session_factory, database_ok
 from app.generation.stub import StubGenerator
 from app.main import create_app
 from app.services.embeddings import Embedder
 from tests.auth import AUTH_HEADERS, with_api_key
 
 MINIMAL_PDF = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+OTHER_USER_EMAIL = "documents-someone-else@example.com"
 
 
 @pytest.fixture
@@ -27,6 +29,9 @@ def client(embedder: Embedder) -> Iterator[TestClient]:
             connection.execute(
                 text("DELETE FROM collections WHERE user_id = :user_id"),
                 {"user_id": settings.default_user_id},
+            )
+            connection.execute(
+                text("DELETE FROM users WHERE email = :email"), {"email": OTHER_USER_EMAIL}
             )
 
     clear()
@@ -87,6 +92,33 @@ def test_unknown_collection_returns_404(client: TestClient) -> None:
     response = _upload(client, str(uuid.uuid4()), MINIMAL_PDF)
 
     assert response.status_code == 404
+
+
+def other_users_collection() -> uuid.UUID:
+    sessions = build_session_factory(build_engine(get_settings()))
+    with sessions() as session:
+        collection = Collection(user=User(email=OTHER_USER_EMAIL), name="theirs")
+        session.add(collection)
+        session.commit()
+        return collection.id
+
+
+def test_another_users_collection_is_indistinguishable_from_a_missing_one(
+    client: TestClient,
+) -> None:
+    """Same status, same body, and nothing uploaded into someone else's collection."""
+    theirs_id = other_users_collection()
+
+    theirs = _upload(client, str(theirs_id), MINIMAL_PDF)
+    missing = _upload(client, str(uuid.uuid4()), MINIMAL_PDF)
+
+    assert (theirs.status_code, theirs.json()) == (missing.status_code, missing.json())
+    assert theirs.status_code == 404
+    with build_engine(get_settings()).connect() as connection:
+        documents = connection.execute(
+            text("SELECT count(*) FROM documents WHERE collection_id = :id"), {"id": theirs_id}
+        ).scalar_one()
+    assert documents == 0
 
 
 def test_non_pdf_returns_400(client: TestClient, collection_id: str) -> None:

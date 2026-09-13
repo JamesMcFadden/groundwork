@@ -2,11 +2,11 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db.models import Collection, Document, IngestionJob
+from app.db.models import Document, IngestionJob
+from app.db.ownership import owned_collection
 from app.deps import get_current_user_id, get_session, get_settings_dep, get_storage
 from app.schemas import DocumentAccepted
 from app.services.storage import ObjectStorage, content_key
@@ -46,10 +46,7 @@ def upload_document(
     Responds 202 rather than 201: the document exists, but its text is not yet
     searchable. Progress is followed through the returned job.
     """
-    collection = session.scalar(
-        select(Collection).where(Collection.id == collection_id, Collection.user_id == user_id)
-    )
-    if collection is None:
+    if owned_collection(session, collection_id, user_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="collection not found")
 
     data = _read_within_limit(file, settings.max_upload_bytes)

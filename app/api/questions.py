@@ -2,12 +2,11 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.answering import RecordedQuestion, answer_question
 from app.config import Settings
-from app.db.models import Collection
+from app.db.ownership import owned_collection
 from app.deps import (
     get_current_user_id,
     get_embedder,
@@ -45,12 +44,7 @@ def ask_question(
     not answer a question is a successful response to it. A declined or failed
     generation is recorded first, then reported as a 502 that says nothing of the cause.
     """
-    owned = session.scalar(
-        select(Collection.id).where(
-            Collection.id == body.collection_id, Collection.user_id == user_id
-        )
-    )
-    if owned is None:
+    if owned_collection(session, body.collection_id, user_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="collection not found")
 
     recorded = answer_question(
