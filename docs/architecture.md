@@ -162,8 +162,11 @@ discards its work. Completion is checked first in the final transaction and lock
 job row; the unique `(document_id, chunk_index)` constraint backs it up.
 
 **Failure.** Every failure is terminal. The job is marked `failed` with a reason — a
-parse error's own message, or the exception's type and message for anything else — and
-nothing is retried automatically. Only a worker that dies outright has its job retried,
+parse error's own message, which tells the uploader what is wrong with the file, or
+`unexpected error during ingestion` for anything else — and nothing is retried
+automatically. An unexpected exception's type, message, and traceback go only to the
+worker's log, with the job id: they can carry storage or library detail that
+`GET /jobs/{job_id}`, which returns the recorded reason, should not show a caller. Only a worker that dies outright has its job retried,
 through reclaim, for up to three attempts. If the database is unreachable when a failure
 is recorded, the job stays `running` and is reclaimed as after a crash. The cost is
 that a transient storage error fails a document until it is re-uploaded or reindexed.

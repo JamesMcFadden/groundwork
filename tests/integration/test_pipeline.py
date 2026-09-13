@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 from collections.abc import Iterator, Sequence
@@ -20,7 +21,7 @@ from app.db.models import (
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.ingest.chunk import chunk_pages
 from app.ingest.parse import parse_pdf
-from app.ingest.pipeline import process_job
+from app.ingest.pipeline import UNEXPECTED_FAILURE, process_job
 from app.services.embeddings import Embedder
 from app.services.storage import ObjectStorage, build_storage, content_key
 from app.worker import poll_once
@@ -260,22 +261,26 @@ def test_a_pdf_without_text_fails_the_job(
     assert error is not None and "no extractable text" in error
 
 
-def test_an_unexpected_error_fails_the_job_and_names_it(
+def test_an_unexpected_error_fails_the_job_with_a_generic_reason_and_logs_the_detail(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,
     embedder: Embedder,
     collection_id: uuid.UUID,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Failure is terminal whatever the cause; the record says what went wrong."""
+    """Failure is terminal whatever the cause. The job, which callers read, gets a generic
+    reason; the exception, which can carry internal detail, goes only to the log."""
     job_id = upload(sessions, storage, collection_id, make_pdf([prose(50, 1)]))
 
-    process_job(claim(sessions), sessions, storage, BrokenEmbedder(embedder))
+    with caplog.at_level(logging.ERROR, logger="app.ingest.pipeline"):
+        process_job(claim(sessions), sessions, storage, BrokenEmbedder(embedder))
 
-    assert job_state(sessions, job_id) == (
-        "failed",
-        "RuntimeError: embedding backend unavailable",
-        0,
-    )
+    assert job_state(sessions, job_id) == ("failed", UNEXPECTED_FAILURE, 0)
+    [record] = [record for record in caplog.records if record.name == "app.ingest.pipeline"]
+    assert record.levelno == logging.ERROR
+    assert record.exc_info is not None
+    assert str(record.exc_info[1]) == "embedding backend unavailable"
+    assert str(job_id) in record.getMessage()
 
 
 def test_a_worker_that_lost_its_claim_writes_nothing(

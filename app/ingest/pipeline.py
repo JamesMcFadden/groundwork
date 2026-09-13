@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 # a laptop CPU, far inside the five minutes after which a job counts as abandoned.
 EMBED_BATCH = 32
 
+# The reason recorded for a failure this code did not anticipate, and so what
+# `GET /jobs/{job_id}` reports. The exception itself can carry a storage error's or a
+# library's internal detail, so it goes only to the log, with its traceback.
+UNEXPECTED_FAILURE = "unexpected error during ingestion"
+
 
 class ClaimLost(Exception):
     """This worker no longer holds the job, so nothing it computed may be written."""
@@ -37,8 +42,9 @@ def process_job(
 ) -> None:
     """Take a claimed job to its end: completed, failed, or left to whoever holds it now.
 
-    Every failure is terminal. A document that cannot be parsed never will be, and
-    anything else is recorded and logged rather than retried; only a worker that dies
+    Every failure is terminal. A document that cannot be parsed never will be, and its
+    reason is recorded as it is. Anything else is logged with its traceback and recorded
+    under a generic reason, rather than retried; only a worker that dies
     outright has its job retried, through reclaim. If recording the failure itself
     fails because the database is down, the exception propagates, the job stays
     running, and reclaim picks it up once the heartbeat goes stale — as after a crash.
@@ -50,9 +56,9 @@ def process_job(
     except ParseError as exc:
         logger.info("job %s failed: %s", job.id, exc)
         _fail(job, sessions, str(exc))
-    except Exception as exc:
+    except Exception:
         logger.exception("job %s failed unexpectedly", job.id)
-        _fail(job, sessions, f"{type(exc).__name__}: {exc}")
+        _fail(job, sessions, UNEXPECTED_FAILURE)
     else:
         logger.info("job %s completed", job.id)
 
