@@ -18,6 +18,7 @@ from app.config import Settings, get_settings
 from app.db.jobs import claim_job, expire_exhausted
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.ingest.pipeline import process_job
+from app.logs import configure_logging
 from app.services.embeddings import Embedder, FastEmbedder
 from app.services.storage import ObjectStorage, build_storage
 
@@ -84,10 +85,7 @@ def poll_once(
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    configure_logging()
     settings = get_settings()
     engine = build_engine(settings)
     # Reported, not fatal: the poll loop is the retry, and exiting here would crash-loop

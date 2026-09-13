@@ -26,7 +26,8 @@ def get_session(request: Request) -> Iterator[Session]:
 def get_current_user_id(request: Request) -> uuid.UUID:
     """Resolve the acting user.
 
-    Returns the seeded default user until authentication replaces this in M5.
+    Returns the seeded default user, to whom the API key maps every request. By the time a
+    route asks, `require_api_key` has already admitted the request.
     """
     user_id: uuid.UUID = request.app.state.settings.default_user_id
     return user_id

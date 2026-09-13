@@ -43,7 +43,7 @@ def _created_at() -> Mapped[datetime]:
 
 
 class User(Base):
-    """Owner of collections. Authentication itself arrives in a later milestone."""
+    """Owner of collections. The API key maps every request to the seeded user."""
 
     __tablename__ = "users"
 
@@ -266,8 +266,10 @@ class RetrievalResult(Base):
     question_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("questions.id", ondelete="CASCADE"), nullable=False
     )
-    chunk_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False
+    # Null once the chunk is gone, as when its document is reindexed. The result keeps its
+    # question, rank, score, and whether it was cited, losing only which chunk it was.
+    chunk_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("chunks.id", ondelete="SET NULL")
     )
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
     score: Mapped[float] = mapped_column(nullable=False)

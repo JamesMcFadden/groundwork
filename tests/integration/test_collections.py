@@ -5,10 +5,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.config import get_settings
-from app.db.session import build_engine, database_ok
+from app.db.models import Collection, User
+from app.db.session import build_engine, build_session_factory, database_ok
 from app.generation.stub import StubGenerator
 from app.main import create_app
 from app.services.embeddings import Embedder
+from tests.auth import AUTH_HEADERS, with_api_key
+
+OTHER_USER_EMAIL = "collections-someone-else@example.com"
 
 
 @pytest.fixture
@@ -24,11 +28,14 @@ def client(embedder: Embedder) -> Iterator[TestClient]:
                 text("DELETE FROM collections WHERE user_id = :user_id"),
                 {"user_id": settings.default_user_id},
             )
+            connection.execute(
+                text("DELETE FROM users WHERE email = :email"), {"email": OTHER_USER_EMAIL}
+            )
 
     clear()
     # The stub, because startup would otherwise build the real generator, which needs a key.
-    app = create_app(settings, embedder=embedder, generator=StubGenerator())
-    with TestClient(app) as test_client:
+    app = create_app(with_api_key(settings), embedder=embedder, generator=StubGenerator())
+    with TestClient(app, headers=AUTH_HEADERS) as test_client:
         yield test_client
     clear()
 
@@ -55,6 +62,19 @@ def test_empty_name_returns_422(client: TestClient) -> None:
     response = client.post("/collections", json={"name": ""})
 
     assert response.status_code == 422
+
+
+def test_listing_leaves_out_another_users_collections(client: TestClient) -> None:
+    """Even one with the same name: names are unique per user, not across users."""
+    ours = client.post("/collections", json={"name": "engineering"}).json()["id"]
+    sessions = build_session_factory(build_engine(get_settings()))
+    with sessions() as session:
+        session.add(Collection(user=User(email=OTHER_USER_EMAIL), name="engineering"))
+        session.commit()
+
+    body = client.get("/collections").json()
+
+    assert [item["id"] for item in body["items"]] == [ours]
 
 
 def test_malformed_cursor_returns_400(client: TestClient) -> None:

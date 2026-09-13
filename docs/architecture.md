@@ -32,8 +32,50 @@ construct one with their own settings. Routes:
 | `POST /collections` | Creates a collection. 409 on a duplicate name. |
 | `GET /collections` | Keyset pagination with an opaque cursor. |
 | `POST /documents` | Uploads to object storage, inserts document and job in one transaction, returns 202. |
+| `POST /documents/{document_id}/reindex` | Queues a stored document for ingestion again and returns 202 with the new job, whose completion replaces the document's chunks. 409 while one of its jobs is queued or running, 404 unless the document is the caller's. |
 | `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
 | `POST /questions` | Answers from one collection with cited passages and per-stage timings, recording every question. 201 for an answer or insufficient evidence, 502 when generation declines or fails, 404 unless the collection is the caller's. |
+
+**Authentication** — every route but the health checks requires an `X-API-Key` header
+matching `API_KEY`, compared in constant time. The check is attached where routers are
+included rather than route by route, so a route added to a protected router cannot miss
+it. A missing and a wrong key get the same 401. The key maps every request to the seeded
+user, and the API refuses to start without one; the worker and the evaluation harness
+serve no HTTP and never read it. One static key is enough to prove the service enforces
+authentication; a table of hashed keys, which a second tenant would need, is parked.
+
+**Ownership** — routes find a caller's collections and jobs by id through the lookups in
+`app/db/ownership.py`, each filtering on the caller's user id, and listing collections
+filters on it too. Another user's resource therefore comes back exactly as a missing one
+does, a 404 with the same body, so a response never confirms that someone else's id is
+real. Search filters by collection alone, once a lookup has established ownership:
+`chunks` carries no user id, and a join would defeat its indexes.
+
+**Logging** — the API and the worker write one JSON object per line to stdout: time,
+level, logger, message, any fields passed with the record, and a traceback where there is
+one. `app/logs.py` supplies the formatter, and each process configures logging once, in
+its entrypoint; the API runs uvicorn from `python -m app.main` with uvicorn's own logging
+configuration and access log turned off. A pure ASGI middleware gives every request an id,
+the caller's `X-Request-ID` when it is 1–128 letters, digits, `.`, `_`, or `-` and a new one
+otherwise, returns it as a response header, and holds it in a context variable the
+formatter adds to every line written while the request runs. When the request finishes,
+the middleware logs one line with its method, route template, status, and duration, and a
+request that raises is logged as a 500 with its traceback. That 500 is sent by the server
+outside the middleware, so it carries no `X-Request-ID` header. No line carries a header
+or a body, so the API key and question text never reach the logs. An upload logs the job
+it queued, which leads from a request id to the worker's lines about that job.
+
+**Unavailable database** — a request that cannot reach the database gets 503 with
+`Retry-After: 5` and `{"detail": "database unavailable"}`, rather than a 500, so a client
+can tell an outage to wait out from a fault. SQLAlchemy raises `OperationalError` for an
+unreachable database and for failed queries alike, so `app/api/errors.py` answers 503 only
+when the error has no SQLSTATE (the connection failed before any server answered), is a
+class 08 connection exception, or is 57P01–57P03 (the server shutting down, crashed, or
+not yet accepting connections), and when the connection pool times out. Deadlocks,
+serialization failures, cancelled queries, and every other database error stay 500s. Each
+503 is logged as a warning with its request id. A question whose row cannot be recorded
+after the model has answered gets the 503 too, and its answer is lost: the service never
+returns an answer it has not recorded. Object storage outages are still 500s.
 
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
@@ -49,7 +91,9 @@ every question asked can be counted. Declined and failed rows keep the exception
 name in `error_class`, never its message, and `invalid_citations` is null wherever no
 answer was checked. `questions.retriever` is `dense` or `hybrid`, also enforced by a check
 constraint: a recorded retrieval score is an inner product under one and a fused score
-under the other.
+under the other. `retrieval_results.chunk_id` is set to null when its chunk is deleted, as
+reindexing a document deletes its chunks, so a past question keeps each result's rank,
+score, and whether it was cited, losing only which chunk it was.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
@@ -126,6 +170,17 @@ A job then runs in four steps:
 Chunks, `page_count`, and the job's completion commit in one transaction, so a document
 is indexed fully or not at all and a retry never has partial output to clean up.
 
+**Reindexing.** `POST /documents/{document_id}/reindex` queues a new job for a document
+already stored, to retry a failed ingestion or re-embed after the chunker or the model
+changes. It locks the document's row before looking for a job in flight, so of two
+concurrent requests one queues and the other waits, then gets 409. The job runs as any
+other, reading the stored object, which is keyed by content hash and never deleted, and
+its final transaction deletes the document's existing chunks before writing the new ones:
+search sees the old chunks or the new, never both or neither. Past questions' retrieval
+results survive with a null chunk id. A new job rather than a reset one keeps every
+attempt's record, so an earlier job id still reports what happened to it. Reindexing a
+whole collection is one call per document.
+
 **Fencing.** `attempts` doubles as a fencing token. Heartbeat, completion, and failure
 all require the attempt a worker claimed with, so a worker that stalls past the
 staleness window and is reclaimed finds its claim gone at its next heartbeat and
@@ -133,8 +188,11 @@ discards its work. Completion is checked first in the final transaction and lock
 job row; the unique `(document_id, chunk_index)` constraint backs it up.
 
 **Failure.** Every failure is terminal. The job is marked `failed` with a reason — a
-parse error's own message, or the exception's type and message for anything else — and
-nothing is retried automatically. Only a worker that dies outright has its job retried,
+parse error's own message, which tells the uploader what is wrong with the file, or
+`unexpected error during ingestion` for anything else — and nothing is retried
+automatically. An unexpected exception's type, message, and traceback go only to the
+worker's log, with the job id: they can carry storage or library detail that
+`GET /jobs/{job_id}`, which returns the recorded reason, should not show a caller. Only a worker that dies outright has its job retried,
 through reclaim, for up to three attempts. If the database is unreachable when a failure
 is recorded, the job stays `running` and is reclaimed as after a crash. The cost is
 that a transient storage error fails a document until it is re-uploaded or reindexed.

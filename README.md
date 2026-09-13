@@ -77,13 +77,20 @@ The API answers with Claude by default, and refuses to start without `ANTHROPIC_
 in `.env`. Set `GENERATOR=stub` there to run without a key; answers are then the opening
 words of the top retrieved passage.
 
+Every route but `/health` needs the `X-API-Key` header to match `API_KEY` in `.env`, and
+the API refuses to start without one.
+
 ```bash
 docker compose up -d --build
 uv run alembic upgrade head
-curl -s -X POST localhost:8000/collections -H 'content-type: application/json' -d '{"name": "demo"}'
-curl -s -X POST localhost:8000/documents -F collection_id=<collection id> -F file=@report.pdf
-curl -s localhost:8000/jobs/<job id>        # queued, running, then completed or failed
-curl -s -X POST localhost:8000/questions -H 'content-type: application/json' \
+KEY=change-me                               # API_KEY from .env
+curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
+  -H 'content-type: application/json' -d '{"name": "demo"}'
+curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
+  -F collection_id=<collection id> -F file=@report.pdf
+curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"   # queued, running, then completed or failed
+curl -s -X POST localhost:8000/documents/<document id>/reindex -H "x-api-key: $KEY"   # ingest it again
+curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d '{"collection_id": "<collection id>", "question": "What does the report conclude?"}'
 ```
 

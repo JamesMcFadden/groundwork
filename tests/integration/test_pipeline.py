@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 from collections.abc import Iterator, Sequence
@@ -16,11 +17,13 @@ from app.db.models import (
     Collection,
     Document,
     IngestionJob,
+    Question,
+    RetrievalResult,
 )
 from app.db.session import build_engine, build_session_factory, database_ok
 from app.ingest.chunk import chunk_pages
 from app.ingest.parse import parse_pdf
-from app.ingest.pipeline import process_job
+from app.ingest.pipeline import UNEXPECTED_FAILURE, process_job
 from app.services.embeddings import Embedder
 from app.services.storage import ObjectStorage, build_storage, content_key
 from app.worker import poll_once
@@ -203,6 +206,60 @@ def test_a_queued_pdf_is_indexed_into_embedded_chunks(
     assert all(len(chunk.embedding) == EMBEDDING_DIM for chunk in chunks)
 
 
+def test_reindexing_replaces_a_documents_chunks_and_keeps_past_results(
+    sessions: sessionmaker[Session],
+    storage: ObjectStorage,
+    embedder: Embedder,
+    collection_id: uuid.UUID,
+) -> None:
+    """A second job for an indexed document swaps its chunks: none are left duplicated, and a
+    past question's retrieval result survives, losing only its chunk."""
+    first_job = upload(
+        sessions, storage, collection_id, make_pdf([prose(300, n) for n in range(2)])
+    )
+    process_job(claim(sessions), sessions, storage, embedder)
+
+    with sessions() as session:
+        document_id = session.scalars(
+            select(IngestionJob.document_id).where(IngestionJob.id == first_job)
+        ).one()
+        old_ids = set(session.scalars(select(Chunk.id).where(Chunk.document_id == document_id)))
+        question = Question(
+            collection_id=collection_id,
+            user_id=get_settings().default_user_id,
+            question_text="What happens to a job whose worker stalls?",
+            outcome="answered",
+            retriever="hybrid",
+            retrieval_results=[
+                RetrievalResult(chunk_id=min(old_ids), rank=1, score=0.03, cited=True)
+            ],
+        )
+        # The job POST /documents/{document_id}/reindex queues.
+        reindex = IngestionJob(document_id=document_id, status="queued")
+        session.add_all([question, reindex])
+        session.commit()
+        question_id, reindex_id = question.id, reindex.id
+
+    process_job(claim(sessions), sessions, storage, embedder)
+
+    with sessions() as session:
+        new = session.execute(
+            select(Chunk.id, Chunk.chunk_index)
+            .where(Chunk.document_id == document_id)
+            .order_by(Chunk.chunk_index)
+        ).all()
+        result = session.execute(
+            select(RetrievalResult.chunk_id, RetrievalResult.cited).where(
+                RetrievalResult.question_id == question_id
+            )
+        ).one()
+
+    assert job_state(sessions, reindex_id)[:2] == ("completed", None)
+    assert [row.chunk_index for row in new] == list(range(len(old_ids)))
+    assert not old_ids & {row.id for row in new}
+    assert tuple(result) == (None, True)
+
+
 def test_indexed_chunks_carry_the_full_text_vector_of_their_text(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,
@@ -260,22 +317,26 @@ def test_a_pdf_without_text_fails_the_job(
     assert error is not None and "no extractable text" in error
 
 
-def test_an_unexpected_error_fails_the_job_and_names_it(
+def test_an_unexpected_error_fails_the_job_with_a_generic_reason_and_logs_the_detail(
     sessions: sessionmaker[Session],
     storage: ObjectStorage,
     embedder: Embedder,
     collection_id: uuid.UUID,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Failure is terminal whatever the cause; the record says what went wrong."""
+    """Failure is terminal whatever the cause. The job, which callers read, gets a generic
+    reason; the exception, which can carry internal detail, goes only to the log."""
     job_id = upload(sessions, storage, collection_id, make_pdf([prose(50, 1)]))
 
-    process_job(claim(sessions), sessions, storage, BrokenEmbedder(embedder))
+    with caplog.at_level(logging.ERROR, logger="app.ingest.pipeline"):
+        process_job(claim(sessions), sessions, storage, BrokenEmbedder(embedder))
 
-    assert job_state(sessions, job_id) == (
-        "failed",
-        "RuntimeError: embedding backend unavailable",
-        0,
-    )
+    assert job_state(sessions, job_id) == ("failed", UNEXPECTED_FAILURE, 0)
+    [record] = [record for record in caplog.records if record.name == "app.ingest.pipeline"]
+    assert record.levelno == logging.ERROR
+    assert record.exc_info is not None
+    assert str(record.exc_info[1]) == "embedding backend unavailable"
+    assert str(job_id) in record.getMessage()
 
 
 def test_a_worker_that_lost_its_claim_writes_nothing(

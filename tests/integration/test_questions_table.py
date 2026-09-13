@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from app.db.models import Collection, Question
+from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document, Question, RetrievalResult
 from app.db.session import build_engine, build_session_factory, database_ok
 
 OUTCOMES = ("answered", "insufficient_evidence", "declined", "failed")
@@ -139,3 +139,63 @@ def test_a_question_cannot_be_recorded_without_a_retriever(
 ) -> None:
     with pytest.raises(IntegrityError, match='"retriever"'):
         record(sessions, collection_id, outcome="answered", retriever=None)
+
+
+def test_retrieval_results_outlive_the_chunks_they_point_at(
+    sessions: sessionmaker[Session], collection_id: uuid.UUID
+) -> None:
+    """Reindexing deletes a document's chunks, and past questions keep their results, losing
+    only which chunk each was. Two such results for one question pass the unique constraint."""
+    with sessions() as session:
+        document = Document(
+            collection_id=collection_id,
+            filename="report.pdf",
+            content_type="application/pdf",
+            size_bytes=1,
+            s3_key=f"documents/{uuid.uuid4().hex}",
+        )
+        chunks = [
+            Chunk(
+                document=document,
+                collection_id=collection_id,
+                chunk_index=index,
+                text=f"passage {index}",
+                page_start=1,
+                page_end=1,
+                token_count=2,
+                embedding=[1.0] + [0.0] * (EMBEDDING_DIM - 1),
+            )
+            for index in range(2)
+        ]
+        session.add_all([document, *chunks])
+        session.flush()
+        question = Question(
+            collection_id=collection_id,
+            user_id=get_settings().default_user_id,
+            question_text="How is an abandoned job recovered?",
+            outcome="answered",
+            retriever="hybrid",
+            retrieval_results=[
+                RetrievalResult(chunk_id=chunk.id, rank=rank, score=0.5 / rank, cited=rank == 1)
+                for rank, chunk in enumerate(chunks, start=1)
+            ],
+        )
+        session.add(question)
+        session.commit()
+        question_id, document_id = question.id, document.id
+
+    with sessions() as session:
+        session.execute(text("DELETE FROM chunks WHERE document_id = :id"), {"id": document_id})
+        session.commit()
+        results = session.execute(
+            select(
+                RetrievalResult.chunk_id,
+                RetrievalResult.rank,
+                RetrievalResult.score,
+                RetrievalResult.cited,
+            )
+            .where(RetrievalResult.question_id == question_id)
+            .order_by(RetrievalResult.rank)
+        ).all()
+
+    assert [tuple(row) for row in results] == [(None, 1, 0.5, True), (None, 2, 0.25, False)]

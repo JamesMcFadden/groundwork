@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M5 — Hardening
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M5 — start branch `m5-hardening`
+**Next item:** M5 — review and merge PR #6
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -405,13 +405,13 @@ Planned 2026-09-12. Review added two items to the milestone's original five: the
 migration reindex needs to keep past questions' retrieval results, and a generic reason
 for unexpected ingestion failures, the decision carried to this milestone.
 
-- [ ] `feat(auth): add api key check mapped to the seeded user`
-- [ ] `feat(auth): scope queries by user id`
-- [ ] `feat(obs): add json logging with request id propagation`
-- [ ] `feat(ingest): record a generic reason for unexpected ingestion failures`
-- [ ] `feat(api): return 503 when the database is unavailable`
-- [ ] `feat(db): keep retrieval results when their chunk is deleted`
-- [ ] `feat(api): add document reindex endpoint`
+- [x] `feat(auth): add api key check mapped to the seeded user`
+- [x] `feat(auth): scope queries by user id`
+- [x] `feat(obs): add json logging with request id propagation`
+- [x] `feat(ingest): record a generic reason for unexpected ingestion failures`
+- [x] `feat(api): return 503 when the database is unavailable`
+- [x] `feat(db): keep retrieval results when their chunk is deleted`
+- [x] `feat(api): add document reindex endpoint`
 
 The milestone's line was written in M0, before most of what it hardens existed. Every
 route that reads by id already checks ownership, so query scoping is now consolidation
@@ -575,6 +575,13 @@ implement early; apply when the milestone is reached. Rationale in
   is worse than no probe at all.
 - **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
   the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
+- **M7** — serve the API over HTTPS before its LoadBalancer takes traffic. Since M5 every
+  request carries the API key in the `X-API-Key` header, which plain HTTP exposes to
+  anyone on the path, and a key read in transit admits its reader as the seeded user and
+  spends the service's Claude budget. Terminating TLS at the load balancer with an ACM
+  certificate is the likely route; ACM validates a certificate against a domain, so one is
+  needed, not just the load balancer's generated hostname. Kind in M6 is reached on
+  localhost, where plain HTTP exposes nothing.
 - **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
   requests, so breakage from outside the repository waits for the next push: MinIO's
   Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
