@@ -68,4 +68,6 @@ COPY --from=builder --chown=app:app /app/alembic.ini /app/alembic.ini
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+# Through app.main rather than the uvicorn command, so the API configures JSON logging
+# before uvicorn starts, as the worker does.
+CMD ["python", "-m", "app.main"]

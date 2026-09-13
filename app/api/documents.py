@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Annotated
 
@@ -12,6 +13,7 @@ from app.schemas import DocumentAccepted
 from app.services.storage import ObjectStorage, content_key
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 PDF_MAGIC = b"%PDF-"
 
@@ -77,5 +79,7 @@ def upload_document(
     session.commit()
     session.refresh(document)
     session.refresh(job)
+    # Logged with the request id, so a request leads to the worker's lines about its job.
+    logger.info("queued ingestion job", extra={"document_id": document.id, "job_id": job.id})
 
     return DocumentAccepted(document_id=document.id, job_id=job.id, status=job.status)

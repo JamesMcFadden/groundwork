@@ -407,7 +407,7 @@ for unexpected ingestion failures, the decision carried to this milestone.
 
 - [x] `feat(auth): add api key check mapped to the seeded user`
 - [x] `feat(auth): scope queries by user id`
-- [ ] `feat(obs): add json logging with request id propagation`
+- [x] `feat(obs): add json logging with request id propagation`
 - [ ] `feat(ingest): record a generic reason for unexpected ingestion failures`
 - [ ] `feat(api): return 503 when the database is unavailable`
 - [ ] `feat(db): keep retrieval results when their chunk is deleted`

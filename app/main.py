@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import Depends, FastAPI
 
 from app import api
@@ -9,6 +10,8 @@ from app.config import Settings, get_settings
 from app.db.session import build_engine, build_session_factory
 from app.generation.factory import build_generator
 from app.generation.generator import Generator
+from app.logs import configure_logging
+from app.middleware import RequestLogMiddleware
 from app.services.embeddings import Embedder, FastEmbedder
 from app.services.storage import build_storage
 
@@ -52,4 +55,24 @@ def create_app(
     # Attached here rather than route by route, so a route added to these cannot forget it.
     for router in api.protected_routers:
         app.include_router(router, dependencies=[Depends(require_api_key)])
+    app.add_middleware(RequestLogMiddleware)
     return app
+
+
+def main() -> None:
+    """Serve the API, logging JSON lines as the worker does."""
+    configure_logging()
+    # log_config=None keeps the logging configured above instead of uvicorn's own, and the
+    # middleware's request line replaces uvicorn's access log.
+    uvicorn.run(
+        "app.main:create_app",
+        factory=True,
+        host="0.0.0.0",
+        port=8000,
+        log_config=None,
+        access_log=False,
+    )
+
+
+if __name__ == "__main__":
+    main()

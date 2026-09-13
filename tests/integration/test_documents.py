@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import Iterator
 
@@ -86,6 +87,20 @@ def test_upload_creates_document_and_job_together(client: TestClient, collection
     assert row.s3_key.startswith("documents/")
     assert row.status == "queued"
     assert row.attempts == 0
+
+
+def test_an_upload_logs_the_job_it_queued(
+    client: TestClient, collection_id: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The line that leads from a request id to the worker's lines about its job."""
+    with caplog.at_level(logging.INFO, logger="app.api.documents"):
+        body = _upload(client, collection_id, MINIMAL_PDF).json()
+
+    [record] = [record for record in caplog.records if record.name == "app.api.documents"]
+    assert (str(getattr(record, "job_id", None)), str(getattr(record, "document_id", None))) == (
+        body["job_id"],
+        body["document_id"],
+    )
 
 
 def test_unknown_collection_returns_404(client: TestClient) -> None:

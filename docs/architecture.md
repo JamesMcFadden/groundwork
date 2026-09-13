@@ -50,6 +50,20 @@ does, a 404 with the same body, so a response never confirms that someone else's
 real. Search filters by collection alone, once a lookup has established ownership:
 `chunks` carries no user id, and a join would defeat its indexes.
 
+**Logging** — the API and the worker write one JSON object per line to stdout: time,
+level, logger, message, any fields passed with the record, and a traceback where there is
+one. `app/logs.py` supplies the formatter, and each process configures logging once, in
+its entrypoint; the API runs uvicorn from `python -m app.main` with uvicorn's own logging
+configuration and access log turned off. A pure ASGI middleware gives every request an id,
+the caller's `X-Request-ID` when it is 1–128 letters, digits, `.`, `_`, or `-` and a new one
+otherwise, returns it as a response header, and holds it in a context variable the
+formatter adds to every line written while the request runs. When the request finishes,
+the middleware logs one line with its method, route template, status, and duration, and a
+request that raises is logged as a 500 with its traceback. That 500 is sent by the server
+outside the middleware, so it carries no `X-Request-ID` header. No line carries a header
+or a body, so the API key and question text never reach the logs. An upload logs the job
+it queued, which leads from a request id to the worker's lines about that job.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,
