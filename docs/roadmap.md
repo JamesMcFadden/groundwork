@@ -3,10 +3,10 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M5 — Hardening
+**Now:** M6 — Kubernetes on kind
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M5 — review and merge PR #6
+**Next item:** M6 — plan the milestone: add its detail section before starting work
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -21,7 +21,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 - [x] **M3** (4h) Eval harness — golden set (30 answerable + 8 unanswerable), Recall@5,
       citation validity, refusal
 - [x] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
-- [ ] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
+- [x] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
 - [ ] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
 - [ ] **M7** (6h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
 - [ ] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
@@ -400,6 +400,8 @@ Results, recorded 2026-09-12; detail in [evaluation.md](evaluation.md#results):
   in the fusion tests that assert an exact order without an index scan.
 
 ## M5 — Hardening
+
+Merged through PR #6 as `754af27`.
 
 Planned 2026-09-12. Review added two items to the milestone's original five: the
 migration reindex needs to keep past questions' retrieval results, and a generic reason

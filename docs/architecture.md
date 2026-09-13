@@ -15,12 +15,15 @@ uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-End of M4. Uploads are stored, then parsed, chunked, and embedded by the worker.
-`POST /questions` searches a collection's chunks for a question by meaning and by its
-words, answers from the best-ranked with cited passages, and records every question with
-its outcome, timings, and the search that served it. An evaluation harness scores
-retrieval and answers against a frozen corpus and golden set, and compares dense with
-hybrid search on every run.
+End of M5. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
+stored document can be reindexed without a second upload. `POST /questions` searches a
+collection's chunks for a question by meaning and by its words, answers from the
+best-ranked with cited passages, and records every question with its outcome, timings,
+and the search that served it. Every route but the health checks requires an API key,
+both processes log JSON lines, every request carries an id through its log lines, and a
+request that cannot reach the database gets 503. An evaluation harness scores retrieval
+and answers against a frozen corpus and golden set, and compares dense with hybrid search
+on every run.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
