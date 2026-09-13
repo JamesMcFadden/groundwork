@@ -1,9 +1,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from app import api
+from app.auth import configured_api_key, require_api_key
 from app.config import Settings, get_settings
 from app.db.session import build_engine, build_session_factory
 from app.generation.factory import build_generator
@@ -28,8 +29,9 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # Built at startup rather than for the first question, so missing weights or a
-        # missing API key stop the process before it serves anything.
+        # Built at startup rather than for the first request, so a missing API_KEY, missing
+        # weights, or a missing ANTHROPIC_API_KEY stop the process before it serves anything.
+        app.state.api_key = configured_api_key(resolved)
         app.state.embedder = embedder or FastEmbedder(cache_dir=resolved.embedding_cache_dir)
         app.state.generator = generator or build_generator(resolved)
         yield
@@ -45,6 +47,9 @@ def create_app(
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.storage = build_storage(resolved)
-    for router in api.routers:
+    for router in api.public_routers:
         app.include_router(router)
+    # Attached here rather than route by route, so a route added to these cannot forget it.
+    for router in api.protected_routers:
+        app.include_router(router, dependencies=[Depends(require_api_key)])
     return app

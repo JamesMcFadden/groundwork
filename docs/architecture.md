@@ -35,6 +35,14 @@ construct one with their own settings. Routes:
 | `GET /jobs/{job_id}` | A job's status, attempts, error, and timestamps. 404 unless it is in the caller's collections. |
 | `POST /questions` | Answers from one collection with cited passages and per-stage timings, recording every question. 201 for an answer or insufficient evidence, 502 when generation declines or fails, 404 unless the collection is the caller's. |
 
+**Authentication** — every route but the health checks requires an `X-API-Key` header
+matching `API_KEY`, compared in constant time. The check is attached where routers are
+included rather than route by route, so a route added to a protected router cannot miss
+it. A missing and a wrong key get the same 401. The key maps every request to the seeded
+user, and the API refuses to start without one; the worker and the evaluation harness
+serve no HTTP and never read it. One static key is enough to prove the service enforces
+authentication; a table of hashed keys, which a second tenant would need, is parked.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,

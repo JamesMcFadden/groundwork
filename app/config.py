@@ -23,9 +23,13 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
 
-    # Until authentication lands, every request is attributed to this seeded user.
-    # The row is created by a data migration so foreign keys stay NOT NULL.
+    # The API key maps every request to this seeded user. The row is created by a data
+    # migration so foreign keys stay NOT NULL.
     default_user_id: uuid.UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+    # The key clients send in X-API-Key. Required when the API starts, not here: the worker
+    # and the eval harness serve no HTTP and have no use for it.
+    api_key: SecretStr | None = None
 
     # Empty means "use AWS": boto3 then resolves the real S3 endpoint itself.
     s3_endpoint: str = "http://localhost:9000"

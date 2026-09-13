@@ -405,7 +405,7 @@ Planned 2026-09-12. Review added two items to the milestone's original five: the
 migration reindex needs to keep past questions' retrieval results, and a generic reason
 for unexpected ingestion failures, the decision carried to this milestone.
 
-- [ ] `feat(auth): add api key check mapped to the seeded user`
+- [x] `feat(auth): add api key check mapped to the seeded user`
 - [ ] `feat(auth): scope queries by user id`
 - [ ] `feat(obs): add json logging with request id propagation`
 - [ ] `feat(ingest): record a generic reason for unexpected ingestion failures`

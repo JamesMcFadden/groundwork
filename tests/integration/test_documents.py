@@ -10,6 +10,7 @@ from app.db.session import build_engine, database_ok
 from app.generation.stub import StubGenerator
 from app.main import create_app
 from app.services.embeddings import Embedder
+from tests.auth import AUTH_HEADERS, with_api_key
 
 MINIMAL_PDF = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 
@@ -30,8 +31,8 @@ def client(embedder: Embedder) -> Iterator[TestClient]:
 
     clear()
     # The stub, because startup would otherwise build the real generator, which needs a key.
-    app = create_app(settings, embedder=embedder, generator=StubGenerator())
-    with TestClient(app) as test_client:
+    app = create_app(with_api_key(settings), embedder=embedder, generator=StubGenerator())
+    with TestClient(app, headers=AUTH_HEADERS) as test_client:
         yield test_client
     clear()
 

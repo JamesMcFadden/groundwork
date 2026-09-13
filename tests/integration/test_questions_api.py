@@ -17,6 +17,7 @@ from app.generation.stub import StubGenerator
 from app.main import create_app
 from app.retrieval.hybrid import RRF_K, hybrid_search
 from app.services.embeddings import Embedder
+from tests.auth import AUTH_HEADERS, with_api_key
 
 OTHER_USER_EMAIL = "questions-someone-else@example.com"
 PASSAGES = [
@@ -53,8 +54,10 @@ def engine() -> Iterator[Engine]:
 def serving(
     embedder: Embedder, generator: Generator, settings: Settings | None = None
 ) -> Iterator[TestClient]:
-    app = create_app(settings or get_settings(), embedder=embedder, generator=generator)
-    with TestClient(app) as client:
+    app = create_app(
+        with_api_key(settings or get_settings()), embedder=embedder, generator=generator
+    )
+    with TestClient(app, headers=AUTH_HEADERS) as client:
         yield client
 
 
@@ -306,10 +309,10 @@ def test_no_database_connection_is_held_while_the_model_generates(
     """A slow generation must not pin a pooled connection for its whole duration."""
     collection_id = add_collection(engine, embedder, PASSAGES)
     watcher = PoolWatchingGenerator()
-    app = create_app(get_settings(), embedder=embedder, generator=watcher)
+    app = create_app(with_api_key(get_settings()), embedder=embedder, generator=watcher)
     watcher.watch(app.state.engine)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers=AUTH_HEADERS) as client:
         response = ask(client, collection_id)
 
     assert response.status_code == 201

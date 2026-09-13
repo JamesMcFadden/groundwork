@@ -43,7 +43,7 @@ def _created_at() -> Mapped[datetime]:
 
 
 class User(Base):
-    """Owner of collections. Authentication itself arrives in a later milestone."""
+    """Owner of collections. The API key maps every request to the seeded user."""
 
     __tablename__ = "users"
 
