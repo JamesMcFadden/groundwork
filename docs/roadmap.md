@@ -575,6 +575,13 @@ implement early; apply when the milestone is reached. Rationale in
   is worse than no probe at all.
 - **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
   the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
+- **M7** — serve the API over HTTPS before its LoadBalancer takes traffic. Since M5 every
+  request carries the API key in the `X-API-Key` header, which plain HTTP exposes to
+  anyone on the path, and a key read in transit admits its reader as the seeded user and
+  spends the service's Claude budget. Terminating TLS at the load balancer with an ACM
+  certificate is the likely route; ACM validates a certificate against a domain, so one is
+  needed, not just the load balancer's generated hostname. Kind in M6 is reached on
+  localhost, where plain HTTP exposes nothing.
 - **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
   requests, so breakage from outside the repository waits for the next push: MinIO's
   Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
