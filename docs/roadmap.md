@@ -3,10 +3,10 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M6 — Kubernetes on kind
+**Now:** M7 — AWS
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M6 — review and merge PR #7
+**Next item:** M7 — plan the milestone: add its detail section before starting work
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -22,7 +22,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
       citation validity, refusal
 - [x] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
 - [x] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
-- [ ] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
+- [x] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
 - [ ] **M7** (6h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
 - [ ] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
 
@@ -508,6 +508,8 @@ versions in `uv.lock`:
   from `rank` and `cited` alone.
 
 ## M6 — Kubernetes on kind
+
+Merged through PR #7 as `6de72d7`.
 
 Planned 2026-09-13. Checking what the plan rests on added one item to the nine first
 agreed: ONNX Runtime sizes its threads from the node rather than the container, so the
