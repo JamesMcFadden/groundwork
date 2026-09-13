@@ -1,5 +1,5 @@
 # One k6 run, created by load/run.py, which fills in the placeholders. Kept out of
-# k8s/kustomization.yaml: applying the manifests must never start a load run.
+# k8s/kind/kustomization.yaml: applying the manifests must never start a load run.
 apiVersion: batch/v1
 kind: Job
 metadata:

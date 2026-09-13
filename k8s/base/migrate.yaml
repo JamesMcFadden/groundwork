@@ -18,11 +18,8 @@ spec:
       enableServiceLinks: false
       containers:
         - name: migrate
-          # Built from the working tree and loaded into the node by `make kind-images`.
-          # Never pulled, so an image that was not loaded fails to start rather than being
-          # looked for on a registry.
-          image: groundwork-api:kind
-          imagePullPolicy: Never
+          # Named without a tag: each overlay says which image, and where it comes from.
+          image: groundwork-api
           command: ["alembic", "upgrade", "head"]
           envFrom:
             - configMapRef:

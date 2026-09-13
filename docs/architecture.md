@@ -172,7 +172,8 @@ see [Answering a question](#answering-a-question).
 corpus and golden set; see [Evaluation](#evaluation).
 
 **Kubernetes** — the API, the worker, PostgreSQL, and MinIO run on a one-node kind
-cluster from the manifests in `k8s/`, and `load/` seeds and load tests it; see
+cluster from the manifests in `k8s/base/` and the kind overlay in `k8s/kind/`, and `load/`
+seeds and load tests it; see
 [kubernetes.md](kubernetes.md).
 
 **Not yet built** — AWS infrastructure.

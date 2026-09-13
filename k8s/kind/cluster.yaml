@@ -1,5 +1,5 @@
 # The local cluster M6 deploys to and measures on:
-#   kind create cluster --config k8s/kind-cluster.yaml
+#   kind create cluster --config k8s/kind/cluster.yaml
 #
 # One node. Every kind node is a container on the same Docker VM, so more nodes would add
 # scheduling boundaries and no capacity.

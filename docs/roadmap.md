@@ -761,7 +761,7 @@ for the node type first chosen: the nodes changed from `m7i-flex.large` to `t4g.
 and a budget alert was added.
 
 - [x] `feat(storage): use the default aws credential chain when no s3 keys are set`
-- [ ] `refactor(k8s): split manifests into a base and a kind overlay`
+- [x] `refactor(k8s): split manifests into a base and a kind overlay`
 - [ ] `feat(infra): add terraform for the dns zone and certificate`
 - [ ] `feat(infra): add terraform for s3, ecr, and rds`
 - [ ] `feat(infra): add eksctl cluster config`

@@ -18,9 +18,8 @@ spec:
       enableServiceLinks: false
       containers:
         - name: worker
-          # Built and loaded by `make kind-images`, and never pulled; see migrate.yaml.
-          image: groundwork-worker:kind
-          imagePullPolicy: Never
+          # Named without a tag; see migrate.yaml.
+          image: groundwork-worker
           envFrom:
             - configMapRef:
                 name: groundwork-config
