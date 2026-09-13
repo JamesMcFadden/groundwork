@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M5 — Hardening
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M5 — plan the milestone: add its detail section before starting work
+**Next item:** M5 — start branch `m5-hardening`
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -399,6 +399,112 @@ Results, recorded 2026-09-12; detail in [evaluation.md](evaluation.md#results):
   table is heavily churned by the time that test runs. `dd4bb58` runs the dense searches
   in the fusion tests that assert an exact order without an index scan.
 
+## M5 — Hardening
+
+Planned 2026-09-12. Review added two items to the milestone's original five: the
+migration reindex needs to keep past questions' retrieval results, and a generic reason
+for unexpected ingestion failures, the decision carried to this milestone.
+
+- [ ] `feat(auth): add api key check mapped to the seeded user`
+- [ ] `feat(auth): scope queries by user id`
+- [ ] `feat(obs): add json logging with request id propagation`
+- [ ] `feat(ingest): record a generic reason for unexpected ingestion failures`
+- [ ] `feat(api): return 503 when the database is unavailable`
+- [ ] `feat(db): keep retrieval results when their chunk is deleted`
+- [ ] `feat(api): add document reindex endpoint`
+
+The milestone's line was written in M0, before most of what it hardens existed. Every
+route that reads by id already checks ownership, so query scoping is now consolidation
+rather than new behaviour. Reindex touches two things the line did not foresee: retrying
+a failed upload, which architecture.md already offers, and the retrieval results of past
+questions, which replacing a document's chunks would delete.
+
+Decisions taken while planning:
+
+- **One static key, mapped to the seeded user.** `API_KEY` is a secret setting, sent as
+  the `X-API-Key` header and compared with `hmac.compare_digest`. A missing and a wrong
+  key get the same 401. The check is attached to every router but health's where routers
+  are included, so a new route cannot forget it and probes need no key. Like
+  `ANTHROPIC_API_KEY`, it is optional in settings and required when the API starts, so
+  the worker and the eval harness, which serve no HTTP, run without it. A table of hashed
+  keys, needed for a second tenant, stays parked.
+- **Ownership is checked by one set of lookups.** Uploads, questions, and jobs each write
+  their own ownership query; they are replaced by lookups that take the caller's user id,
+  which reindex then uses. Another user's collection, document, or job is a 404 exactly
+  like a missing one, and uploads, the one route taking an id without a test of that,
+  gain one. Listing collections gains a test that another user's are left out, which it
+  lacks too. Search stays filtered by collection alone: `chunks` carries no user id, a
+  join would defeat its indexes, and the lookup has already established ownership.
+- **Logs are JSON lines from the standard library**, so no new dependency: one formatter
+  and one `configure_logging()` shared by the API and the worker. A pure ASGI middleware
+  takes the request id from `X-Request-ID` when it is 1–128 letters, digits, `.`, `_`, or
+  `-`, and otherwise generates one. It holds the id in a context variable that a logging
+  filter adds to every record, and returns it as a response header. Uvicorn's access log
+  is turned off in favour of one line per request: method, route, status, duration, and
+  request id. An upload logs the job it queued, so a request id leads to that job's
+  worker logs without a column to carry it. The API key, question text, and answer text
+  are never logged.
+- **Unexpected ingestion failures record a generic reason.** `GET /jobs/{job_id}` returns
+  `ingestion_jobs.error` as stored, and for an unexpected failure the worker stores the
+  exception's type and message, which can carry storage error text. It will store
+  `unexpected error during ingestion` instead, and log the exception with its traceback
+  and job id. A parse failure keeps its message, which tells the uploader what is wrong
+  with the file, and an abandoned job keeps its reason. The same reasoning keeps
+  `questions.error_class` to a class name. Rows failed before M5 keep their text; there is
+  no deployed data to rewrite. The change is the worker's, so the item is scoped `ingest`
+  rather than `api` as first drafted.
+- **503 means the database cannot be reached, not that a query failed.** SQLAlchemy
+  raises `OperationalError` for an unreachable database, and also for deadlocks,
+  serialization failures, and cancelled queries, which are not outages. A handler returns
+  503 with `Retry-After: 5` only when the underlying error has no SQLSTATE (the connection
+  failed before the server answered), is a class 08 connection exception, or is 57P01–
+  57P03 (the server shutting down, crashed, or not yet accepting connections), and for
+  SQLAlchemy's pool `TimeoutError`, raised when every pooled connection stays busy. Any
+  other database error stays a 500. A question whose row cannot be written after the model
+  answered gets the 503 too, and its answer is lost: the service never returns an answer
+  it has not recorded. Object storage outages stay 500s, outside this item, and failing
+  readiness during shutdown belongs to M6.
+- **Retrieval results outlive their chunks.** `retrieval_results.chunk_id` becomes
+  nullable, with `ON DELETE SET NULL` in place of `CASCADE`. Reindex replaces a document's
+  chunks, and under `CASCADE` would delete the retrieval results of every past question
+  that retrieved them. They now keep their question, rank, score, and whether they were
+  cited, losing only which chunk. Deleting a collection still removes its questions and
+  their results through `questions.collection_id`. The downgrade deletes results whose
+  chunk is gone before restoring `NOT NULL`. A test asserts that deleting a chunk leaves
+  its result with a null chunk id.
+- **Reindex queues a new job for a stored document.**
+  `POST /documents/{document_id}/reindex` returns 202 with the document, the new job, and
+  its status, as an upload does: 404 unless the document is the caller's, 409 while one
+  of its jobs is queued or running.
+  The request locks the document's row before looking for such a job, so of two
+  concurrent reindexes one queues and the other gets 409, with no new index. A new job
+  rather than a reset one keeps every attempt's record, so an earlier job id still
+  reports what happened to it. The worker reads the stored object again, which is keyed
+  by content hash and never deleted. On completion it deletes the document's existing
+  chunks in the transaction that writes the new ones and marks the job done, so search
+  sees the old chunks or the new, never both or neither. A completed document reindexes to
+  re-embed, a failed one to retry. Reindexing a whole collection is not built: after a
+  model change it is one call per document.
+
+Checked 2026-09-12 against the pinned PostgreSQL image, with the SQLAlchemy and psycopg
+versions in `uv.lock`:
+
+- **Unavailability arrives as `OperationalError`, and so do other failures.** With
+  nothing listening, the engine raised `sqlalchemy.exc.OperationalError` wrapping
+  `psycopg.OperationalError`, with no SQLSTATE. A backend terminated under an open
+  connection raised it wrapping `AdminShutdown`, SQLSTATE 57P01, with the connection
+  invalidated. psycopg's `DeadlockDetected` (40P01), `SerializationFailure` (40001), and
+  `QueryCanceled` (57014) subclass `OperationalError` too. SQLAlchemy's pool
+  `TimeoutError` does not.
+- **A context variable set by middleware reaches everything a request runs.** Set in a
+  pure ASGI middleware, it was visible in a synchronous route, in a yield dependency's
+  body and its exception branch, and in an exception handler returning 503.
+- **The unique constraint accepts repeated nulls.** PostgreSQL 16 treats nulls as
+  distinct by default, so `uq_retrieval_question_chunk` can hold several results with no
+  chunk for one question.
+- **The eval harness reads no chunk ids from `retrieval_results`.** It scores citations
+  from `rank` and `cited` alone.
+
 ## Stack decisions
 
 Chosen during planning, with the reasoning that is not recoverable from the code.
@@ -459,10 +565,6 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M5** — decide how much of a job's recorded error `GET /jobs/{job_id}` returns. For
-  unexpected failures the worker records the exception's type and message, which can
-  carry internal detail such as storage error text; callers may warrant a generic
-  reason, with the detail kept in the logs.
 - **M6** — scale workers to 0 and set explicit CPU requests/limits during load runs, or
   the 1→3 replica comparison measures contention rather than scaling.
 - **M6** — the worker needs a liveness probe of its own. The API's probe is an HTTP
