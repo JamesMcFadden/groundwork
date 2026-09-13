@@ -764,7 +764,7 @@ and a budget alert was added.
 - [x] `refactor(k8s): split manifests into a base and a kind overlay`
 - [x] `feat(infra): add terraform for the dns zone and certificate`
 - [x] `feat(infra): add terraform for s3, ecr, and rds`
-- [ ] `feat(infra): add eksctl cluster config`
+- [x] `feat(infra): add eksctl cluster config`
 - [ ] `build: push api and worker images to ecr`
 - [ ] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
 - [ ] `feat(k8s): serve the api over https through a network load balancer`

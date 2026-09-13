@@ -1,0 +1,74 @@
+# The EKS cluster the service runs on, created with eksctl rather than Terraform; see ADR 0002.
+# A template: infra/cluster.py fills its placeholders from infra/data's Terraform outputs, so
+# the repository holds nothing specific to one account.
+#
+#   uv run python -m infra.cluster | eksctl create cluster -f -
+#   eksctl delete cluster --name groundwork --region us-east-1 --wait
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: groundwork
+  region: us-east-1
+  # Standard support until 2027-03-27, and within one minor version of the kubectl Docker
+  # Desktop ships, 1.34.1.
+  version: "1.35"
+  tags:
+    project: groundwork
+    stack: cluster
+
+# The networking add-ons alone, as EKS add-ons. eksctl would otherwise add metrics-server,
+# which nothing here uses, autoscaling being parked, and whose CPU requests would leave no
+# node room for the extra pod a rolling update of the API needs.
+addonsConfig:
+  disableDefaultAddons: true
+addons:
+  - name: vpc-cni
+  - name: kube-proxy
+  - name: coredns
+
+# The default VPC's public subnets, in the two zones infra/data tags for load balancers. No
+# private subnets and so no NAT gateway: a demo-grade choice, recorded in ADR 0002.
+vpc:
+  id: ${VPC_ID}
+  subnets:
+    public:
+      us-east-1a:
+        id: ${SUBNET_US_EAST_1A}
+      us-east-1b:
+        id: ${SUBNET_US_EAST_1B}
+
+iam:
+  # The OIDC provider IRSA needs, so a pod's service account can name an IAM role.
+  withOIDC: true
+  serviceAccounts:
+    # The service's pods may get and put objects under documents/ in the bucket, and nothing
+    # more. Role only: the EKS overlay creates the service account that names it.
+    - metadata:
+        name: groundwork
+        namespace: groundwork
+      roleName: groundwork-service
+      roleOnly: true
+      attachPolicyARNs:
+        - ${DOCUMENTS_POLICY_ARN}
+
+managedNodeGroups:
+  # Two arm64 nodes, like the Mac the images are built on, each with 2 vCPUs and 4 GiB: room
+  # for two API replicas and the worker at 750m CPU requests. Public addresses, since the
+  # subnets have no NAT gateway; 20 GiB disks hold both images with room to spare.
+  - name: nodes
+    instanceType: t4g.medium
+    amiFamily: AmazonLinux2023
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 2
+    volumeSize: 20
+    volumeType: gp3
+    # With the AWS-managed key: the account does not encrypt new volumes by default.
+    volumeEncrypted: true
+    subnets:
+      - us-east-1a
+      - us-east-1b
+    tags:
+      project: groundwork
+      stack: cluster
