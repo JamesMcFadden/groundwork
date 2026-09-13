@@ -1,0 +1,73 @@
+# MinIO, standing in for S3 as Compose's does. The image is unmaintained, which is
+# acceptable only because it never leaves a local cluster; see docker/minio/Dockerfile.
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: s3
+      port: 9000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          # The reference Compose and CI pin, built from MinIO's last community source
+          # release.
+          image: ghcr.io/jamesmcfadden/groundwork-minio:RELEASE.2025-10-15T17-29-55Z@sha256:98a0faf34af0449f1eaf322006864a44ae80f1663818ad8b2c95d20e5bf2fbdf
+          # No console: nothing here needs one.
+          args: ["server", "/data"]
+          ports:
+            - name: s3
+              containerPort: 9000
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: groundwork-config
+                  key: S3_ACCESS_KEY
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: groundwork-secrets
+                  key: S3_SECRET_KEY
+          # Readiness only, as for PostgreSQL: it stands in for a managed service.
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            periodSeconds: 5
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
