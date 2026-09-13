@@ -575,6 +575,21 @@ implement early; apply when the milestone is reached. Rationale in
   a minimal HTTP endpoint on the worker serving probes only. Decide there — a probe
   that only checks the process is alive would pass for a worker wedged mid-job, which
   is worse than no probe at all.
+- **M6** — give the kind deployment `API_KEY` as a Kubernetes Secret, and have every k6
+  script send it in `X-API-Key`. Since M5 the API refuses to start without the key and
+  answers every route but health with 401 without it, so a load run that forgets the
+  header measures nothing but refusals.
+- **M6** — make an API pod's readiness fail as soon as it is asked to stop, so it leaves
+  rotation before it stops serving. Readiness fails today only when the database is
+  unreachable, so a terminating pod stays routable while it shuts down, and requests sent
+  to it then fail, which the pod-deletion criterion counts. Left to M6 by M5's plan;
+  decide the mechanism there.
+- **M6** — read load results against the database connection pool. `build_engine` sets
+  no pool options, so each API process has SQLAlchemy's defaults: 5 connections plus 10
+  overflow, with a request waiting up to 30 seconds for one. Since M5 a pool timeout is a
+  503, which counts against the ≥ 99% non-5xx criterion. Whether 30 virtual users exhaust
+  it is unmeasured; a run's errors and throughput should be checked against pool waits
+  before they are attributed to the service or to the replica count.
 - **M7** — timebox EKS to one day. If the cluster is not serving traffic by then, ship
   the Terraform, the eksctl config, and the runbook, and say so plainly in the README.
 - **M7** — serve the API over HTTPS before its LoadBalancer takes traffic. Since M5 every
