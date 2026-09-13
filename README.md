@@ -96,3 +96,6 @@ curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: 
 
 Stop the `api` and `worker` containers (`docker compose stop api worker`) before running
 the integration tests again.
+
+To run the service on a local Kubernetes cluster, and load test it there, see
+[docs/kubernetes.md](docs/kubernetes.md).

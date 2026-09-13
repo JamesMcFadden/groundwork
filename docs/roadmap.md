@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M6 — Kubernetes on kind
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M6 — start branch `m6-kubernetes`
+**Next item:** M6 — review and merge PR #7
 **Budget:** ~52.5h total, range 44–60h. M0, M1, M2, M3, and M4 took their estimated 11h,
 7h, 9.5h, 4h, and 4h.
 
@@ -527,7 +527,7 @@ to the API would have waited as long for its 503.
 - [x] `feat(k8s): take api pods out of rotation before they stop`
 - [x] `feat(load): add k6 question load test and corpus seeding`
 - [x] `docs: record M6 scaling and recovery results`
-- [ ] `docs: add kubernetes doc`
+- [x] `docs: add kubernetes doc`
 
 The milestone fills three rows of [success-criteria.md](success-criteria.md), API
 reliability, scaling, and recovery, all measured by k6 on kind, and the latency row,

@@ -15,7 +15,7 @@ uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-End of M5. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
+End of M6. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
 stored document can be reindexed without a second upload. `POST /questions` searches a
 collection's chunks for a question by meaning and by its words, answers from the
 best-ranked with cited passages, and records every question with its outcome, timings,
@@ -23,7 +23,8 @@ and the search that served it. Every route but the health checks requires an API
 both processes log JSON lines, every request carries an id through its log lines, and a
 request that cannot reach the database gets 503. An evaluation harness scores retrieval
 and answers against a frozen corpus and golden set, and compares dense with hybrid search
-on every run.
+on every run. The same images run on a local Kubernetes cluster, where the API's scaling
+and its recovery from a deleted pod have been measured under load.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -165,7 +166,11 @@ see [Answering a question](#answering-a-question).
 **Evaluation** — a harness in `eval/` scores retrieval and answers against a frozen
 corpus and golden set; see [Evaluation](#evaluation).
 
-**Not yet built** — Kubernetes manifests and AWS infrastructure.
+**Kubernetes** — the API, the worker, PostgreSQL, and MinIO run on a one-node kind
+cluster from the manifests in `k8s/`, and `load/` seeds and load tests it; see
+[kubernetes.md](kubernetes.md).
+
+**Not yet built** — AWS infrastructure.
 
 ## Ingestion
 
@@ -369,4 +374,4 @@ See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: Kubernetes, AWS.
+Added as each subsystem is built: AWS.

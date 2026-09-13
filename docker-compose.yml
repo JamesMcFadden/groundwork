@@ -43,7 +43,8 @@ services:
       minio:
         condition: service_healthy
     # No healthcheck: the worker serves no HTTP, so the api's probe does not
-    # transfer here. Kubernetes needs a real answer for this in M6.
+    # transfer here. On Kubernetes its liveness probe reads the age of a file the
+    # worker touches instead; see docs/kubernetes.md.
 
   postgres:
     # pgvector's `pg16` tag moves with each release, and index-scan options depend on the
