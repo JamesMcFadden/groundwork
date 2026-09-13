@@ -755,14 +755,17 @@ Planned 2026-09-13. The estimate was raised the same day from 6h to 9h. The mile
 line was written in M0, and four things it did not foresee each add work: reaching S3
 through a pod's role rather than static keys, a domain and certificate for the carried
 HTTPS decision, overlays that leave the kind deployment unchanged, and a load balancer
-controller that is not in maintenance mode.
+controller that is not in maintenance mode. Checking the account after the plan was
+committed found it on the paid plan rather than the Free plan, which removed the reason
+for the node type first chosen: the nodes changed from `m7i-flex.large` to `t4g.medium`,
+and a budget alert was added.
 
 - [ ] `feat(storage): use the default aws credential chain when no s3 keys are set`
 - [ ] `refactor(k8s): split manifests into a base and a kind overlay`
 - [ ] `feat(infra): add terraform for the dns zone and certificate`
 - [ ] `feat(infra): add terraform for s3, ecr, and rds`
 - [ ] `feat(infra): add eksctl cluster config`
-- [ ] `build: push amd64 api and worker images to ecr`
+- [ ] `build: push api and worker images to ecr`
 - [ ] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
 - [ ] `feat(k8s): serve the api over https through a network load balancer`
 - [ ] `feat(load): add an aws smoke test`
@@ -778,14 +781,18 @@ a load balancer controller installed into the cluster, and a Terraform root for 
 
 Decisions taken while planning:
 
-- **One AWS account, in us-east-1, on the Free plan.** Created 2026-09-13 through the
-  standard sign-up. The Free plan charges nothing: new accounts get $100 in credits and
-  can earn $100 more, and the account closes after six months or when the credits run
-  out, whichever comes first. AWS's new sign-up flow was avoided: the policies it applies
-  deny `iam:*Provider*` on both of its plans, which blocks the OIDC provider IRSA needs.
-  The CLI signs in with `aws login` as an IAM user with MFA, so no access key exists. IAM
-  Identity Center is not used: it needs AWS Organizations, and joining an organization
-  moves a Free plan account to the paid plan.
+- **One AWS account, in us-east-1, on the paid plan.** Created 2026-09-13 through the
+  standard sign-up and planned as a Free plan account, but AWS's Free Tier API reports it
+  on the paid plan, with $100 of credits, and a paid plan cannot return to the Free plan.
+  Usage draws on the credits and is then billed, and nothing closes the account, so a
+  forgotten cluster costs money. Every deployment is torn down the day it is made, and an
+  AWS Budgets cost budget of $20 a month, counting usage before credits, emails the
+  account owner at 80% of actual cost and 100% of forecast cost. AWS's new sign-up flow
+  was avoided: the policies it applies deny `iam:*Provider*` on both of its plans, which
+  blocks the OIDC provider IRSA needs. The CLI signs in with `aws login` as an IAM user
+  with MFA, so no access key exists. IAM Identity Center is not used: signing in to an
+  account through it needs an AWS Organizations organization, which one person with one
+  account has no use for.
 - **Terraform for data and DNS, eksctl for the cluster, as ADR 0002 decides.** Terraform,
   eksctl, and OpenTofu are all maintained; the ADR names Terraform, and its licence does
   not restrict this use. There are two roots under `infra/`, each with local, gitignored
@@ -813,17 +820,20 @@ Decisions taken while planning:
   balancer arrives with TLS in the commit after, so plain HTTP never takes traffic. AWS's
   EKS documentation cites controller 2.7.2 or later, so the annotations are checked
   against v3's documentation in that commit.
-- **The cluster runs EKS 1.35 on two `m7i-flex.large` nodes in the default VPC.** 1.35 has
+- **The cluster runs EKS 1.35 on two `t4g.medium` nodes in the default VPC.** 1.35 has
   standard support until 2027-03-27 and is within one minor version of the `kubectl`
   Docker Desktop ships, 1.34.1. The nodes, a managed node group, sit in the default VPC's
-  public subnets in two availability zones with public addresses, so there is no NAT
-  gateway; the ADR records that as a demo-grade choice. `m7i-flex.large` has 2 vCPUs and
-  8 GiB, and is on the Free Tier's list of eligible instance types; the Graviton types on
-  that list have 2 GiB, which cannot hold the worker's 1.5 GiB memory request. A flex
-  instance is guaranteed 40% of its CPU and may use all of it 95% of the time over 24
-  hours: enough for a smoke test, and one more reason load tests stay on kind.
-- **Images are built for amd64 and pushed to ECR.** The nodes are x86 and this Mac is
-  arm64, so `docker buildx` builds `linux/amd64` under emulation. Images are labelled
+  public subnets in `us-east-1a` and `us-east-1b` with public addresses, so there is no
+  NAT gateway; the ADR records that as a demo-grade choice. `t4g.medium` has 2 vCPUs and
+  4 GiB, enough for the worker's 1.5 GiB memory request beside an API pod, and is arm64,
+  like this Mac and the images kind runs. It is a burstable type: above its baseline it
+  spends CPU credits, and in unlimited mode, T4g's default, use beyond them is billed at a
+  surplus rate rather than throttled. That is no concern for a smoke test, and one more
+  reason load tests stay on kind. Revised 2026-09-13 from `m7i-flex.large`, chosen from
+  the Free Tier's list of eligible instance types, once the account was found on the paid
+  plan: that type is x86, which would have meant building amd64 images under emulation,
+  and costs almost three times as much an hour.
+- **Images are pushed to ECR as this Mac builds them**, for arm64 like the nodes, labelled
   with their commit as on kind, tagged with it, and deployed by digest. Pushing from CI is
   M8's.
 - **The manifests become a base with two overlays**, the choice M6 left to M7.
@@ -849,8 +859,8 @@ Decisions taken while planning:
   since this account allows it.
 - **RDS runs PostgreSQL 16.15 on `db.t4g.micro`.** 16.15 is the version the pinned Compose
   image runs. RDS ships it with pgvector 0.8.2, against Compose's 0.8.6; search needs
-  0.8.0 or later for `hnsw.iterative_scan`. `db.t3.micro` and `db.t4g.micro` are the Free
-  plan's RDS classes, and 1 GiB is enough for one document. The instance has 20 GiB of
+  0.8.0 or later for `hnsw.iterative_scan`. `db.t4g.micro` costs $0.016 an hour, and its
+  1 GiB is enough for one document. The instance has 20 GiB of
   storage in one availability zone, no public address, a security group admitting port
   5432 from the default VPC alone, and no final snapshot on destroy. The migrate Job runs
   as on kind, and the initial migration's `CREATE EXTENSION` runs as the master user. RDS
@@ -922,17 +932,36 @@ Checked 2026-09-13:
 - **Flex instances** are guaranteed 40% of their CPU and may use all of it 95% of the time
   over 24 hours.
 
-Unverified going in; checked with the account before anything billable is created:
+Checked 2026-09-13 with the account, after the plan was committed, through read-only
+calls as the IAM user:
 
-- **The standard sign-up's Free plan allows EKS and launches `m7i-flex.large` in a managed
-  node group.** AWS publishes its service list only for the new sign-up flow, and lists
-  eligible instance types without saying that others are refused.
-- **The EC2 quota for On-Demand Standard instances is at least 4 vCPUs.** New accounts
-  have been reported with 1, and an increase can take time.
-- **us-east-1 offers** EKS 1.35 in two of the default VPC's availability zones, and RDS
-  PostgreSQL 16.15 on `db.t4g.micro`.
-- **An `m7i-flex.large` node fits** two 750m pods beside the system pods and the controller.
-- **The hourly prices**, stated before creation.
+- **The account is on the paid plan.** The Free Tier API reports `accountPlanType` `PAID`
+  and $100 of credits remaining.
+- **The EC2 quota for On-Demand Standard instances is 5 vCPUs**, and two 2-vCPU nodes need
+  4.
+- **us-east-1 offers EKS 1.35** on standard support, at patch 1.35.7, and **RDS PostgreSQL
+  16.15 on `db.t4g.micro`** with gp3 storage in `us-east-1a` to `us-east-1d` and
+  `us-east-1f`.
+- **The default VPC is `172.31.0.0/16`**, with a default subnet in each of the six
+  availability zones, all giving instances public addresses. `us-east-1a` is `use1-az1`
+  and `us-east-1b` is `use1-az2`, and both offer `t4g.medium`, `m7i-flex.large`, and the
+  RDS instance; `use1-az3` offers neither instance type.
+- **`t4g.medium` has 2 vCPUs and 4,096 MiB, arm64**, and is not marked Free Tier eligible;
+  `m7i-flex.large` has 2 vCPUs and 8,192 MiB, x86, and is.
+- **Hourly prices** from the Price List API, on demand in us-east-1: the EKS cluster $0.10,
+  `t4g.medium` $0.0336, `m7i-flex.large` $0.09576, `db.t4g.micro` $0.016, a Network Load
+  Balancer $0.0225 plus $0.006 per capacity unit, and a public IPv4 address $0.005.
+  Storage per GB-month: EBS gp3 $0.08, RDS gp3 $0.115, ECR $0.10. A Route 53 zone is $0.50
+  a month. Deployed, with the control plane, two `t4g.medium` nodes and their 80 GiB
+  disks, eksctl's default size, RDS with 20 GiB, the load balancer, and four public
+  addresses, the service costs about $0.25 an hour, against about $0.38 with
+  `m7i-flex.large` nodes.
+
+Unverified going in:
+
+- **EKS accepts the cluster's subnets** in `use1-az1` and `use1-az2`.
+- **A `t4g.medium` node fits** two pods requesting 750m CPU, with their memory requests,
+  beside the system pods and the controller.
 
 ## Stack decisions
 
