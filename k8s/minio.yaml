@@ -26,6 +26,8 @@ spec:
       labels:
         app: minio
     spec:
+      # No Docker-link variables for the namespace's Services; see postgres.yaml.
+      enableServiceLinks: false
       containers:
         - name: minio
           # The reference Compose and CI pin, built from MinIO's last community source

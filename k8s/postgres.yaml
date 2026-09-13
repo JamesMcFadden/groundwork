@@ -26,6 +26,9 @@ spec:
       labels:
         app: postgres
     spec:
+      # No Docker-link variables for the namespace's Services: they would add POSTGRES_* and
+      # MINIO_* variables holding URLs, in the prefixes these images read settings from.
+      enableServiceLinks: false
       containers:
         - name: postgres
           # The reference Compose and CI pin: `pg16` moves with each release, and index-scan

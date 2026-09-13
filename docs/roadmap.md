@@ -518,7 +518,7 @@ to 104 ms at P50.
 - [x] `feat(embeddings): size onnx runtime threads with EMBEDDING_THREADS`
 - [x] `build: add kind cluster config with a pinned node image`
 - [x] `feat(k8s): add postgres and minio with persistent volumes`
-- [ ] `feat(k8s): run migrations and bucket creation as jobs`
+- [x] `feat(k8s): run migrations and bucket creation as jobs`
 - [ ] `feat(k8s): add api and worker deployments with probes and resources`
 - [ ] `feat(k8s): take api pods out of rotation before they stop`
 - [ ] `feat(load): add k6 question load test and corpus seeding`
@@ -553,12 +553,16 @@ Decisions taken while planning:
   read it. PostgreSQL and MinIO take their passwords from the same Secret. The cluster
   sets `GENERATOR=stub` and holds no `ANTHROPIC_API_KEY`: load tests measure this
   service, not a model provider.
-- **Application images are built locally and loaded into kind**, tagged with the commit
-  they were built from and run with `imagePullPolicy: Never`, so an image that was never
-  loaded fails to start rather than being looked for on Docker Hub. They are not pinned
-  by digest: an image never pushed has no registry digest, and its tag names its commit.
-  Every image pulled from a registry, the node, PostgreSQL, MinIO, and k6, is pinned by
-  digest.
+- **Application images are built locally and loaded into kind**, tagged `kind`, labelled
+  with the commit they were built from, and run with `imagePullPolicy: Never`, so an
+  image that was never loaded fails to start rather than being looked for on Docker Hub.
+  They are not pinned by digest: an image never pushed has no registry digest, and its
+  `org.opencontainers.image.revision` label names its commit, marked `-dirty` when built
+  from uncommitted changes. Every image pulled from a registry, the node, PostgreSQL,
+  MinIO, and k6, is pinned by digest. Revised 2026-09-13 while building the Jobs, from
+  "tagged with the commit": the Kustomize built into kubectl cannot set an image tag from
+  the command line, so a tag per commit would mean editing a committed file for every
+  build, while a fixed tag leaves the manifests unchanged.
 - **Migrations and the bucket are Jobs**, run from the api image as Compose's
   `createbucket` is. An init container would run `alembic upgrade` in every API pod at
   once. The documented steps wait for both Jobs to complete before the API takes load.
