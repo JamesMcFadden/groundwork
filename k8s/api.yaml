@@ -77,6 +77,15 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 2
+          # Run before SIGTERM. SIGUSR1 starts draining, after which every response carries
+          # `Connection: close`, so clients reconnect through the Service to other pods while
+          # this one still serves. The sleep holds off SIGTERM while the pod's removal from
+          # the Service reaches kube-proxy and open connections close; the default 30-second
+          # grace period covers it and uvicorn finishing its requests.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "kill -USR1 1; sleep 10"]
           # One CPU, requested and limited: without a limit, one replica could use the whole
           # node, and the 1→3 comparison would measure contention rather than scaling.
           # Memory peaked at 326 MiB under 30 concurrent questions, against 275 MiB idle.

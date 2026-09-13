@@ -1,7 +1,9 @@
-"""A request id for every request, and one log line when it finishes."""
+"""A request id for every request, one log line when it finishes, and connections that
+close once the process is draining."""
 
 import logging
 import re
+import threading
 import time
 import uuid
 
@@ -17,6 +19,12 @@ REQUEST_ID_HEADER = "X-Request-ID"
 # A caller's id is kept only if it is short and plain, so it can neither forge log content
 # nor bloat every line; anything else is replaced.
 _ACCEPTABLE_ID = re.compile(r"[A-Za-z0-9._-]{1,128}")
+
+# Set once the process is asked to drain, by `app.main.install_drain_signal` on SIGUSR1.
+# Defined here rather than in app.main: `python -m app.main` runs that file as `__main__`,
+# and uvicorn then imports `app.main` again as a separate module, so a flag defined there
+# would be two flags, the signal setting one and the app reading the other.
+DRAINING = threading.Event()
 
 
 class RequestLogMiddleware:
@@ -83,3 +91,31 @@ def _log_request(scope: Scope, status: int, started: float, *, failed: bool) -> 
         },
         exc_info=failed,
     )
+
+
+class DrainMiddleware:
+    """Once the process is draining, close each connection after its response.
+
+    Kubernetes takes a deleted pod out of its Service, but a connection a client already
+    holds keeps reaching the pod, and uvicorn closes every idle connection the moment it is
+    told to stop: a request sent on one as it closes gets no response. Draining answers with
+    `Connection: close` first, which uvicorn honours by closing the connection once the
+    response is sent, so each client's next request opens a new connection that kube-proxy
+    sends to another pod.
+    """
+
+    def __init__(self, app: ASGIApp, draining: threading.Event) -> None:
+        self.app = app
+        self.draining = draining
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_closing(message: Message) -> None:
+            if message["type"] == "http.response.start" and self.draining.is_set():
+                MutableHeaders(scope=message)["connection"] = "close"
+            await send(message)
+
+        await self.app(scope, receive, send_closing)

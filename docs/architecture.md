@@ -85,6 +85,15 @@ in the API, the worker, and migrations alike. psycopg alone waits 130 seconds: w
 PostgreSQL stopped in the kind cluster, the worker's first poll hung that long before
 failing, and a request arriving then would have waited as long for its 503.
 
+**Draining** — SIGUSR1 sets the API draining, and from then on every response carries
+`Connection: close`, after which uvicorn closes the connection. In Kubernetes the pod's
+preStop hook sends it, then waits 10 seconds before SIGTERM. Deleting a pod takes it out of
+its Service, but a connection a client already holds keeps reaching the pod, and uvicorn
+closes idle connections the moment it stops, so a request sent on one as it closes gets no
+response. Draining makes each client reconnect, through the Service to another pod, before
+that. The handler is installed before the server starts; until then, a signal sent inside
+the container does not reach its PID 1.
+
 **Data** — PostgreSQL 16 with pgvector 0.8.6. Compose and CI pin its image by version
 and digest: the `pg16` tag moves with each release, and index-scan options depend on the
 extension version. Seven tables: `users`, `collections`,
