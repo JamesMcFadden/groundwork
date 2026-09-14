@@ -1029,6 +1029,11 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
+- **M8** — measure the Deployment criterion in
+  [success-criteria.md](success-criteria.md): a fresh clone brought up from the README's
+  documented steps with one `docker compose up`, timed, with the run and its time recorded.
+  No milestone has planned it. M7's AWS doc brings the service up on EKS, which the
+  criterion does not measure.
 - **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
   requests, so breakage from outside the repository waits for the next push: MinIO's
   Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
