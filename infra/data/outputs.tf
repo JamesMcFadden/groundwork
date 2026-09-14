@@ -18,6 +18,11 @@ output "documents_policy_arn" {
   value       = aws_iam_policy.documents.arn
 }
 
+output "load_balancer_controller_policy_arn" {
+  description = "The policy eksctl attaches to the load balancer controller's role."
+  value       = aws_iam_policy.load_balancer_controller.arn
+}
+
 output "repository_urls" {
   description = "Where each image is pushed, by repository name."
   value       = { for name, repository in aws_ecr_repository.image : name => repository.repository_url }

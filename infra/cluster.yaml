@@ -51,6 +51,14 @@ iam:
       roleOnly: true
       attachPolicyARNs:
         - ${DOCUMENTS_POLICY_ARN}
+    # The AWS Load Balancer Controller, which creates the API's Network Load Balancer. eksctl
+    # creates this service account as well as its role, and the controller's chart uses it.
+    - metadata:
+        name: aws-load-balancer-controller
+        namespace: kube-system
+      roleName: groundwork-load-balancer-controller
+      attachPolicyARNs:
+        - ${LOAD_BALANCER_CONTROLLER_POLICY_ARN}
 
 managedNodeGroups:
   # Two arm64 nodes, like the Mac the images are built on, each with 2 vCPUs and 4 GiB: room

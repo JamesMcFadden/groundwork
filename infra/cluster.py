@@ -23,6 +23,9 @@ def placeholders(outputs: dict[str, Any]) -> dict[str, str]:
         "${SUBNET_US_EAST_1A}": subnets["us-east-1a"],
         "${SUBNET_US_EAST_1B}": subnets["us-east-1b"],
         "${DOCUMENTS_POLICY_ARN}": outputs["documents_policy_arn"]["value"],
+        "${LOAD_BALANCER_CONTROLLER_POLICY_ARN}": outputs["load_balancer_controller_policy_arn"][
+            "value"
+        ],
     }
 
 

@@ -15,9 +15,15 @@ OUTPUTS = {
 }
 
 
+DNS_OUTPUTS = {
+    "certificate_arn": {"value": "arn:aws:acm:us-east-1:123456789012:certificate/abc"},
+}
+
+
 def test_images_are_referenced_by_digest_from_their_repositories() -> None:
     values = deployment(
         OUTPUTS,
+        DNS_OUTPUTS,
         {"groundwork-api": "sha256:aaa", "groundwork-worker": "sha256:bbb"},
         "arn:aws:iam::123456789012:role/groundwork-service",
     )
@@ -26,6 +32,7 @@ def test_images_are_referenced_by_digest_from_their_repositories() -> None:
         "API_IMAGE": "123456789012.dkr.ecr.us-east-1.amazonaws.com/groundwork-api@sha256:aaa",
         "WORKER_IMAGE": "123456789012.dkr.ecr.us-east-1.amazonaws.com/groundwork-worker@sha256:bbb",
         "SERVICE_ROLE_ARN": "arn:aws:iam::123456789012:role/groundwork-service",
+        "CERTIFICATE_ARN": "arn:aws:acm:us-east-1:123456789012:certificate/abc",
     }
 
 

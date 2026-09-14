@@ -6,6 +6,9 @@ OUTPUTS = {
     "vpc_id": {"value": "vpc-0example"},
     "subnet_ids": {"value": {"us-east-1a": "subnet-0aaa", "us-east-1b": "subnet-0bbb"}},
     "documents_policy_arn": {"value": "arn:aws:iam::123456789012:policy/groundwork-documents"},
+    "load_balancer_controller_policy_arn": {
+        "value": "arn:aws:iam::123456789012:policy/groundwork-load-balancer-controller"
+    },
     "database_password": {"value": "never-rendered", "sensitive": True},
 }
 
@@ -17,6 +20,7 @@ def test_the_cluster_template_is_filled_from_the_data_outputs() -> None:
     assert "id: subnet-0aaa" in rendered
     assert "id: subnet-0bbb" in rendered
     assert "- arn:aws:iam::123456789012:policy/groundwork-documents" in rendered
+    assert "- arn:aws:iam::123456789012:policy/groundwork-load-balancer-controller" in rendered
     assert "never-rendered" not in rendered
 
 

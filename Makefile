@@ -1,6 +1,6 @@
 # The evaluation harness, measured against the local database. It needs PostgreSQL with
 # migrations applied; see docs/success-criteria.md for what each figure means.
-.PHONY: eval eval-live kind-images ecr-images
+.PHONY: eval eval-live kind-images ecr-images eks-load-balancer-controller
 
 # Retrieval figures, with the answering path run by the stub: free, and not measured.
 eval:
@@ -46,3 +46,24 @@ ecr-images:
 			-t $$registry/groundwork-$$target:$$revision . && \
 		docker push $$registry/groundwork-$$target:$$revision || exit 1; \
 	done
+
+# The AWS Load Balancer Controller, which creates the API's Network Load Balancer from its
+# Service: from its chart pinned by version with its image pinned by digest, running as the
+# service account eksctl creates with its IAM role. Region and VPC are given rather than read
+# from instance metadata, and Helm targets the EKS cluster's context by name, never whichever
+# context is current.
+LOAD_BALANCER_CONTROLLER_CHART := 3.5.0
+LOAD_BALANCER_CONTROLLER_IMAGE := v3.5.0@sha256:298acdff5a571731276aaea3d5cc450a264e4ad710a5bddf3e518f68a3f9f6cb
+EKS_CONTEXT = $(shell kubectl config get-contexts -o name | grep '@groundwork.us-east-1.eksctl.io$$')
+
+eks-load-balancer-controller:
+	@test -n "$(EKS_CONTEXT)" || { echo "no kubectl context for the groundwork EKS cluster"; exit 1; }
+	helm repo add eks https://aws.github.io/eks-charts --force-update
+	helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+		--kube-context $(EKS_CONTEXT) --namespace kube-system \
+		--version $(LOAD_BALANCER_CONTROLLER_CHART) \
+		--set image.tag=$(LOAD_BALANCER_CONTROLLER_IMAGE) \
+		--set clusterName=groundwork --set region=us-east-1 \
+		--set vpcId=$$(terraform -chdir=infra/data output -raw vpc_id) \
+		--set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller \
+		--wait

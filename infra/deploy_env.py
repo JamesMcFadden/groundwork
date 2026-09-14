@@ -4,7 +4,8 @@ k8s/eks/ reads three files this writes, so the repository holds nothing specific
 account:
 
     settings.env  the database host and bucket, for the groundwork-config ConfigMap
-    deploy.env    the images by digest and the service's IAM role, copied into the manifests
+    deploy.env    the images by digest, the service's IAM role, and the API's certificate,
+                  copied into the manifests
     secrets.env   the database password and the API key, for the groundwork-secrets Secret
 
 Run once the images for HEAD are pushed: `make ecr-images`, then
@@ -18,8 +19,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from infra.cluster import DATA_ROOT, terraform_outputs
+from infra.cluster import DATA_ROOT, INFRA_DIR, terraform_outputs
 
+DNS_ROOT = INFRA_DIR / "dns"
 REGION = "us-east-1"
 OVERLAY = Path(__file__).parent.parent / "k8s" / "eks"
 SERVICE_ROLE = "groundwork-service"
@@ -44,13 +46,20 @@ def settings(outputs: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def deployment(outputs: dict[str, Any], digests: dict[str, str], role_arn: str) -> dict[str, str]:
-    """Images by repository and digest, which a tag could not guarantee, and the pods' role."""
+def deployment(
+    outputs: dict[str, Any],
+    dns_outputs: dict[str, Any],
+    digests: dict[str, str],
+    role_arn: str,
+) -> dict[str, str]:
+    """Images by repository and digest, which a tag could not guarantee, the pods' role, and
+    the certificate the API's load balancer serves."""
     urls = outputs["repository_urls"]["value"]
     return {
         "API_IMAGE": f"{urls['groundwork-api']}@{digests['groundwork-api']}",
         "WORKER_IMAGE": f"{urls['groundwork-worker']}@{digests['groundwork-worker']}",
         "SERVICE_ROLE_ARN": role_arn,
+        "CERTIFICATE_ARN": dns_outputs["certificate_arn"]["value"],
     }
 
 
@@ -101,8 +110,9 @@ def write(path: Path, content: str, *, private: bool = False) -> None:
 
 def main() -> None:
     outputs = terraform_outputs(DATA_ROOT)
-    if not outputs:
-        raise SystemExit("infra/data has no outputs: apply it first")
+    dns_outputs = terraform_outputs(DNS_ROOT)
+    if not outputs or not dns_outputs:
+        raise SystemExit("infra/data or infra/dns has no outputs: apply both first")
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True
     ).stdout.strip()
@@ -111,7 +121,7 @@ def main() -> None:
     secrets_path = OVERLAY / "secrets.env"
 
     write(OVERLAY / "settings.env", env_file(settings(outputs)))
-    write(OVERLAY / "deploy.env", env_file(deployment(outputs, digests, role_arn)))
+    write(OVERLAY / "deploy.env", env_file(deployment(outputs, dns_outputs, digests, role_arn)))
     write(secrets_path, env_file(secret_values(outputs, read_env(secrets_path))), private=True)
     print(f"wrote settings.env, deploy.env, and secrets.env for images at {revision[:12]}")
 

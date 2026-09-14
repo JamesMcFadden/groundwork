@@ -58,6 +58,36 @@ patches:
       - op: add
         path: /spec/template/spec/serviceAccountName
         value: groundwork
+  # The API, internet-facing through a Network Load Balancer the AWS Load Balancer Controller
+  # creates. TLS ends at the load balancer with the certificate from infra/dns, under a policy
+  # allowing only TLS 1.3 and 1.2, and 443 is its only port. Traffic goes straight to the
+  # pods' IPs, each a target only while /health/ready answers. The controller reads these
+  # annotations when it creates the load balancer: to change one, delete the Service first.
+  - target:
+      kind: Service
+      name: api
+    patch: |-
+      - op: add
+        path: /spec/type
+        value: LoadBalancer
+      - op: replace
+        path: /spec/ports
+        value:
+          - name: https
+            port: 443
+            targetPort: http
+      - op: add
+        path: /metadata/annotations
+        value:
+          service.beta.kubernetes.io/aws-load-balancer-type: external
+          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+          service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+          service.beta.kubernetes.io/aws-load-balancer-ssl-cert: set-from-deploy-env
+          service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+          service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+          service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
+          service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /health/ready
+          service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: traffic-port
 
 replacements:
   - source:
@@ -95,3 +125,13 @@ replacements:
           name: groundwork
         fieldPaths:
           - metadata.annotations.[eks.amazonaws.com/role-arn]
+  - source:
+      kind: ConfigMap
+      name: deploy
+      fieldPath: data.CERTIFICATE_ARN
+    targets:
+      - select:
+          kind: Service
+          name: api
+        fieldPaths:
+          - metadata.annotations.[service.beta.kubernetes.io/aws-load-balancer-ssl-cert]

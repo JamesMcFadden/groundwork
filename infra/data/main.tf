@@ -87,6 +87,15 @@ resource "aws_iam_policy" "documents" {
   policy = data.aws_iam_policy_document.documents.json
 }
 
+# What the AWS Load Balancer Controller may do, through the role eksctl gives its service
+# account: create and manage the load balancer, target groups, and security groups the API's
+# Service asks for. The document is the one the controller publishes for its v3.5.0 release,
+# kept beside this file so any change to it is reviewed.
+resource "aws_iam_policy" "load_balancer_controller" {
+  name   = "groundwork-load-balancer-controller"
+  policy = file("${path.module}/load-balancer-controller-policy.json")
+}
+
 # Images are tagged with the commit they were built from, so a tag is never reused, and are
 # deployed by digest. Deleted with their images on destroy.
 resource "aws_ecr_repository" "image" {
