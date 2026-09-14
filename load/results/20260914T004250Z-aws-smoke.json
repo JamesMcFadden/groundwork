@@ -1,0 +1,97 @@
+{
+  "label": "aws-smoke",
+  "rule": "docs/roadmap.md, M7, pre-registered rule AWS",
+  "note": "Run over the iPhone's Personal Hotspot: the home router intercepts DNS on port 53 and still had groundworkproj.com's former Porkbun delegation cached, resolving the host to Porkbun's parking server.",
+  "started_at": "2026-09-14T00:42:50.253988+00:00",
+  "ended_at": "2026-09-14T00:43:18.745972+00:00",
+  "host": "api.groundworkproj.com",
+  "addresses": {
+    "this_mac": [
+      "18.233.206.122",
+      "3.208.196.101"
+    ],
+    "public_dns": [
+      "18.233.206.122",
+      "3.208.196.101"
+    ]
+  },
+  "smoke_test_revision": "7f5cc7f11ab3740b7fec570425ed9025b3d6313e",
+  "images": {
+    "api": "632404568378.dkr.ecr.us-east-1.amazonaws.com/groundwork-api@sha256:206d68c9f88170e9bc305a7a78282632c0306db2370016bf11c79fa754a63557",
+    "worker": "632404568378.dkr.ecr.us-east-1.amazonaws.com/groundwork-worker@sha256:51dd272c99d132368334b108202fef4f667779b6f33919c146ebe07b88b19c1c",
+    "revision": "fbeddcbd1613a74189730d77507ed757b3a4ca52"
+  },
+  "golden_sha256": "c9ece53bf82daa915356a968eadce626fb68801f26ff2b387ec283c6290b67e9",
+  "document": "uam-risk.pdf",
+  "checks": {
+    "certificate": {
+      "passed": true,
+      "tls_version": "TLSv1.3",
+      "subject": {
+        "commonName": "api.groundworkproj.com"
+      },
+      "issuer": {
+        "countryName": "US",
+        "organizationName": "Amazon",
+        "commonName": "Amazon RSA 2048 M04"
+      },
+      "not_after": "Mar 29 23:59:59 2027 GMT"
+    },
+    "health_ready": {
+      "passed": true,
+      "status": 200
+    },
+    "no_key_rejected": {
+      "passed": true,
+      "status": 401
+    },
+    "port_80_closed": {
+      "passed": false,
+      "addresses": {
+        "18.233.206.122": "open",
+        "3.208.196.101": "open"
+      }
+    },
+    "document_ingested": {
+      "passed": true,
+      "collection_status": 201,
+      "upload_status": 202,
+      "job": {
+        "id": "c3a4f3ba-e62e-4a77-b468-5177102888d7",
+        "document_id": "afee8c76-de42-43f0-8b40-1fe693224220",
+        "status": "completed",
+        "attempts": 1,
+        "error": null,
+        "created_at": "2026-09-14T00:42:54.443496Z",
+        "started_at": "2026-09-14T00:42:54.780814Z",
+        "finished_at": "2026-09-14T00:43:17.158098Z"
+      }
+    },
+    "question_answered": {
+      "passed": true,
+      "status": 201,
+      "question_id": "a21",
+      "outcome": "answered",
+      "citations": [
+        {
+          "marker": 1,
+          "filename": "uam-risk.pdf",
+          "page_start": 5,
+          "page_end": 6
+        }
+      ],
+      "timings": {
+        "embed_ms": 42,
+        "search_ms": 26,
+        "prep_ms": 0,
+        "llm_ms": 0,
+        "total_ms": 69
+      }
+    }
+  },
+  "ingestion_seconds": {
+    "upload_to_indexed": 22.714602,
+    "worker": 22.377284
+  },
+  "verdict": "not met"
+}

@@ -1,0 +1,101 @@
+{
+  "label": "aws-smoke",
+  "rule": "docs/roadmap.md, M7, pre-registered rule AWS",
+  "note": "Rerun after fix(load) 726e847, beside the run at 20260914T004250Z, whose port-80 check failed because the iPhone hotspot's carrier accepted connections on port 80 to every address. This run is over a different Wi-Fi network, with DNS matching public DNS and no port-80 interception.",
+  "started_at": "2026-09-14T02:50:26.257252+00:00",
+  "ended_at": "2026-09-14T02:51:02.010854+00:00",
+  "host": "api.groundworkproj.com",
+  "addresses": {
+    "this_mac": [
+      "18.233.206.122",
+      "3.208.196.101"
+    ],
+    "public_dns": [
+      "18.233.206.122",
+      "3.208.196.101"
+    ]
+  },
+  "port_80_control": {
+    "address": "192.0.2.1",
+    "result": "TimeoutError"
+  },
+  "smoke_test_revision": "726e84799922bb39d98f7c50848dafb2e612b9b3",
+  "images": {
+    "api": "632404568378.dkr.ecr.us-east-1.amazonaws.com/groundwork-api@sha256:206d68c9f88170e9bc305a7a78282632c0306db2370016bf11c79fa754a63557",
+    "worker": "632404568378.dkr.ecr.us-east-1.amazonaws.com/groundwork-worker@sha256:51dd272c99d132368334b108202fef4f667779b6f33919c146ebe07b88b19c1c",
+    "revision": "fbeddcbd1613a74189730d77507ed757b3a4ca52"
+  },
+  "golden_sha256": "c9ece53bf82daa915356a968eadce626fb68801f26ff2b387ec283c6290b67e9",
+  "document": "uam-risk.pdf",
+  "checks": {
+    "certificate": {
+      "passed": true,
+      "tls_version": "TLSv1.3",
+      "subject": {
+        "commonName": "api.groundworkproj.com"
+      },
+      "issuer": {
+        "countryName": "US",
+        "organizationName": "Amazon",
+        "commonName": "Amazon RSA 2048 M04"
+      },
+      "not_after": "Mar 29 23:59:59 2027 GMT"
+    },
+    "health_ready": {
+      "passed": true,
+      "status": 200
+    },
+    "no_key_rejected": {
+      "passed": true,
+      "status": 401
+    },
+    "port_80_closed": {
+      "passed": true,
+      "addresses": {
+        "18.233.206.122": "TimeoutError",
+        "3.208.196.101": "TimeoutError"
+      }
+    },
+    "document_ingested": {
+      "passed": true,
+      "collection_status": 201,
+      "upload_status": 202,
+      "job": {
+        "id": "0f11610c-3a5e-4d8c-b27d-bb87edc00879",
+        "document_id": "3579154c-927f-47d6-8ddd-d3c1e5afa134",
+        "status": "completed",
+        "attempts": 1,
+        "error": null,
+        "created_at": "2026-09-14T02:50:36.766402Z",
+        "started_at": "2026-09-14T02:50:37.300894Z",
+        "finished_at": "2026-09-14T02:50:59.847151Z"
+      }
+    },
+    "question_answered": {
+      "passed": true,
+      "status": 201,
+      "question_id": "a21",
+      "outcome": "answered",
+      "citations": [
+        {
+          "marker": 1,
+          "filename": "uam-risk.pdf",
+          "page_start": 5,
+          "page_end": 6
+        }
+      ],
+      "timings": {
+        "embed_ms": 49,
+        "search_ms": 43,
+        "prep_ms": 0,
+        "llm_ms": 0,
+        "total_ms": 93
+      }
+    }
+  },
+  "ingestion_seconds": {
+    "upload_to_indexed": 23.080749,
+    "worker": 22.546257
+  },
+  "verdict": "met"
+}
