@@ -762,7 +762,10 @@ and a budget alert was added. Pushing the first images added two items the same 
 scans on push only for repositories a registry-level rule matches, and the registry had
 none, so the repositories' own scan-on-push setting did nothing; and a manual scan found 4
 critical and 16 high findings in both images, all in Debian 12 packages from base images
-the Dockerfile names by tag alone, against the rule that images are pinned by digest.
+the Dockerfile names by tag alone, against the rule that images are pinned by digest. The
+first recorded smoke run added one more: it ran over a mobile hotspot whose carrier accepts
+connections on port 80 to any address, so its port-80 check failed while the load balancer
+had no port 80 open, and the smoke test now refuses to run on such a network.
 
 - [x] `feat(storage): use the default aws credential chain when no s3 keys are set`
 - [x] `refactor(k8s): split manifests into a base and a kind overlay`
@@ -775,6 +778,8 @@ the Dockerfile names by tag alone, against the rule that images are pinned by di
 - [x] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
 - [x] `feat(k8s): serve the api over https through a network load balancer`
 - [x] `feat(load): add an aws smoke test`
+- [x] `fix(load): refuse a smoke run on a network that intercepts port 80`, added after the
+      first recorded run
 - [ ] `docs: record M7 deployment, smoke test, and teardown`
 - [ ] `docs: add aws doc`
 

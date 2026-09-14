@@ -1,5 +1,7 @@
 from eval.golden import AnswerableQuestion, Evidence, GoldenSet
-from load.smoke import choose_question, cites, ingestion_seconds, verdict
+from load.smoke import choose_question, cites, ingestion_seconds, precheck_problem, verdict
+
+LOAD_BALANCER = ["18.233.206.122", "3.208.196.101"]
 
 
 def question(id: str, *documents: str) -> AnswerableQuestion:
@@ -37,6 +39,25 @@ def test_the_criterion_is_met_only_when_every_check_passes() -> None:
     assert verdict({"a": {"passed": True}, "b": {"passed": True}}) == "met"
     assert verdict({"a": {"passed": True}, "b": {"passed": False}}) == "not met"
     assert verdict({}) == "not met"
+
+
+def test_a_network_that_accepts_port_80_where_nothing_listens_stops_the_run() -> None:
+    """A mobile carrier that answered port 80 for every address failed the first run falsely."""
+    problem = precheck_problem(LOAD_BALANCER, LOAD_BALANCER, control="open")
+
+    assert problem is not None and "port 80" in problem
+
+
+def test_a_local_dns_answer_that_differs_from_public_dns_stops_the_run() -> None:
+    problem = precheck_problem(["207.207.210.23"], LOAD_BALANCER, control="TimeoutError")
+
+    assert problem is not None and "public DNS" in problem
+    assert precheck_problem(LOAD_BALANCER, [], control="TimeoutError") is not None
+
+
+def test_a_network_with_true_dns_and_no_port_80_interception_may_run() -> None:
+    assert precheck_problem(LOAD_BALANCER, LOAD_BALANCER, control="TimeoutError") is None
+    assert precheck_problem(LOAD_BALANCER, LOAD_BALANCER, control="ConnectionRefusedError") is None
 
 
 def test_ingestion_time_comes_from_the_job_timestamps() -> None:

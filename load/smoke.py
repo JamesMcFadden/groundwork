@@ -5,9 +5,11 @@ From this Mac against https://api.groundworkproj.com, once the service is deploy
     uv run python -m load.smoke --note "the network it ran over"
 
 It refuses to run unless this Mac resolves the host to the addresses public DNS gives, so a
-stale cache cannot point it at some other server, and refuses to record from code that
-differs from HEAD. It then runs every check the rule names, writes each to load/results/,
-and prints the verdict. A failed check is recorded, never rerun in its place.
+stale cache cannot point it at some other server, and on a network that accepts connections
+on port 80 to an address where nothing can listen, which would make a closed port look open.
+It refuses to record from code that differs from HEAD. It then runs every check the rule
+names, writes each to load/results/, and prints the verdict. A failed check is recorded,
+never rerun in its place.
 """
 
 import argparse
@@ -34,6 +36,10 @@ DOCUMENT = "uam-risk.pdf"
 RESULTS_DIR = Path(__file__).parent / "results"
 JOB_TIMEOUT_SECONDS = 600
 CODE = ("load/smoke.py", "load/seed.py", "load/cluster.py", "infra/deploy_env.py")
+# Reserved for documentation (RFC 5737) and never routed, so nothing can accept a connection
+# there: a network that lets one through intercepts port 80, as a mobile carrier did for the
+# first recorded run.
+CONTROL_ADDRESS = "192.0.2.1"
 
 
 def choose_question(golden: GoldenSet, document: str) -> AnswerableQuestion:
@@ -134,16 +140,33 @@ def certificate(host: str) -> dict[str, Any]:
         }
 
 
+def connection(address: str, port: int) -> str:
+    """`open` if a TCP connection is accepted within 5 s, or the name of the error instead."""
+    try:
+        with socket.create_connection((address, port), timeout=5):
+            return "open"
+    except OSError as error:
+        return type(error).__name__
+
+
 def port_80(addresses: list[str]) -> dict[str, str]:
-    """Each address's response to a connection on port 80: `open`, or the error it gave."""
-    results = {}
-    for address in addresses:
-        try:
-            with socket.create_connection((address, 80), timeout=5):
-                results[address] = "open"
-        except OSError as error:
-            results[address] = type(error).__name__
-    return results
+    """Each address's response to a connection on port 80."""
+    return {address: connection(address, 80) for address in addresses}
+
+
+def precheck_problem(local: list[str], public: list[str], control: str) -> str | None:
+    """Why this Mac's network cannot give a true result, or None when it can.
+
+    `control` is what a connection on port 80 to CONTROL_ADDRESS returned.
+    """
+    if not public or local != public:
+        return f"this Mac resolves {HOST} to {local}, public DNS to {public}"
+    if control == "open":
+        return (
+            f"this network accepts connections on port 80 to {CONTROL_ADDRESS}, where nothing "
+            "can listen, so it would report the load balancer's port 80 open whatever it is"
+        )
+    return None
 
 
 def wait_for_job(key: str, job_id: str) -> dict[str, Any]:
@@ -239,10 +262,10 @@ def main() -> None:
     if subprocess.run(git, check=True, capture_output=True, text=True).stdout:
         raise SystemExit("refusing to record: the smoke test's code differs from HEAD")
     local, public = local_addresses(HOST), public_addresses(HOST)
-    if not public or local != public:
-        raise SystemExit(
-            f"refusing to run: this Mac resolves {HOST} to {local}, public DNS to {public}"
-        )
+    control = connection(CONTROL_ADDRESS, 80)
+    problem = precheck_problem(local, public, control)
+    if problem:
+        raise SystemExit(f"refusing to run: {problem}")
 
     corpus = load_corpus()
     golden = load_golden([document.filename for document in corpus.documents])
@@ -262,6 +285,7 @@ def main() -> None:
         "ended_at": datetime.now(UTC).isoformat(),
         "host": HOST,
         "addresses": {"this_mac": local, "public_dns": public},
+        "port_80_control": {"address": CONTROL_ADDRESS, "result": control},
         "smoke_test_revision": revision,
         "images": deployed_images(),
         "golden_sha256": golden.sha256,
