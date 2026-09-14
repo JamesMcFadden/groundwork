@@ -21,7 +21,8 @@ class ObjectStorage:
     """Thin wrapper over the S3 API.
 
     MinIO implements the same API, so local development and AWS differ only by the
-    endpoint. There is one code path, and it is the one that runs in production.
+    endpoint and where credentials come from. There is one code path, and it is the one
+    that runs in production.
     """
 
     def __init__(self, client: Any, bucket: str) -> None:
@@ -63,15 +64,18 @@ class ObjectStorage:
 
 
 def build_storage(settings: Settings) -> ObjectStorage:
+    # A MinIO endpoint locally; empty on AWS, where boto3 resolves S3 itself.
+    endpoint = settings.s3_endpoint or None
     client = boto3.client(
         "s3",
-        # A MinIO endpoint locally; empty on AWS, where boto3 resolves S3 itself.
-        endpoint_url=settings.s3_endpoint or None,
-        aws_access_key_id=settings.s3_access_key,
-        aws_secret_access_key=settings.s3_secret_key,
+        endpoint_url=endpoint,
+        # Unset on AWS, which leaves boto3 to its default credential chain: in a pod, the IAM
+        # role its service account names.
+        aws_access_key_id=settings.s3_access_key or None,
+        aws_secret_access_key=settings.s3_secret_key or None,
         region_name=settings.s3_region,
-        # MinIO serves buckets as a path rather than a DNS subdomain.
-        config=Config(s3={"addressing_style": "path"}),
+        # MinIO serves buckets as a path rather than a DNS subdomain; S3 keeps its default.
+        config=Config(s3={"addressing_style": "path"}) if endpoint else None,
     )
     return ObjectStorage(client, settings.s3_bucket)
 

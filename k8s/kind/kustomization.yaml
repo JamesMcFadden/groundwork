@@ -1,0 +1,53 @@
+# Everything the kind cluster runs, applied with `kubectl apply -k k8s/kind`: the base, with
+# PostgreSQL and MinIO standing in for RDS and S3, and a Job creating the bucket.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: groundwork
+
+resources:
+  - ../base
+  - postgres.yaml
+  - minio.yaml
+  - create-bucket.yaml
+
+# Built from the working tree and loaded into the node by `make kind-images`, tagged `kind`
+# so the manifests never change. Never pulled, so an image that was not loaded fails to
+# start rather than being looked for on a registry.
+images:
+  - name: groundwork-api
+    newTag: kind
+  - name: groundwork-worker
+    newTag: kind
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Job
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+# Settings that are not secret, for every workload that reads them. The generated name
+# changes with the content, so a changed value rolls the pods that read it.
+configMapGenerator:
+  - name: groundwork-config
+    literals:
+      - POSTGRES_USER=groundwork
+      - POSTGRES_DB=groundwork
+      - POSTGRES_HOST=postgres
+      - S3_ACCESS_KEY=minioadmin
+      - S3_ENDPOINT=http://minio:9000
+
+# Read from k8s/kind/secrets.env, which is gitignored: copy secrets.env.example to make it.
+# Applying without the file fails, rather than starting anything without credentials.
+secretGenerator:
+  - name: groundwork-secrets
+    envs:
+      - secrets.env

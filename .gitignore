@@ -16,7 +16,15 @@ htmlcov/
 # Environment
 .env
 .env.local
-k8s/secrets.env
+k8s/*/secrets.env
+# The EKS overlay's other account-specific inputs, written by `python -m infra.deploy_env`
+k8s/eks/settings.env
+k8s/eks/deploy.env
+
+# Terraform: downloaded providers, and local state, which can hold secrets
+infra/**/.terraform/
+infra/**/terraform.tfstate
+infra/**/terraform.tfstate.backup
 
 # Evaluation runs; a run cited in the docs is committed with `git add -f`
 eval/results/

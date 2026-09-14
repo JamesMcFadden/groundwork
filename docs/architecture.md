@@ -15,7 +15,7 @@ uploads, and the API answers questions from what it indexed.
 
 ## Current state
 
-End of M6. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
+End of M7. Uploads are stored, then parsed, chunked, and embedded by the worker, and a
 stored document can be reindexed without a second upload. `POST /questions` searches a
 collection's chunks for a question by meaning and by its words, answers from the
 best-ranked with cited passages, and records every question with its outcome, timings,
@@ -24,7 +24,8 @@ both processes log JSON lines, every request carries an id through its log lines
 request that cannot reach the database gets 503. An evaluation harness scores retrieval
 and answers against a frozen corpus and golden set, and compares dense with hybrid search
 on every run. The same images run on a local Kubernetes cluster, where the API's scaling
-and its recovery from a deleted pod have been measured under load.
+and its recovery from a deleted pod have been measured under load, and on EKS in AWS,
+against RDS and S3 and served over HTTPS, deployed and torn down from documented steps.
 
 **API** — FastAPI, built by a factory rather than a module-level app so tests can
 construct one with their own settings. Routes:
@@ -115,7 +116,12 @@ score, and whether it was cited, losing only which chunk it was.
 
 **Object storage** — S3 API, MinIO locally. Keys are the SHA-256 of the content, so
 uploading the same file twice writes one object. One code path serves both
-environments; only the endpoint differs. MinIO no longer publishes images, so Compose
+environments, which differ in the endpoint and in where credentials come from. With an
+endpoint, as for MinIO, the client signs with `S3_ACCESS_KEY` and `S3_SECRET_KEY`, both
+required at startup, and addresses buckets by path. With none, boto3 resolves S3 itself,
+and with no keys it takes credentials from its default chain, so a pod on AWS signs as the
+IAM role its service account names; half a key pair is refused at startup. MinIO no longer
+publishes images, so Compose
 and CI run one built from its last community source release by
 [docker/minio/Dockerfile](../docker/minio/Dockerfile), published to GitHub's container
 registry and pinned by digest.
@@ -167,10 +173,17 @@ see [Answering a question](#answering-a-question).
 corpus and golden set; see [Evaluation](#evaluation).
 
 **Kubernetes** — the API, the worker, PostgreSQL, and MinIO run on a one-node kind
-cluster from the manifests in `k8s/`, and `load/` seeds and load tests it; see
+cluster from the manifests in `k8s/base/` and the kind overlay in `k8s/kind/`, and `load/`
+seeds and load tests it; see
 [kubernetes.md](kubernetes.md).
 
-**Not yet built** — AWS infrastructure.
+**AWS** — Terraform creates the domain's zone and certificate, which outlive deployments,
+and each deployment's RDS PostgreSQL, S3 bucket, ECR repositories, and IAM policies; eksctl
+creates an EKS cluster of two arm64 nodes; `k8s/eks/` runs the base manifests against RDS
+and S3, the pods signing as an IAM role through IRSA; and the AWS Load Balancer Controller
+serves the API through a Network Load Balancer that terminates TLS for
+`api.groundworkproj.com`. A smoke test in `load/` checks a deployment from outside; see
+[aws.md](aws.md).
 
 ## Ingestion
 
@@ -366,12 +379,16 @@ See [ADR 0001](adr/0001-postgres-skip-locked-queue.md).
 
 ### eksctl for the cluster, Terraform for data services
 
-Terraform manages the resources that hold state — S3, ECR, RDS. The cluster and its
-IRSA service account are created with `eksctl`, which is created and destroyed per
-demo and therefore not worth expressing by hand.
+Terraform manages what holds state or outlives a deployment, in two roots: the domain's
+zone and certificate in `infra/dns`, and each deployment's S3, ECR, RDS, and IAM policies
+in `infra/data`. The cluster, its IRSA roles, and the load balancer controller's service
+account are created by `eksctl` from a config file, since the cluster is created and
+destroyed with each deployment and not worth expressing by hand. The API's load balancer
+is created by the AWS Load Balancer Controller, not EKS's built-in controller, which is in
+maintenance mode.
 
 See [ADR 0002](adr/0002-eksctl-for-cluster-terraform-for-data.md).
 
 ## Sections to be written
 
-Added as each subsystem is built: AWS.
+Added as each subsystem is built; none is outstanding.

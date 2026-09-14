@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from app.config import Settings
 
-SECRET_VARS = ["POSTGRES_PASSWORD", "S3_SECRET_KEY"]
+SECRET_VARS = ["POSTGRES_PASSWORD", "S3_ACCESS_KEY", "S3_SECRET_KEY"]
 
 
 @pytest.mark.parametrize("missing", SECRET_VARS)
@@ -29,6 +29,7 @@ def test_secrets_are_read_from_the_environment(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("POSTGRES_PASSWORD", "from-env")
+    monkeypatch.setenv("S3_ACCESS_KEY", "key-from-env")
     monkeypatch.setenv("S3_SECRET_KEY", "also-from-env")
 
     settings = Settings()  # type: ignore[call-arg]
@@ -43,6 +44,33 @@ def secrets_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None
     monkeypatch.chdir(tmp_path)
     for name in SECRET_VARS:
         monkeypatch.setenv(name, "supplied")
+
+
+def test_s3_keys_are_left_to_the_credential_chain_without_an_endpoint(
+    monkeypatch: pytest.MonkeyPatch, secrets_set: None
+) -> None:
+    """On AWS the endpoint is empty and a pod's role supplies credentials, so no key is needed."""
+    monkeypatch.setenv("S3_ENDPOINT", "")
+    monkeypatch.delenv("S3_ACCESS_KEY")
+    monkeypatch.delenv("S3_SECRET_KEY")
+
+    settings = Settings()  # type: ignore[call-arg]
+
+    assert settings.s3_access_key is None
+    assert settings.s3_secret_key is None
+
+
+def test_one_s3_key_without_the_other_fails_at_startup(
+    monkeypatch: pytest.MonkeyPatch, secrets_set: None
+) -> None:
+    """Half a key pair can never sign a request, with an endpoint or without."""
+    monkeypatch.setenv("S3_ENDPOINT", "")
+    monkeypatch.delenv("S3_SECRET_KEY")
+
+    with pytest.raises(ValidationError) as error:
+        Settings()  # type: ignore[call-arg]
+
+    assert "s3_secret_key" in str(error.value)
 
 
 def test_retriever_defaults_to_hybrid(monkeypatch: pytest.MonkeyPatch, secrets_set: None) -> None:

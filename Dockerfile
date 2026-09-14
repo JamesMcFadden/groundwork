@@ -1,9 +1,10 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
 
 # ---- builder -------------------------------------------------------------
 # Dependencies are installed into a virtualenv that the runtime stage copies,
-# so build tooling never reaches the final image.
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+# so build tooling never reaches the final image. Both base images are pinned by digest, a
+# multi-platform index, so every build starts from the same ones; the tag says what each is.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58 AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
@@ -30,7 +31,7 @@ RUN uv sync --frozen --no-dev
 # Everything the api and worker images share: the same interpreter, the same
 # virtualenv, the same embedding weights, the same non-root user. Only the entrypoint
 # differs between them.
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254 AS runtime
 
 RUN groupadd --system app && useradd --system --gid app --create-home app
 

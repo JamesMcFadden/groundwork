@@ -11,13 +11,12 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      # No Docker-link variables for the namespace's Services; see migrate.yaml.
+      # No Docker-link variables for the namespace's Services; see ../base/migrate.yaml.
       enableServiceLinks: false
       containers:
         - name: create-bucket
-          # Built and loaded by `make kind-images`, and never pulled; see migrate.yaml.
-          image: groundwork-api:kind
-          imagePullPolicy: Never
+          # Tagged and never pulled as kustomization.yaml sets for every image.
+          image: groundwork-api
           command: ["python", "-m", "app.services.storage"]
           envFrom:
             - configMapRef:

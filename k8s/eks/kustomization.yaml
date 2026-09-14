@@ -1,0 +1,137 @@
+# Everything the EKS cluster runs, applied with `kubectl apply -k k8s/eks`: the base, with RDS
+# and S3 in place of PostgreSQL and MinIO, and the service's pods signing as their IAM role.
+# What differs between accounts comes from three gitignored files that
+# `uv run python -m infra.deploy_env` writes: settings.env, deploy.env, and secrets.env.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: groundwork
+
+resources:
+  - ../base
+  - service-account.yaml
+
+configMapGenerator:
+  # Settings that are not secret. S3_ENDPOINT is empty and no S3 keys are set, so boto3
+  # resolves S3 itself and signs as the pods' IAM role. The generated name changes with the
+  # content, so a new database host or bucket rolls the pods that read them.
+  - name: groundwork-config
+    literals:
+      - POSTGRES_USER=groundwork
+      - POSTGRES_DB=groundwork
+      - S3_ENDPOINT=
+      - S3_REGION=us-east-1
+    envs:
+      - settings.env
+  # The images by digest and the service's role. Never deployed: the replacements below copy
+  # its values into the manifests.
+  - name: deploy
+    envs:
+      - deploy.env
+    options:
+      disableNameSuffixHash: true
+      annotations:
+        config.kubernetes.io/local-config: "true"
+
+# The database password Terraform generated, and the key clients send in X-API-Key.
+secretGenerator:
+  - name: groundwork-secrets
+    envs:
+      - secrets.env
+
+patches:
+  # Two API replicas and one worker, each requesting 750m CPU with its limit left at 1, so two
+  # t4g.medium nodes fit all three and the extra pod a rolling update of the API starts.
+  - target:
+      kind: Deployment
+      name: api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 750m
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: groundwork
+  # The API, internet-facing through a Network Load Balancer the AWS Load Balancer Controller
+  # creates. TLS ends at the load balancer with the certificate from infra/dns, under a policy
+  # allowing only TLS 1.3 and 1.2, and 443 is its only port. Traffic goes straight to the
+  # pods' IPs, each a target only while /health/ready answers. The controller reads these
+  # annotations when it creates the load balancer: to change one, delete the Service first.
+  - target:
+      kind: Service
+      name: api
+    patch: |-
+      - op: add
+        path: /spec/type
+        value: LoadBalancer
+      - op: replace
+        path: /spec/ports
+        value:
+          - name: https
+            port: 443
+            targetPort: http
+      - op: add
+        path: /metadata/annotations
+        value:
+          service.beta.kubernetes.io/aws-load-balancer-type: external
+          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+          service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+          service.beta.kubernetes.io/aws-load-balancer-ssl-cert: set-from-deploy-env
+          service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+          service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+          service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
+          service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /health/ready
+          service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: traffic-port
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: deploy
+      fieldPath: data.API_IMAGE
+    targets:
+      - select:
+          kind: Deployment
+          name: api
+        fieldPaths:
+          - spec.template.spec.containers.[name=api].image
+      - select:
+          kind: Job
+          name: migrate
+        fieldPaths:
+          - spec.template.spec.containers.[name=migrate].image
+  - source:
+      kind: ConfigMap
+      name: deploy
+      fieldPath: data.WORKER_IMAGE
+    targets:
+      - select:
+          kind: Deployment
+          name: worker
+        fieldPaths:
+          - spec.template.spec.containers.[name=worker].image
+  - source:
+      kind: ConfigMap
+      name: deploy
+      fieldPath: data.SERVICE_ROLE_ARN
+    targets:
+      - select:
+          kind: ServiceAccount
+          name: groundwork
+        fieldPaths:
+          - metadata.annotations.[eks.amazonaws.com/role-arn]
+  - source:
+      kind: ConfigMap
+      name: deploy
+      fieldPath: data.CERTIFICATE_ARN
+    targets:
+      - select:
+          kind: Service
+          name: api
+        fieldPaths:
+          - metadata.annotations.[service.beta.kubernetes.io/aws-load-balancer-ssl-cert]

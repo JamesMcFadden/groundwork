@@ -12,7 +12,8 @@ behaviour, not production capacity: every pod shares that VM's CPUs and memory.
 ## What runs
 
 Everything lives in the `groundwork` namespace of a one-node cluster, from the manifests
-in `k8s/`, applied together with `kubectl apply -k k8s`.
+in `k8s/base/`, which any cluster runs, and the kind overlay in `k8s/kind/`, applied
+together with `kubectl apply -k k8s/kind`.
 
 | Workload | Kind | Role |
 | --- | --- | --- |
@@ -30,7 +31,7 @@ and never pulled; each carries the commit it was built from as its
 
 **Configuration.** Settings that are not secret come from the generated ConfigMap
 `groundwork-config`, and `POSTGRES_PASSWORD`, `S3_SECRET_KEY`, and `API_KEY` from the
-Secret `groundwork-secrets`, generated from the gitignored `k8s/secrets.env`. Their
+Secret `groundwork-secrets`, generated from the gitignored `k8s/kind/secrets.env`. Their
 generated names change with their content, so a changed value rolls the pods that read
 it. The API sets `GENERATOR=stub`, and the cluster holds no `ANTHROPIC_API_KEY`: load
 tests measure this service, not a model provider. Every pod sets
@@ -97,19 +98,19 @@ commands run from the repository's root.
 
    Other platforms use the release's other binaries, each with a `.sha256sum` beside it.
 
-2. **Create the cluster.** `k8s/kind-cluster.yaml` pins the node image by digest, to
+2. **Create the cluster.** `k8s/kind/cluster.yaml` pins the node image by digest, to
    Kubernetes 1.34 rather than kind's default of 1.37, and names kube-proxy's mode. kind
    switches `kubectl` to the new cluster's context, `kind-groundwork`.
 
    ```bash
-   kind create cluster --config k8s/kind-cluster.yaml
+   kind create cluster --config k8s/kind/cluster.yaml
    ```
 
 3. **Write the secrets**, which never leave this machine:
 
    ```bash
    (umask 077; for name in POSTGRES_PASSWORD S3_SECRET_KEY API_KEY; do
-     echo "$name=$(openssl rand -hex 32)"; done > k8s/secrets.env)
+     echo "$name=$(openssl rand -hex 32)"; done > k8s/kind/secrets.env)
    ```
 
 4. **Build the images and load them into the node.** Until they are loaded, the API, the
@@ -125,20 +126,20 @@ commands run from the repository's root.
    completed.
 
    ```bash
-   kubectl apply -k k8s
+   kubectl apply -k k8s/kind
    kubectl -n groundwork wait --for=condition=complete job/migrate job/create-bucket --timeout=10m
    kubectl -n groundwork rollout status deployment/api deployment/worker --timeout=5m
    ```
 
 6. **Reach the API** through a port-forward, from a second terminal, with the key from
-   `k8s/secrets.env`. Port 8000 must be free, so stop Compose's `api` first if it runs.
+   `k8s/kind/secrets.env`. Port 8000 must be free, so stop Compose's `api` first if it runs.
 
    ```bash
    kubectl -n groundwork port-forward svc/api 8000:8000
    ```
 
    ```bash
-   KEY=$(grep '^API_KEY=' k8s/secrets.env | cut -d= -f2)
+   KEY=$(grep '^API_KEY=' k8s/kind/secrets.env | cut -d= -f2)
    curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
      -H 'content-type: application/json' -d '{"name": "demo"}'
    ```
@@ -216,7 +217,7 @@ other heavy work then skews the figures.
   bucket creation, delete the Job and apply again. A changed ConfigMap or Secret means
   deleting both Jobs before applying, since a Job's pod template cannot change and its
   references to them would.
-- **`kubectl apply -k k8s` resets the API to 3 replicas** and the worker to 1, undoing a
+- **`kubectl apply -k k8s/kind` resets the API to 3 replicas** and the worker to 1, undoing a
   `kubectl scale` or a load run's scaling. `load.seed` scales the worker back to 1 itself.
 - **Deleting the namespace** with `kubectl delete namespace groundwork` removes the whole
   deployment, volumes included, and leaves the cluster.

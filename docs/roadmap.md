@@ -758,19 +758,30 @@ HTTPS decision, overlays that leave the kind deployment unchanged, and a load ba
 controller that is not in maintenance mode. Checking the account after the plan was
 committed found it on the paid plan rather than the Free plan, which removed the reason
 for the node type first chosen: the nodes changed from `m7i-flex.large` to `t4g.medium`,
-and a budget alert was added.
+and a budget alert was added. Pushing the first images added two items the same day: ECR
+scans on push only for repositories a registry-level rule matches, and the registry had
+none, so the repositories' own scan-on-push setting did nothing; and a manual scan found 4
+critical and 16 high findings in both images, all in Debian 12 packages from base images
+the Dockerfile names by tag alone, against the rule that images are pinned by digest.
+Running the smoke test added one more: over a mobile hotspot whose carrier accepts
+connections on port 80 to any address, the test could not tell the load balancer's closed
+port 80 from an open one, so it now refuses to run on such a network.
 
-- [ ] `feat(storage): use the default aws credential chain when no s3 keys are set`
-- [ ] `refactor(k8s): split manifests into a base and a kind overlay`
-- [ ] `feat(infra): add terraform for the dns zone and certificate`
-- [ ] `feat(infra): add terraform for s3, ecr, and rds`
-- [ ] `feat(infra): add eksctl cluster config`
-- [ ] `build: push api and worker images to ecr`
-- [ ] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
-- [ ] `feat(k8s): serve the api over https through a network load balancer`
-- [ ] `feat(load): add an aws smoke test`
-- [ ] `docs: record M7 deployment, smoke test, and teardown`
-- [ ] `docs: add aws doc`
+- [x] `feat(storage): use the default aws credential chain when no s3 keys are set`
+- [x] `refactor(k8s): split manifests into a base and a kind overlay`
+- [x] `feat(infra): add terraform for the dns zone and certificate`
+- [x] `feat(infra): add terraform for s3, ecr, and rds`
+- [x] `feat(infra): add eksctl cluster config`
+- [x] `build: push api and worker images to ecr`
+- [x] `fix(infra): scan pushed images with a registry scan-on-push rule`
+- [x] `build: pin base images by digest`
+- [x] `feat(k8s): add an eks overlay for rds, s3, and ecr images`
+- [x] `feat(k8s): serve the api over https through a network load balancer`
+- [x] `feat(load): add an aws smoke test`
+- [x] `fix(load): refuse a smoke run on a network that intercepts port 80`, added while
+      running the smoke test
+- [x] `docs: record M7 deployment, smoke test, and teardown`
+- [x] `docs: add aws doc`
 
 The milestone fills the AWS row of [success-criteria.md](success-criteria.md): reachable
 through a load balancer and answering against RDS, shown by a smoke test. It proves the
@@ -957,11 +968,88 @@ calls as the IAM user:
   addresses, the service costs about $0.25 an hour, against about $0.38 with
   `m7i-flex.large` nodes.
 
-Unverified going in:
+Unverified going in; checked by the deployment on 2026-09-13:
 
-- **EKS accepts the cluster's subnets** in `use1-az1` and `use1-az2`.
-- **A `t4g.medium` node fits** two pods requesting 750m CPU, with their memory requests,
-  beside the system pods and the controller.
+- **EKS accepts the cluster's subnets** in `use1-az1` and `use1-az2`. The control plane
+  became `ACTIVE` on them, and the node group placed one node in each.
+- **A `t4g.medium` node fits** two pods requesting 750m CPU beside the system pods. Each
+  node allocates 1930m CPU and 3,368,804 KiB. With the API's two pods and the worker
+  running, the `us-east-1a` node had 1 CPU and 582 MiB requested, one API pod and the
+  system pods, and the `us-east-1b` node 1750m and 2,118 MiB, the other API pod and the
+  worker. The controller's two replicas request nothing, and a rolling update of both
+  Deployments to new images completed.
+
+Results, recorded 2026-09-14, from the deployment made between about 22:10 UTC on
+2026-09-13 and 03:14 UTC on 2026-09-14, torn down in the same session. EKS served traffic
+within its day, as carried. Each time is from the step's own output.
+
+| Step | Time |
+| --- | --- |
+| `infra/dns`: zone, then the certificate once Porkbun's nameservers were replaced | 31 s, then 39 s |
+| `infra/data`: bucket, ECR, IAM, and RDS | 344 s, of which RDS 5 min 38 s |
+| `eksctl create cluster` | 17 min, 22:37 to 22:55 UTC |
+| Node group recreated from the corrected config | 4 min 22 s, settling at two nodes by 23:09 UTC |
+| `make ecr-images` | 2 min 43 s for the first push; 7 to 8 s for each later commit's images |
+| EKS overlay applied | migrate Job complete in 14 s; API and worker ready in 15 s |
+| Load balancer | hostname in 7 s; `active` in 239 s; both targets healthy in 334 s |
+| Teardown | load balancer gone 30 s after its Service; cluster 13 min; `infra/data` 3 min |
+
+- **AWS met.** The smoke test at `726e847`, run at 02:50 UTC on 2026-09-14 against the
+  images built from `fbeddcb` (`load/results/20260914T025026Z-aws-smoke.json`), passed
+  every check. The certificate verified over TLS 1.3 for `api.groundworkproj.com`, issued
+  by Amazon RSA 2048 M04. `/health/ready` returned 200, and a request without a key 401.
+  Port 80 timed out on both load balancer addresses. `uam-risk.pdf` uploaded with 202 and
+  was indexed 23.1 s later, 22.5 s of it in the worker. `a21` returned 201 `answered`,
+  citing `uam-risk.pdf` at pages 5–6, in 93 ms with the stub generator. The Mac's DNS
+  answer matched public DNS, and its port-80 control connection to `192.0.2.1` timed out.
+- **An iPhone hotspot's carrier intercepts port 80.** Over it, TCP connections on port 80
+  were accepted to `192.0.2.1` and `198.51.100.7`, documentation addresses where nothing
+  can listen, and to the load balancer's addresses, then never answered. So a smoke run
+  there could not tell a closed port 80 from an open one. From inside the cluster, port 80
+  on both load balancer addresses timed out; the load balancer's only listener was 443, and
+  its security group admitted only TCP 443. `fix(load)` made the smoke test refuse such a
+  network, and the run made over the hotspot is kept as
+  `load/results/20260914T004250Z-aws-smoke.json`.
+- **The Mac's home router intercepts DNS and cached the old delegation.** 2.5 hours after
+  the nameservers moved to Route 53, it still answered every `groundworkproj.com` subdomain
+  with Porkbun's parking server, a plain `curl` from the Mac reached that server instead,
+  and setting the Mac's DNS to `1.1.1.1` did not help, since the router answered queries to
+  `1.1.1.1` itself. Checks of the service from the Mac pinned the load balancer's addresses
+  until the smoke test ran from a network with neither problem.
+- **The first cluster differed from the plan twice, and both were corrected before commit.**
+  eksctl installs `metrics-server` by default, whose 200m CPU of requests would have left
+  no node room for the extra pod a rolling update of the API starts. The node disks came up
+  unencrypted, since the account does not encrypt new volumes by default. The config now
+  installs the networking add-ons alone and encrypts node disks; `metrics-server` was
+  deleted and the node group recreated from the config.
+- **`us-east-1a` briefly had no `t4g.medium` capacity.** Recreating the node group, the Auto
+  Scaling group launched both nodes in `us-east-1b`, launched a third in `us-east-1a` once
+  capacity returned, within a minute, and drained and terminated the extra node.
+- **Images.** ECR scanned no image on push until a registry-level rule matched the
+  repositories. Scanned, both images held 4 critical, 16 high, 9 medium, and 2 low
+  findings, all in Debian 12 packages from the base image: pinning it by digest changed no
+  image content, and Debian 12 had a fixed version for `pcre2` alone. Moving to Debian 13
+  is parked. Docker Desktop's builder wrapped each image in an index beside a provenance
+  attestation until `--provenance=false`.
+- **A finished Job cannot be changed.** Applying the overlay with new image digests was
+  refused for the completed migrate Job; deleted and applied again, the Job ran its
+  migrations, which found nothing to do.
+- **On EKS the service ran as designed.** From an API pod, boto3 signed as
+  `assumed-role/groundwork-service`, and the database connection reported PostgreSQL 16.15,
+  pgvector 0.8.2, and TLS 1.3. The load balancer was internet-facing in both zones, with one
+  listener, 443 TLS, carrying the ACM certificate and
+  `ELBSecurityPolicy-TLS13-1-2-2021-06`; it refused TLS 1.1 and accepted 1.2 and 1.3. No
+  Classic Load Balancer was created.
+- **Teardown left only DNS.** After the teardown the account held no cluster, load
+  balancer, target group, RDS instance or snapshot, running instance, EBS volume, network
+  interface, security group beyond the default, eksctl stack, ECR repository, bucket,
+  `groundwork` IAM role or policy, or OIDC provider. The subnet tags and ECR's registry
+  scanning rule were gone, and the zone held only its NS and SOA records and the
+  certificate's validation record, the certificate issued and in use by nothing. For some
+  time afterwards the Resource Groups Tagging API still listed the terminated instances and
+  the deleted volumes and network interfaces; direct EC2 lookups found them gone.
+- **The session's cost** is read from billing once it reports the day, which can take up
+  to a day.
 
 ## Stack decisions
 
@@ -1023,6 +1111,11 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
+- **M8** — measure the Deployment criterion in
+  [success-criteria.md](success-criteria.md): a fresh clone brought up from the README's
+  documented steps with one `docker compose up`, timed, with the run and its time recorded.
+  No milestone has planned it. M7's AWS doc brings the service up on EKS, which the
+  criterion does not measure.
 - **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
   requests, so breakage from outside the repository waits for the next push: MinIO's
   Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
@@ -1054,3 +1147,9 @@ have somewhere to go that is not the current branch.
   sentence's embedding barely moves (0.989 similarity to its plain form, checked
   2026-09-12), and the M3 corpus contains none. Every chunk would change, so any
   baseline recorded before the fix must be re-run.
+- Move the base images to Debian 13. On 2026-09-13 ECR's basic scan found 4 critical and
+  16 high findings in both application images, all in Debian 12 packages from
+  `python:3.12-slim-bookworm`: `openssl`, `perl`, `util-linux`, `pcre2`, and `zlib`. The
+  image then current on Docker Hub held the same versions, and Debian 12's security archive
+  had a fix for `pcre2` alone, so refreshing or upgrading the image leaves the rest. Moving
+  changes the images kind runs too.

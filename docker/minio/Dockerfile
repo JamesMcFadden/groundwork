@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
 
 # MinIO for local development and CI, built from source.
 #
@@ -16,7 +16,7 @@
 #   1. Set MINIO_TAG and MINIO_COMMIT below, and push. The workflow publishes the new
 #      tag; a tag that is already published is never rebuilt.
 #   2. Copy the pinned reference from that workflow run's summary.
-#   3. Pin it in docker-compose.yml, .github/workflows/ci.yml, and k8s/minio.yaml.
+#   3. Pin it in docker-compose.yml, .github/workflows/ci.yml, and k8s/kind/minio.yaml.
 #      Nothing checks that they agree.
 
 ARG MINIO_TAG=RELEASE.2025-10-15T17-29-55Z

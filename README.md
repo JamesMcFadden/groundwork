@@ -98,4 +98,5 @@ Stop the `api` and `worker` containers (`docker compose stop api worker`) before
 the integration tests again.
 
 To run the service on a local Kubernetes cluster, and load test it there, see
-[docs/kubernetes.md](docs/kubernetes.md).
+[docs/kubernetes.md](docs/kubernetes.md). To deploy it on AWS, check it with the smoke test,
+and tear it down, see [docs/aws.md](docs/aws.md).

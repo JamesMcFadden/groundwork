@@ -9,7 +9,7 @@ from pathlib import Path
 
 CONTEXT = "kind-groundwork"
 NAMESPACE = "groundwork"
-SECRETS = Path(__file__).parent.parent / "k8s" / "secrets.env"
+SECRETS = Path(__file__).parent.parent / "k8s" / "kind" / "secrets.env"
 
 
 def kubectl(*args: str, stdin: str | None = None) -> str:

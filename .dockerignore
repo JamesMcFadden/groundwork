@@ -11,6 +11,7 @@
 .vscode
 docs
 eval
+infra
 k8s
 load
 terraform

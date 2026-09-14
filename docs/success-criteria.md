@@ -22,7 +22,7 @@ Two rules govern it:
 | Ingestion | 30-page PDF indexed in < 60 s | job timestamps | met locally: 4.05 s (n=1, laptop CPU via Compose, 2026-09-11) |
 | Scaling | 1→3 API replicas ≥ 1.8× throughput, P95 no worse | k6 on kind | met: 2.12× median throughput, 111.4 against 52.6 requests/s, and median P95 381 against 941 ms (n=3 runs each, 2026-09-13); the third pair alone gave 1.64× |
 | Recovery | Graceful pod deletion under load → zero failed requests | k6 error rate | met: 0 failed requests in each of 3 runs, one of 3 API pods deleted 2 minutes in (2026-09-13) |
-| AWS | Reachable via LoadBalancer, answering against RDS | smoke test | not yet measured |
+| AWS | Reachable via LoadBalancer, answering against RDS | smoke test | met: every check passed at `https://api.groundworkproj.com`, served over TLS through a Network Load Balancer on EKS; `uam-risk.pdf` indexed in 23.1 s and the golden question `a21` answered citing it, against RDS PostgreSQL 16.15 with pgvector 0.8.2 (2026-09-14, [run](roadmap.md#m7--aws)) |
 | Deployment | Fresh environment from documented steps; one `docker compose up` | manual, timed | not yet measured |
 | CI | Every PR runs lint, types, tests, retrieval eval | GitHub Actions | met: all four run on every pull request and push to `main` (from PR #4, 2026-09-12) |
 

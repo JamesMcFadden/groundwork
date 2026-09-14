@@ -1,0 +1,13 @@
+# What every cluster runs: the namespace, migrations, the API, and the worker. An overlay
+# supplies the rest: which images, the groundwork-config ConfigMap and groundwork-secrets
+# Secret these read, and whatever the cluster needs beside them. Never applied on its own.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: groundwork
+
+resources:
+  - namespace.yaml
+  - migrate.yaml
+  - api.yaml
+  - worker.yaml
