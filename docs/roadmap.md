@@ -781,7 +781,7 @@ port 80 from an open one, so it now refuses to run on such a network.
 - [x] `fix(load): refuse a smoke run on a network that intercepts port 80`, added while
       running the smoke test
 - [x] `docs: record M7 deployment, smoke test, and teardown`
-- [ ] `docs: add aws doc`
+- [x] `docs: add aws doc`
 
 The milestone fills the AWS row of [success-criteria.md](success-criteria.md): reachable
 through a load balancer and answering against RDS, shown by a smoke test. It proves the
