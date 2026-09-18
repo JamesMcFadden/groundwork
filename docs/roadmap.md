@@ -3,12 +3,15 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M8 — CI/CD + write-up
+**Now:** nothing. M8 was the last milestone, and every criterion in
+[success-criteria.md](success-criteria.md) is measured.
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — merge PR #9, then `docs: close M8` on `main`
-**Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
-estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
+**Next item:** none. Anything further starts from [Parked](#parked), which is a list of
+ideas rather than a plan.
+**Budget:** ~55.5h total, range 44–60h. M0 to M7 took their estimated 11h, 7h, 9.5h, 4h,
+4h, 2h, 6h, and 9h. M8 was held at its 3h estimate after planning put the work nearer
+five, and ran to thirteen commits against the ten planned; its hours are not recorded.
 
 ## Milestones
 
@@ -24,7 +27,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 - [x] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
 - [x] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
 - [x] **M7** (9h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
-- [ ] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
+- [x] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
 
 M3 and M4 are what distinguish this from an LLM demo. If time runs short, cut M7 to
 a single deploy-and-teardown; do not cut the evaluation milestones.
@@ -1055,6 +1058,8 @@ within its day, as carried. Each time is from the step's own output.
 
 ## M8 — CI/CD + write-up
 
+Merged through PR #9 as `dacd499`.
+
 Planned 2026-09-18. The milestone's line was written in M0 and names four things: an ECR
 push, scheduled CI, README results, and a runbook. Three carried decisions name M8 and
 join them. Planning found two more that the line did not foresee: one `docker compose up`
@@ -1079,7 +1084,7 @@ first is named below.
 - [x] `docs: record the deployment timing`
 - [x] `docs: add a runbook`
 - [x] `docs: record results in the readme`
-- [ ] `docs: close M8`
+- [x] `docs: close M8`
 
 The milestone fills the Deployment row of [success-criteria.md](success-criteria.md), the
 last one unmeasured, and widens the CI row from "every PR" to a run that does not wait for
@@ -1274,18 +1279,8 @@ Decisions taken ahead of their milestone, recorded so they are not lost. Do not
 implement early; apply when the milestone is reached. Rationale in
 [success-criteria.md](success-criteria.md).
 
-- **M8** — measure the Deployment criterion in
-  [success-criteria.md](success-criteria.md): a fresh clone brought up from the README's
-  documented steps with one `docker compose up`, timed, with the run and its time recorded.
-  No milestone has planned it. M7's AWS doc brings the service up on EKS, which the
-  criterion does not measure.
-- **M8** — add a daily scheduled CI run. CI otherwise runs only on pushes and pull
-  requests, so breakage from outside the repository waits for the next push: MinIO's
-  Docker Hub images vanished between two runs on 2026-09-11 and surfaced only because
-  a docs commit happened to follow.
-- **M8** — make the live test log list each test by name. `live-claude.yml` runs
-  `pytest -v`, but `addopts` in `pyproject.toml` already passes `-q` and the two cancel,
-  so passing tests show as dots. Failures are still named in pytest's summary.
+None outstanding. The three carried to M8 were all settled there: the Deployment criterion
+was measured, CI gained a daily schedule, and the live test log now names each test.
 
 ## Parked
 
