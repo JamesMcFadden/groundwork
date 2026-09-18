@@ -100,4 +100,5 @@ the integration tests again.
 
 To run the service on a local Kubernetes cluster, and load test it there, see
 [docs/kubernetes.md](docs/kubernetes.md). To deploy it on AWS, check it with the smoke test,
-and tear it down, see [docs/aws.md](docs/aws.md).
+and tear it down, see [docs/aws.md](docs/aws.md). When something is wrong wherever it runs,
+[docs/runbook.md](docs/runbook.md) is arranged by symptom.

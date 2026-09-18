@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — `docs: add a runbook`
+**Next item:** M8 — `docs: record results in the readme`
 **Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
@@ -1077,7 +1077,7 @@ first is named below.
       writing it: the script is not a docs change, and it refuses to record from code
       that differs from HEAD, which needs it committed before the run
 - [x] `docs: record the deployment timing`
-- [ ] `docs: add a runbook`
+- [x] `docs: add a runbook`
 - [ ] `docs: record results in the readme`
 - [ ] `docs: close M8`
 
