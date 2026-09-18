@@ -73,16 +73,17 @@ results, are in [docs/evaluation.md](docs/evaluation.md).
 
 ### Running the service
 
-The API answers with Claude by default, and refuses to start without `ANTHROPIC_API_KEY`
-in `.env`. Set `GENERATOR=stub` there to run without a key; answers are then the opening
-words of the top retrieved passage.
+`.env.example` sets `GENERATOR=stub`, so the service comes up and answers with no paid
+key: answers are the opening words of the top retrieved passage. For answers from Claude,
+put a key in `ANTHROPIC_API_KEY` and comment `GENERATOR` out. The code's own default is
+`anthropic`, which refuses to start without a key rather than serve fake answers, so a
+deployment that sets neither fails at startup rather than quietly stubbing.
 
 Every route but `/health` needs the `X-API-Key` header to match `API_KEY` in `.env`, and
 the API refuses to start without one.
 
 ```bash
-docker compose up -d --build
-uv run alembic upgrade head
+docker compose up -d --build                # applies migrations and creates the bucket too
 KEY=change-me                               # API_KEY from .env
 curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
   -H 'content-type: application/json' -d '{"name": "demo"}'
