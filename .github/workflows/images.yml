@@ -2,10 +2,13 @@ name: images
 
 # Builds the api and worker images on a machine that is not the developer's Mac, so a
 # Dockerfile or lockfile change that builds only because of local Docker state fails here
-# rather than at the start of a deployment. It does not push: infra/data holds the ECR
-# repositories and is destroyed with the cluster, so a push on every commit would fail on
-# every day the stack is down, which is most of them. Pushing is on demand, in a job of its
-# own, run when a deployment is happening.
+# rather than at the start of a deployment.
+#
+# A push to main only builds. Pushing to ECR is asked for by hand, with the push_to_ecr
+# input, because infra/data holds the ECR repositories and is destroyed with the cluster:
+# pushing on every commit would fail on every day the stack is down, which is most of them.
+# The push adds steps to this build rather than a job of its own, so that what is pushed is
+# what was built, from one buildx invocation.
 on:
   push:
     branches: [main]
@@ -24,6 +27,13 @@ on:
       - alembic.ini
       - .github/workflows/images.yml
   workflow_dispatch:
+    inputs:
+      push_to_ecr:
+        description: >-
+          Push the images to ECR. Only during a deployment: the repositories live in
+          infra/data, which is destroyed with the cluster.
+        type: boolean
+        default: false
 
 # A newer push makes an in-flight build irrelevant.
 concurrency:
@@ -37,6 +47,13 @@ jobs:
     # reached private repositories on 2026-01-29 and draw on the plan's included minutes.
     runs-on: ubuntu-24.04-arm
 
+    # id-token for the OIDC token the push path exchanges for the role in infra/data. A run
+    # that does not push never asks for credentials, so a plain push to main touches no AWS
+    # API at all.
+    permissions:
+      contents: read
+      id-token: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -45,19 +62,75 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The ARN is a secret rather than a committed value because it names the account, and
+      # the repository holds no account id. It is infra/data's github_actions_role_arn
+      # output, stable across deployments since the role keeps its name.
+      - name: Require the role ARN
+        if: ${{ inputs.push_to_ecr }}
+        env:
+          ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$ROLE_ARN" ]; then
+            echo "::error::The AWS_ROLE_ARN repository secret is not set; it is infra/data's github_actions_role_arn output."
+            exit 1
+          fi
+
+      # No access key: the role is assumed with the job's OIDC token, and the credentials
+      # last only as long as this job.
+      - name: Assume the image-push role
+        if: ${{ inputs.push_to_ecr }}
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Log in to ECR
+        if: ${{ inputs.push_to_ecr }}
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      # The repositories are IMMUTABLE, so pushing a tag that exists fails rather than
+      # overwriting it, and `make ecr-images` makes the same check before building. Asked
+      # through the registry API with imagetools, as minio-image.yml does, rather than the
+      # AWS CLI: these runner images are built by Arm and are not guaranteed to carry it.
+      - name: Decide whether to push
+        id: plan
+        env:
+          WANTED: ${{ inputs.push_to_ecr || false }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TARGET: ${{ matrix.target }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$WANTED" != "true" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "tags=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          reference="$REGISTRY/groundwork-$TARGET:$SHA"
+          if docker buildx imagetools inspect "$reference" > /dev/null 2>&1; then
+            echo "\`$reference\` is already pushed; building without pushing." >> "$GITHUB_STEP_SUMMARY"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "tags=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "push=true" >> "$GITHUB_OUTPUT"
+          echo "tags=$reference" >> "$GITHUB_OUTPUT"
 
       # Same shape as `make ecr-images` produces: the commit as the revision label, and no
       # provenance attestation, which would wrap the image in an index that nothing here
       # reads.
       - name: Build
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           target: ${{ matrix.target }}
           platforms: linux/arm64
-          push: false
+          push: ${{ steps.plan.outputs.push }}
+          tags: ${{ steps.plan.outputs.tags }}
           provenance: false
           labels: org.opencontainers.image.revision=${{ github.sha }}
           # The builder stage downloads 63 MB of model weights in a layer that depends only
@@ -65,3 +138,12 @@ jobs:
           # since the two share a builder stage but not a final one.
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+
+      # What a deployment pins. infra/deploy_env reads the same digests back from ECR, so
+      # this is a record of the push rather than the source of the value.
+      - name: Record the digest to pin
+        if: ${{ steps.plan.outputs.push == 'true' }}
+        env:
+          TAGS: ${{ steps.plan.outputs.tags }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "Pushed \`$TAGS@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
