@@ -1,0 +1,67 @@
+name: images
+
+# Builds the api and worker images on a machine that is not the developer's Mac, so a
+# Dockerfile or lockfile change that builds only because of local Docker state fails here
+# rather than at the start of a deployment. It does not push: infra/data holds the ECR
+# repositories and is destroyed with the cluster, so a push on every commit would fail on
+# every day the stack is down, which is most of them. Pushing is on demand, in a job of its
+# own, run when a deployment is happening.
+on:
+  push:
+    branches: [main]
+    # The Makefile's IMAGE_INPUTS, which is the list of what actually goes into an image.
+    # Docs-only commits land on main regularly and have no image to rebuild. README.md is
+    # on the list because the Dockerfile copies it, so excluding markdown wholesale would
+    # skip a real input.
+    paths:
+      - app/**
+      - migrations/**
+      - Dockerfile
+      - .dockerignore
+      - pyproject.toml
+      - uv.lock
+      - README.md
+      - alembic.ini
+      - .github/workflows/images.yml
+  workflow_dispatch:
+
+# A newer push makes an in-flight build irrelevant.
+concurrency:
+  group: images-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # arm64 natively, like the t4g.medium nodes the images run on and the Mac that builds
+    # them for a deployment, so nothing is built under emulation. Standard arm64 runners
+    # reached private repositories on 2026-01-29 and draw on the plan's included minutes.
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, worker]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Same shape as `make ecr-images` produces: the commit as the revision label, and no
+      # provenance attestation, which would wrap the image in an index that nothing here
+      # reads.
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          platforms: linux/arm64
+          push: false
+          provenance: false
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          # The builder stage downloads 63 MB of model weights in a layer that depends only
+          # on the lockfile, so caching it saves most of a cold build. Scoped per target,
+          # since the two share a builder stage but not a final one.
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
