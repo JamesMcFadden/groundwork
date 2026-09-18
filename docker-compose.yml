@@ -13,11 +13,18 @@ services:
       S3_ENDPOINT: http://minio:9000
     ports:
       - "8000:8000"
+    # Both one-shots must finish first: the schema has to exist before the api opens a
+    # pool against it, and the bucket before the first upload, which would otherwise fail
+    # with NoSuchBucket while createbucket was still running.
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      createbucket:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD
@@ -42,6 +49,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      createbucket:
+        condition: service_completed_successfully
     # No healthcheck: the worker serves no HTTP, so the api's probe does not
     # transfer here. On Kubernetes its liveness probe reads the age of a file the
     # worker touches instead; see docs/kubernetes.md.
@@ -86,6 +97,23 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # One-shot: applies the schema, then exits, so `docker compose up` is the whole setup
+  # and a fresh clone needs no Python on the host. It runs the migrations from the api
+  # image, which ships them and alembic.ini, so there is no second image and no second
+  # copy of the connection settings. Run again on an up-to-date database it finds nothing
+  # to do, which is what makes it safe on every `up` rather than only the first.
+  migrate:
+    build:
+      context: .
+      target: api
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
 
   # One-shot: creates the bucket on a fresh volume, then exits. Without this the
   # first upload fails with NoSuchBucket. It runs the application's own storage code from
