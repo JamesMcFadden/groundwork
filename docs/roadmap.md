@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — `docs: record the deployment timing`
+**Next item:** M8 — `docs: record the deployment timing`, the measured run itself
 **Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
@@ -1073,6 +1073,9 @@ first is named below.
 - [x] `fix(config): default the documented setup to the stub generator`, added while
       planning the bring-up: the decision below about `.env.example` belongs to no
       other commit's subject
+- [x] `feat(load): add a deployment measurement`, split from the item below while
+      writing it: the script is not a docs change, and it refuses to record from code
+      that differs from HEAD, which needs it committed before the run
 - [ ] `docs: record the deployment timing`
 - [ ] `docs: add a runbook`
 - [ ] `docs: record results in the readme`
