@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — `feat(compose): run migrations as a one-shot service`
+**Next item:** M8 — `ci: push images to ecr on demand`
 **Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
@@ -1064,12 +1064,15 @@ key. The estimate stays at 3h, decided after planning put the work nearer five; 
 roadmap's rule is that a milestone running far over is a signal to cut, and what is cut
 first is named below.
 
-- [ ] `feat(compose): run migrations as a one-shot service`
-- [ ] `ci: run the suite daily on a schedule`
-- [ ] `test: name each live test in the log`
-- [ ] `ci: build the api and worker images on every push to main`
-- [ ] `feat(infra): add a github oidc role for ecr pushes`
+- [x] `feat(compose): run migrations as a one-shot service`
+- [x] `ci: run the suite daily on a schedule`
+- [x] `test: name each live test in the log`
+- [x] `ci: build the api and worker images on every push to main`
+- [x] `feat(infra): add a github oidc role for ecr pushes`
 - [ ] `ci: push images to ecr on demand`
+- [ ] `fix(config): default the documented setup to the stub generator`, added while
+      planning the bring-up: the decision below about `.env.example` belongs to no
+      other commit's subject
 - [ ] `docs: record the deployment timing`
 - [ ] `docs: add a runbook`
 - [ ] `docs: record results in the readme`
