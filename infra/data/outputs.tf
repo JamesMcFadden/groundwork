@@ -48,3 +48,8 @@ output "database_password" {
   value       = random_password.database.result
   sensitive   = true
 }
+
+output "github_actions_role_arn" {
+  description = "The role GitHub Actions assumes to push images, for the workflow's role-to-assume."
+  value       = aws_iam_role.github_actions.arn
+}
