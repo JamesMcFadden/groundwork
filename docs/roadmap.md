@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — `docs: record the deployment timing`, the measured run itself
+**Next item:** M8 — `docs: add a runbook`
 **Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
@@ -1076,7 +1076,7 @@ first is named below.
 - [x] `feat(load): add a deployment measurement`, split from the item below while
       writing it: the script is not a docs change, and it refuses to record from code
       that differs from HEAD, which needs it committed before the run
-- [ ] `docs: record the deployment timing`
+- [x] `docs: record the deployment timing`
 - [ ] `docs: add a runbook`
 - [ ] `docs: record results in the readme`
 - [ ] `docs: close M8`
@@ -1172,6 +1172,47 @@ Checked 2026-09-18:
   public repository**, which its documentation states for public repositories alone. This
   repository is private, so the rule as documented does not reach it; the runbook records
   the symptom anyway, since a silent stop is hard to notice.
+
+Results, recorded 2026-09-18, from the run made at 21:53 UTC
+(`load/results/20260918T215345Z-deployment.json`).
+
+| Step | Time |
+| --- | --- |
+| `git clone` into an empty directory | 0.58 s |
+| `docker compose up -d --build`, cold | 37.21 s |
+| `/health/ready` answering 200 after it returned | 2.07 s |
+| **Documented setup, `up` to a ready API** | **39.28 s** |
+| `uam-risk.pdf` uploaded, indexed | 2.69 s, of which 1.82 s in the worker |
+
+- **Deployment met.** Every check passed at `847370c`. The copy of `.env.example` and one
+  `docker compose up` were the only commands: the migrate and bucket Jobs ran inside the
+  `up`, the API answered `/health/ready` 2.07 s later, and the golden question `a21`
+  returned `answered` citing `uam-risk.pdf`. The stub generator served it, as
+  `.env.example` now sets, so no key was needed.
+- **The run was cold, and checked to be.** Before it: the kind cluster stopped, both
+  Compose volumes deleted, all six `groundwork-api` and `groundwork-worker` images
+  removed — `:latest`, `:kind` from M6, and `:pinned-check` from M7 — and the
+  `desktop-linux` builder's cache pruned, 20.34 GB in 222 records, to nothing. The build
+  logged no `CACHED` step, and the images it produced are 907 MB each with a 408 MB
+  virtualenv and 65 MB of weights, the sizes M2 recorded. Base images were left in the
+  local store, as the rule allows.
+- **Prune the builder Compose uses, by name.** This Mac has two: `default`, which held no
+  cache, and `desktop-linux`, which held all 222 records and is the one Compose builds
+  with. An unqualified prune could have emptied the wrong one and reported success.
+- **A cold build takes about 40 seconds, not the three to five minutes estimated.** The
+  estimate came from M7's first `make ecr-images`, 2 min 43 s, read as a build cost; most
+  of that was pushing about 1.8 GB to ECR. `uv sync` over 81 packages and the 63 MB model
+  download are together far cheaper than assumed. The figure is reported with no target,
+  so nothing turned on the estimate being wrong, but it is recorded so the next estimate
+  starts from a measurement.
+- **The recorded `seconds_to_ready` field holds only the wait after `up` returned.** The
+  rule's figure, `up` to a ready API, is that plus the command's own time, both of which
+  the run records; 39.28 s is their sum. A later run should record the sum outright.
+- **The measurement's own limits.** One run on one machine, on a network whose speed is
+  not recorded, with the base images already pulled. It shows the documented steps work
+  from nothing project-specific; it is not a claim about how long this takes anywhere
+  else. The command output kept in the record is the last 2000 characters of each stream,
+  so the build's earlier steps are not in it.
 
 ## Stack decisions
 
