@@ -3,12 +3,12 @@
 Lightweight backlog. Detail is added for the current milestone only; future milestones
 stay one line until they are next.
 
-**Now:** M7 — AWS
+**Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M7 — start branch `m7-aws`
-**Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, and M6 took their
-estimated 11h, 7h, 9.5h, 4h, 4h, 2h, and 6h.
+**Next item:** M8 — plan the milestone: add its detail section before starting work
+**Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
+estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
 ## Milestones
 
@@ -23,7 +23,7 @@ proportionate: a milestone running far over is a signal to cut, not to continue.
 - [x] **M4** (4h) Hybrid retrieval — FTS + RRF, dense-vs-hybrid ablation
 - [x] **M5** (2h) Hardening — API key, query scoping, logging, 503, reindex
 - [x] **M6** (6h) Kubernetes on kind — manifests, probes, scaling and pod-kill evidence
-- [ ] **M7** (9h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
+- [x] **M7** (9h) AWS — Terraform (S3/ECR/RDS), eksctl + IRSA, deploy and tear down
 - [ ] **M8** (3h) CI/CD + write-up — ECR push, scheduled CI, README results, runbook
 
 M3 and M4 are what distinguish this from an LLM demo. If time runs short, cut M7 to
@@ -750,6 +750,8 @@ against the corpus seeded as `load-corpus-20260913T163342Z`. Each run's record i
   from k6's own summary and are unaffected.
 
 ## M7 — AWS
+
+Merged through PR #8 as `33a06f9`.
 
 Planned 2026-09-13. The estimate was raised the same day from 6h to 9h. The milestone's
 line was written in M0, and four things it did not foresee each add work: reaching S3
