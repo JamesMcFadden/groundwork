@@ -128,6 +128,9 @@ provider needs. The commands run from the repository's root.
    Check public DNS over HTTPS like this rather than with the machine's own resolver, which
    can cache the old nameservers for hours; see the operating notes.
 
+   The domain itself is registered at Porkbun, with auto-renew on, and runs to 2027-09-13.
+   Renewal happens at the registrar, not in AWS, and the nameservers stay as they are.
+
 ## Bringing it up
 
 About 35 minutes, most of it waiting for RDS and EKS.
@@ -279,3 +282,11 @@ registrar, and the certificate could not renew.
 - **Image scans are in ECR.** `aws ecr describe-image-scan-findings --repository-name
   groundwork-api --image-id imageTag=<commit>` lists them. Both images carry findings in
   Debian 12 packages from the base image; moving to Debian 13 is parked in the roadmap.
+- **The certificate renews only while something uses it.** ACM renews a public certificate
+  automatically when it is associated with an AWS service, so between deployments, attached
+  to nothing, it reports its renewal eligibility as ineligible. That is expected: the next
+  deployment's load balancer attaches it again, and the zone keeps its validation record
+  meanwhile, which is what renewal needs. The certificate issued in M7 runs to 2027-03-29.
+  Should one expire, a replacement is issued by
+  `terraform -chdir=infra/dns apply -replace=aws_acm_certificate.api`, with no change at the
+  registrar.
