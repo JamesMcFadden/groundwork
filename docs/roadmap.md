@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — plan the milestone: add its detail section before starting work
+**Next item:** M8 — `feat(compose): run migrations as a one-shot service`
 **Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
@@ -1052,6 +1052,120 @@ within its day, as carried. Each time is from the step's own output.
   the deleted volumes and network interfaces; direct EC2 lookups found them gone.
 - **The session's cost** is read from billing once it reports the day, which can take up
   to a day.
+
+## M8 — CI/CD + write-up
+
+Planned 2026-09-18. The milestone's line was written in M0 and names four things: an ECR
+push, scheduled CI, README results, and a runbook. Three carried decisions name M8 and
+join them. Planning found two more that the line did not foresee: one `docker compose up`
+does not bring the service up today, since migrations run from the host, and pushing
+images from CI needs an IAM role, because M7 deliberately left the account with no access
+key. The estimate stays at 3h, decided after planning put the work nearer five; the
+roadmap's rule is that a milestone running far over is a signal to cut, and what is cut
+first is named below.
+
+- [ ] `feat(compose): run migrations as a one-shot service`
+- [ ] `ci: run the suite daily on a schedule`
+- [ ] `test: name each live test in the log`
+- [ ] `ci: build the api and worker images on every push to main`
+- [ ] `feat(infra): add a github oidc role for ecr pushes`
+- [ ] `ci: push images to ecr on demand`
+- [ ] `docs: record the deployment timing`
+- [ ] `docs: add a runbook`
+- [ ] `docs: record results in the readme`
+- [ ] `docs: close M8`
+
+The milestone fills the Deployment row of [success-criteria.md](success-criteria.md), the
+last one unmeasured, and widens the CI row from "every PR" to a run that does not wait for
+a push. It is the last milestone, so `docs: record results in the readme` is where the
+project's figures stop being scattered across `docs/` and become the thing a reader sees
+first. Three decisions were carried to it; each is settled below.
+
+Decisions taken while planning:
+
+- **CI builds both images on every push to `main`, and pushes them only on demand.** The
+  build proves the Dockerfile works on a machine that is not this Mac, which is what "CD"
+  buys a one-person project here. It does not push, because `infra/data` holds the ECR
+  repositories and is destroyed with the cluster: a push on every commit would fail on
+  every day the stack is down, which is most of them. The push is a `workflow_dispatch`
+  job run when a deployment is happening, and it keeps `make ecr-images`' rule of leaving
+  an already-pushed tag alone, since ECR refuses to overwrite one. `make ecr-images` stays
+  as it is, for pushing from this Mac during a deployment.
+- **The images are built on `ubuntu-24.04-arm`,** natively for arm64 as the `t4g.medium`
+  nodes need, not under QEMU. These runners became available in private repositories on
+  2026-01-29 and draw on the plan's existing free minutes. Layers are cached between runs:
+  the builder stage downloads 63 MB of model weights, and that layer depends only on the
+  lockfile.
+- **CI authenticates to ECR through GitHub's OIDC provider, with no access key.** The
+  workflow takes `id-token: write` and assumes a role by `sts:AssumeRoleWithWebIdentity`,
+  with a trust policy naming this repository. M7 left the account with no access key on
+  purpose — the CLI signs in with `aws login` and MFA — and a long-lived key in a
+  repository secret would undo that. The provider and the role go in `infra/data`, beside
+  the ECR repositories, so they exist exactly when ECR does and teardown still leaves only
+  DNS. The role may push to the two repositories and nothing else.
+- **Compose runs migrations itself.** The Deployment criterion asks for a fresh
+  environment brought up by one `docker compose up`, and today the README needs
+  `uv sync` and `uv run alembic upgrade head` from the host first, so the criterion cannot
+  be met as written. A one-shot `migrate` service runs `alembic upgrade head` from the api
+  image, as `createbucket` already runs the bucket code from it, and `api` and `worker`
+  wait on it with `service_completed_successfully`. The host-side command stays documented
+  for the integration-test path, which needs the schema without the application containers.
+- **`.env.example` ships `GENERATOR=stub` active.** It says placeholder secrets work
+  locally, but it leaves `ANTHROPIC_API_KEY` empty with `GENERATOR=stub` commented out, and
+  the API refuses to start without one: a fresh clone following the README fails. The
+  documented path comes up with no paid key and answers from the top retrieved passage,
+  and the README says what to change for real answers. This is what the timed run measures,
+  so it is a change to the criterion's subject, not around it.
+- **The daily run is `ci.yml` on a `schedule`.** Breakage from outside the repository
+  otherwise waits for the next push, as MinIO's deleted Docker Hub images did on
+  2026-09-11. The concurrency group becomes per-event: it is `ci-${{ github.ref }}` with
+  `cancel-in-progress`, so a nightly run and a push on `main` would cancel each other
+  today. `live-claude.yml` is not scheduled — it calls a paid API, and nothing outside the
+  repository changes what it tests daily.
+- **The runbook is `docs/runbook.md`,** written around failures rather than platforms: an
+  ingestion backlog, a wedged or crash-looping worker, a database or object-store outage,
+  a key rotation, a certificate or domain renewal, and a stuck deployment. The per-platform
+  "Operating notes" in [kubernetes.md](kubernetes.md) and [aws.md](aws.md) stay where they
+  are and the runbook links them, since each is about running that platform rather than
+  about a symptom.
+- **If the milestone runs long, the on-demand ECR push is cut first** — the last two of
+  its three commits, leaving the build in CI. Pushing from this Mac already works and is
+  what every M7 deployment used; the IAM role is the one part of M8 with no measurement
+  and no reader depending on it. The write-up commits are not cut: this is the last
+  milestone, and an unreadable finished project is the worse outcome.
+
+Pre-registered rule, fixed before the measurement:
+
+- **Deployment.** One run, from a clone made into an empty directory on this Mac with no
+  `.env`, no built images, and no warmed Docker layer cache for this project, following
+  the README's documented steps unchanged. Met if the only commands needed are the copy of
+  `.env.example` and one `docker compose up`, and the service then answers a question
+  against a document uploaded in that same run. The wall-clock time from the `up` to a
+  ready API is reported with no target attached, and the run's commands and output are
+  recorded as the other runs are.
+- **A failure is recorded, not replaced.** A run after a fix is recorded beside the failed
+  one.
+
+Checked 2026-09-18:
+
+- **arm64 standard runners are available in private repositories**, from 2026-01-29, as
+  `ubuntu-24.04-arm` and `ubuntu-22.04-arm`. In a private repository they have 2 vCPUs and
+  8 GB, against 4 vCPUs in a public one, and they count against the plan's included
+  minutes rather than being billed separately.
+- **GitHub's OIDC provider for Actions** is `token.actions.githubusercontent.com`, and a
+  job that takes `id-token: write` can assume an AWS role by
+  `sts:AssumeRoleWithWebIdentity` with no stored key, the trust policy conditioned on the
+  repository and ref.
+- **Compose has no migrate service**, and `.env.example` leaves `ANTHROPIC_API_KEY` empty
+  with `GENERATOR=stub` commented out, so a fresh clone brought up from the README cannot
+  start the API.
+- **`live-claude.yml` runs `pytest -v` while `addopts` in `pyproject.toml` passes `-q`**,
+  and the two cancel, so passing tests show as dots. Failures are still named in pytest's
+  summary.
+- **GitHub disables scheduled workflows after 60 days without repository activity in a
+  public repository**, which its documentation states for public repositories alone. This
+  repository is private, so the rule as documented does not reach it; the runbook records
+  the symptom anyway, since a silent stop is hard to notice.
 
 ## Stack decisions
 
