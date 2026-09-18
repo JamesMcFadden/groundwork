@@ -4,8 +4,40 @@ A production-style RAG knowledge service. Users upload documents, the system ind
 them asynchronously, and questions are answered from retrieved source material with
 citations back to the originating document and page.
 
-**Status:** in progress — see [docs/success-criteria.md](docs/success-criteria.md) for the
-targets this project is being measured against.
+**Status:** complete. Every criterion in
+[docs/success-criteria.md](docs/success-criteria.md) has been measured against targets
+fixed before anything was built.
+
+## Results
+
+Each figure carries the conditions that produced it. The full table, the scoring rules,
+and what is deliberately not measured are in
+[docs/success-criteria.md](docs/success-criteria.md).
+
+| What | Result |
+| --- | --- |
+| Retrieval | Recall@5 **0.967** (29/30, hybrid) against a 0.90 target |
+| Citations | **0** invalid citations in 54 returned markers (n=38, `claude-opus-5`) |
+| Refusal | **8/8** unanswerable questions refused, with 1/30 false refusals |
+| API reliability | **100%** non-5xx over 140,828 requests, 30 VU × 5 min, stubbed generator |
+| Latency | **P95 243 ms** for `POST /questions` over 94,095 questions, excluding the model |
+| Ingestion | **4.05 s** for a 30-page PDF (n=1) |
+| Scaling | **2.12×** median throughput from 1→3 API replicas, P95 no worse |
+| Recovery | **0** failed requests when an API pod is deleted under load (n=3 runs) |
+| AWS | Served over TLS on EKS, answering against RDS, every smoke check passed |
+| Deployment | **39.3 s** from one `docker compose up` to a ready API, from a cold clone |
+
+The numbers measure retrieval quality **on this corpus**: the golden set is 30 answerable
+and 8 unanswerable questions over 6 documents, written from the source PDFs rather than
+from the chunks, and frozen since. At n=30 the interval around a 0.90 recall is wide, so
+no claim is made about retrieval in general. Load, scaling, and recovery were measured on
+kind with a stubbed answer generator, which keeps them about this service rather than a
+model provider's throughput; AWS proves the deployment path. Answer groundedness is
+enforced structurally, since citations must resolve to supplied chunks, but is not scored
+semantically — that needs a calibrated LLM judge, which was cut for time.
+
+The retrieval ablation behind the hybrid default, and the run that chose it, are in
+[docs/evaluation.md](docs/evaluation.md#results).
 
 ## Stack
 

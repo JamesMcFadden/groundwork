@@ -6,7 +6,7 @@ stay one line until they are next.
 **Now:** M8 — CI/CD + write-up
 **Branching:** M0 lands on `main`; from M1 each milestone gets a branch and a
 CI-gated PR.
-**Next item:** M8 — `docs: record results in the readme`
+**Next item:** M8 — merge PR #9, then `docs: close M8` on `main`
 **Budget:** ~55.5h total, range 44–60h. M0, M1, M2, M3, M4, M5, M6, and M7 took their
 estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, and 9h.
 
@@ -1078,7 +1078,7 @@ first is named below.
       that differs from HEAD, which needs it committed before the run
 - [x] `docs: record the deployment timing`
 - [x] `docs: add a runbook`
-- [ ] `docs: record results in the readme`
+- [x] `docs: record results in the readme`
 - [ ] `docs: close M8`
 
 The milestone fills the Deployment row of [success-criteria.md](success-criteria.md), the
