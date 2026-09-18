@@ -9,9 +9,10 @@ stay one line until they are next.
 CI-gated PR.
 **Next item:** none. Anything further starts from [Parked](#parked), which is a list of
 ideas rather than a plan.
-**Budget:** ~55.5h total, range 44–60h. M0 to M7 took their estimated 11h, 7h, 9.5h, 4h,
-4h, 2h, 6h, and 9h. M8 was held at its 3h estimate after planning put the work nearer
-five, and ran to thirteen commits against the ten planned; its hours are not recorded.
+**Budget:** ~55.5h total, range 44–60h, and that is what it took: M0 to M8 ran to their
+estimated 11h, 7h, 9.5h, 4h, 4h, 2h, 6h, 9h, and 3h. M8 held its 3h after planning put the
+work nearer five, and ran to thirteen commits against the ten planned; each addition is
+marked below with why.
 
 ## Milestones
 
