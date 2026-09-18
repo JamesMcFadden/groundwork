@@ -178,3 +178,82 @@ resource "aws_db_instance" "database" {
   deletion_protection        = false
   apply_immediately          = true
 }
+
+# How GitHub Actions pushes images without an access key. The account deliberately has
+# none: the CLI signs in with `aws login` and MFA, and a long-lived key in a repository
+# secret would undo that. A workflow that asks for an OIDC token assumes the role below
+# instead, and holds credentials for the length of one job.
+#
+# Here rather than in infra/dns because it grants access to the ECR repositories above:
+# created and destroyed with them, so a teardown still leaves only DNS.
+variable "github_repository" {
+  description = "The repository allowed to assume the image-push role, as owner/name."
+  type        = string
+  default     = "JamesMcFadden/groundwork"
+}
+
+# No thumbprint_list: IAM trusts this provider through its own CA store, and a pinned
+# thumbprint would be one more thing to rotate when GitHub's certificate changes.
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = []
+}
+
+# Only this repository, and only from main. A wildcard over refs would let any branch, and
+# so any pull request that reaches a workflow, push an image to a deployment's registry.
+data "aws_iam_policy_document" "github_actions_assume" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_repository}:ref:refs/heads/main"]
+    }
+  }
+}
+
+# Pushing an image and reading back what is already pushed, in the two repositories above.
+# GetAuthorizationToken takes no resource, which is why it is a statement of its own.
+data "aws_iam_policy_document" "ecr_push" {
+  statement {
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage",
+      "ecr:BatchGetImage",
+      "ecr:DescribeImages",
+    ]
+    resources = [for repository in aws_ecr_repository.image : repository.arn]
+  }
+}
+
+resource "aws_iam_role" "github_actions" {
+  name               = "groundwork-github-actions"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_assume.json
+}
+
+resource "aws_iam_role_policy" "github_actions_ecr_push" {
+  name   = "ecr-push"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.ecr_push.json
+}

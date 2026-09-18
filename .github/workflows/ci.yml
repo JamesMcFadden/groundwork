@@ -5,10 +5,23 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Daily, so breakage from outside the repository is found within a day rather than
+  # waiting for the next push: MinIO's Docker Hub images were deleted between two runs on
+  # 2026-09-11 and surfaced only because a docs commit happened to follow. Off the top of
+  # the hour, where scheduled runs bunch and are delayed. live-claude.yml is not scheduled:
+  # it calls a paid API, and nothing outside the repository changes what it tests daily.
+  schedule:
+    - cron: "17 4 * * *"
+  # So a nightly failure can be re-run once its outside cause is fixed, without a commit
+  # made only to trigger CI.
+  workflow_dispatch:
 
-# A newer push to the same branch makes an in-flight run irrelevant.
+# A newer run of the same trigger makes an in-flight one irrelevant. The event is in the
+# group because a scheduled run's ref is `refs/heads/main`, exactly a push to main's: in
+# one group they would cancel each other, and the nightly run would stop finishing on the
+# days the repository is busy, which are the days it is least redundant.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -43,5 +43,10 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
+      # `-o addopts=''` clears the ini value rather than out-counting it. pytest's
+      # verbosity is a counter, and `addopts` in pyproject.toml passes `-q`, so a plain
+      # `-v` here cancelled to the default and every passing test showed as a dot. This is
+      # the one workflow whose runs cost money, so its log names what it ran. Clearing
+      # addopts also drops its `-m 'not live'`, which this command replaces with `-m live`.
       - name: Live Claude tests
-        run: uv run pytest -m live tests/live -v
+        run: uv run pytest -o addopts='' -m live tests/live -v

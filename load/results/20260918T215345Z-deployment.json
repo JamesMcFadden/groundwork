@@ -1,0 +1,82 @@
+{
+  "label": "deployment",
+  "rule": "docs/roadmap.md, M8, pre-registered rule Deployment",
+  "note": "Cold run on this Mac: no groundwork-api/worker images, both Compose volumes deleted, desktop-linux build cache emptied (20.34 GB, 222 records). Base images left in the local store, as the rule allows. The kind cluster was stopped so it could not compete for CPU.",
+  "started_at": "2026-09-18T21:53:45.774378+00:00",
+  "ended_at": "2026-09-18T21:54:29.758355+00:00",
+  "revision": "847370c6e268d6afac663fe8c469923d2a646a77",
+  "clone": "/private/tmp/claude-501/-Users-jamesmcfadden-Developer-groundwork/89f0abe9-72b7-480f-a22c-3115bc4db817/scratchpad/measure",
+  "cold": {
+    "images_absent": [
+      "groundwork-api",
+      "groundwork-worker"
+    ],
+    "volumes_absent": [
+      "groundwork_pgdata",
+      "groundwork_miniodata"
+    ],
+    "build_cache_records": 0,
+    "base_images": "left in the local store, as the rule allows"
+  },
+  "document": "uam-risk.pdf",
+  "golden_sha256": "c9ece53bf82daa915356a968eadce626fb68801f26ff2b387ec283c6290b67e9",
+  "commands": [
+    {
+      "command": "git clone /Users/jamesmcfadden/Developer/groundwork /private/tmp/claude-501/-Users-jamesmcfadden-Developer-groundwork/89f0abe9-72b7-480f-a22c-3115bc4db817/scratchpad/measure",
+      "seconds": 0.58,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "Cloning into '/private/tmp/claude-501/-Users-jamesmcfadden-Developer-groundwork/89f0abe9-72b7-480f-a22c-3115bc4db817/scratchpad/measure'...\ndone.\n"
+    },
+    {
+      "command": "docker compose up -d --build",
+      "seconds": 37.21,
+      "returncode": 0,
+      "stdout": "] exporting to image\n#30 exporting layers 6.3s done\n#30 exporting manifest sha256:281cbbf3768f833e2a781f5af73b201e16beda01316c323d8d456ae3be547032 0.0s done\n#30 exporting config sha256:32fbb637b60dff49a17109ca6380e52f071e59f7dd4740c5d91d5e7a8b08fe28 0.0s done\n#30 exporting attestation manifest sha256:dcb5e126dddc56c3372a507c40815567ac4ec7934e5ee67791913cd5c83f866b 0.0s done\n#30 exporting manifest list sha256:4c443b28a52d0e9f25975329dac7dcfbc27e763613400ff8519fa5b9a2ceeb48 done\n#30 naming to docker.io/library/groundwork-api:latest done\n#30 unpacking to docker.io/library/groundwork-api:latest\n#30 ...\n\n#31 [createbucket] exporting to image\n#31 exporting layers 6.3s done\n#31 exporting manifest sha256:0fdc0e46778ab4786a72ef170cb703183a60e47e49f3616b883c369a536c3c73 0.0s done\n#31 exporting config sha256:943f90a28590ad3c5d39059555a495241df36702e916fb2939659f4159eaa7ad 0.0s done\n#31 exporting attestation manifest sha256:a80ca4fff87cb9688f523a945ff014680ddca29217af75dca01bbe7e4e58eb63 0.0s done\n#31 exporting manifest list sha256:fb93ecc9e5ff2b6a52c0662931fea403f43972e22a3d54e2caa53033c595465c done\n#31 naming to docker.io/library/groundwork-createbucket:latest done\n#31 unpacking to docker.io/library/groundwork-createbucket:latest\n#31 ...\n\n#29 [worker] exporting to image\n#29 unpacking to docker.io/library/groundwork-worker:latest 5.2s done\n#29 DONE 11.7s\n\n#31 [createbucket] exporting to image\n#31 unpacking to docker.io/library/groundwork-createbucket:latest 5.2s done\n#31 DONE 11.6s\n\n#30 [api] exporting to image\n#30 unpacking to docker.io/library/groundwork-api:latest 5.2s done\n#30 DONE 11.6s\n\n#28 [migrate] exporting to image\n#28 unpacking to docker.io/library/groundwork-migrate:latest 5.2s done\n#28 DONE 11.6s\n\n#32 [worker] resolving provenance for metadata file\n#32 DONE 0.1s\n\n#33 [api] resolving provenance for metadata file\n#33 DONE 0.1s\n\n#34 [migrate] resolving provenance for metadata file\n#34 DONE 0.0s\n\n#35 [createbucket] resolving provenance for metadata file\n#35 DONE 0.0s\n",
+      "stderr": "k groundwork_default  Created\n Volume groundwork_pgdata  Creating\n Volume groundwork_pgdata  Created\n Volume groundwork_miniodata  Creating\n Volume groundwork_miniodata  Created\n Container groundwork-minio-1  Creating\n Container groundwork-postgres-1  Creating\n Container groundwork-postgres-1  Created\n Container groundwork-migrate-1  Creating\n Container groundwork-minio-1  Created\n Container groundwork-createbucket-1  Creating\n Container groundwork-migrate-1  Created\n Container groundwork-createbucket-1  Created\n Container groundwork-api-1  Creating\n Container groundwork-worker-1  Creating\n Container groundwork-worker-1  Created\n Container groundwork-api-1  Created\n Container groundwork-postgres-1  Starting\n Container groundwork-minio-1  Starting\n Container groundwork-postgres-1  Started\n Container groundwork-postgres-1  Waiting\n Container groundwork-minio-1  Started\n Container groundwork-minio-1  Waiting\n Container groundwork-postgres-1  Healthy\n Container groundwork-migrate-1  Starting\n Container groundwork-minio-1  Healthy\n Container groundwork-createbucket-1  Starting\n Container groundwork-createbucket-1  Started\n Container groundwork-migrate-1  Started\n Container groundwork-minio-1  Waiting\n Container groundwork-migrate-1  Waiting\n Container groundwork-createbucket-1  Waiting\n Container groundwork-postgres-1  Waiting\n Container groundwork-minio-1  Waiting\n Container groundwork-migrate-1  Waiting\n Container groundwork-createbucket-1  Waiting\n Container groundwork-postgres-1  Waiting\n Container groundwork-postgres-1  Healthy\n Container groundwork-postgres-1  Healthy\n Container groundwork-minio-1  Healthy\n Container groundwork-minio-1  Healthy\n Container groundwork-createbucket-1  Exited\n Container groundwork-createbucket-1  Exited\n Container groundwork-migrate-1  Exited\n Container groundwork-worker-1  Starting\n Container groundwork-migrate-1  Exited\n Container groundwork-api-1  Starting\n Container groundwork-worker-1  Started\n Container groundwork-api-1  Started\n"
+    }
+  ],
+  "checks": {
+    "documented_steps_succeed": {
+      "passed": true,
+      "commands": [
+        "docker compose up -d --build"
+      ],
+      "seconds": 37.21
+    },
+    "api_becomes_ready": {
+      "passed": true,
+      "seconds": 2.07
+    },
+    "collection_created": {
+      "passed": true,
+      "status": 201
+    },
+    "document_accepted": {
+      "passed": true,
+      "status": 202
+    },
+    "document_indexed": {
+      "passed": true,
+      "job": "completed"
+    },
+    "question_answered": {
+      "passed": true,
+      "status": 201,
+      "outcome": "answered",
+      "question_id": "a21"
+    }
+  },
+  "seconds_to_ready": 2.07,
+  "ingestion_job": {
+    "id": "f9ed056d-4595-458b-a5b3-b547a3a21d0e",
+    "document_id": "906a2112-bdfa-4e3d-8874-8e7f0e23a53d",
+    "status": "completed",
+    "attempts": 1,
+    "error": null,
+    "created_at": "2026-09-18T21:54:25.669969Z",
+    "started_at": "2026-09-18T21:54:26.536549Z",
+    "finished_at": "2026-09-18T21:54:28.357794Z"
+  },
+  "verdict": "met"
+}

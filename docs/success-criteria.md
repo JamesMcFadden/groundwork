@@ -23,7 +23,7 @@ Two rules govern it:
 | Scaling | 1→3 API replicas ≥ 1.8× throughput, P95 no worse | k6 on kind | met: 2.12× median throughput, 111.4 against 52.6 requests/s, and median P95 381 against 941 ms (n=3 runs each, 2026-09-13); the third pair alone gave 1.64× |
 | Recovery | Graceful pod deletion under load → zero failed requests | k6 error rate | met: 0 failed requests in each of 3 runs, one of 3 API pods deleted 2 minutes in (2026-09-13) |
 | AWS | Reachable via LoadBalancer, answering against RDS | smoke test | met: every check passed at `https://api.groundworkproj.com`, served over TLS through a Network Load Balancer on EKS; `uam-risk.pdf` indexed in 23.1 s and the golden question `a21` answered citing it, against RDS PostgreSQL 16.15 with pgvector 0.8.2 (2026-09-14, [run](roadmap.md#m7--aws)) |
-| Deployment | Fresh environment from documented steps; one `docker compose up` | manual, timed | not yet measured |
+| Deployment | Fresh environment from documented steps; one `docker compose up` | `load/deployment.py`, timed | met: a clone with no `.env`, no images, and an empty build cache came up and answered on `cp .env.example .env` and one `docker compose up`, in 39.3 s to a ready API (2026-09-18, [run](roadmap.md#m8--cicd--write-up)) |
 | CI | Every PR runs lint, types, tests, retrieval eval | GitHub Actions | met: all four run on every pull request and push to `main` (from PR #4, 2026-09-12) |
 
 Reported alongside, with no target attached:
@@ -115,6 +115,12 @@ roadmap's Parked list; the honest statement is that grounding is enforced struct
   `make eval-live`, the run that answers with Claude; `make eval` answers with a stub that
   cannot refuse or miscite, so it leaves both unmeasured. Only the command named in
   "Measured by" changed. No target changed.
+- **2026-09-18, recording the result.** Deployment is measured by `load/deployment.py`
+  rather than by hand: the run has preconditions a person cannot be trusted to hold in
+  their head, and the script refuses to run with the images built, the volumes present, or
+  any build cache. Only the entry in "Measured by" changed. No target changed, and the
+  criterion had none to change: the time is reported alongside, as the rule fixed in M8
+  says.
 - **2026-09-13, before any measurement.** Recovery names graceful pod deletion: a pod
   deleted with its grace period, as `kubectl delete pod` does by default. A forced
   deletion or a crash loses the requests in flight on that pod whatever the service does,
