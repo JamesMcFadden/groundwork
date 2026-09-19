@@ -54,7 +54,10 @@ The retrieval ablation behind the hybrid default, and the run that chose it, are
 
 ## Development
 
-Requires [uv](https://docs.astral.sh/uv/), Python 3.12, and Docker.
+Requires [uv](https://docs.astral.sh/uv/), Python 3.12, and Docker. The walkthrough under
+[Running the service](#running-the-service) also reads responses with
+[jq](https://jqlang.github.io/jq/), a system binary rather than a Python package:
+`brew install jq`, or your platform's equivalent.
 
 ```bash
 cp .env.example .env        # placeholder secrets work locally; change them for anything shared
