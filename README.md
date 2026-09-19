@@ -117,6 +117,10 @@ deployment that sets neither fails at startup rather than quietly stubbing.
 Every route but `/health` needs the `X-API-Key` header to match `API_KEY` in `.env`, and
 the API refuses to start without one.
 
+Pasting this into an interactive zsh, run `setopt interactive_comments` first: zsh leaves
+comments off in interactive shells, so each `#` line is run as a command and fails
+harmlessly but noisily. bash needs nothing.
+
 ```bash
 # applies migrations, creates the bucket, and waits until the api is healthy
 docker compose up -d --build --wait
@@ -143,10 +147,10 @@ done)
 echo "$JOBS"
 
 # wait for every upload: a question asked before this answers from an empty index
-# read rather than `for job in $JOBS`: zsh does not split an unquoted variable into words
+# read rather than a for loop: zsh does not split an unquoted variable into words
 echo "$JOBS" | while read -r job; do
   while :; do
-    # not `status`, which zsh reserves as a read-only alias for $?
+    # not the name status, which zsh reserves as a read-only alias for $?
     state=$(curl -s localhost:8000/jobs/$job -H "x-api-key: $KEY" | jq -r .status)
     case $state in completed|failed) echo "$job $state"; break ;; esac
     sleep 2
