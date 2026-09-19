@@ -3,8 +3,8 @@ import uuid
 from collections.abc import Iterator
 
 import pytest
-from sqlalchemy import Engine, select, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import Connection, Engine, event, select, text
+from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 
 from app.config import get_settings
 from app.db.models import EMBEDDING_DIM, Chunk, Collection, Document, User
@@ -57,6 +57,33 @@ def ingested(sessions: sessionmaker[Session], embedder: Embedder) -> IngestedCor
     return ingest_corpus(sessions, embedder, documents, email=TEST_EMAIL)
 
 
+def searching_exactly(sessions: sessionmaker[Session]) -> sessionmaker[Session]:
+    """Leave vector search no index scan to use, for every session this factory opens.
+
+    HNSW is approximate, and over a `chunks` table churned by earlier runs it can miss a
+    true neighbour: on 2026-09-18 the two scoring tests below failed locally for that
+    reason, dense search returning no hit where the answer sits third. The tests are about
+    how a run is scored and compared, not about the index's recall, so they search exactly,
+    as `exact` in test_retrieval.py does for fusion.
+
+    A small collection is no defence. The index is over the whole table, and the search
+    filters by collection afterwards, so chunks belonging to a three-row collection can be
+    missed however few they are.
+
+    The setting is per transaction, and `run_retrieval` opens its own sessions rather than
+    taking one, so it is applied as each transaction begins. The `sessions` fixture builds
+    a factory per test, so this reaches no other test.
+    """
+
+    @event.listens_for(sessions, "after_begin")
+    def _no_index_scan(
+        session: Session, transaction: SessionTransaction, connection: Connection
+    ) -> None:
+        connection.execute(text("SET LOCAL enable_indexscan = off"))
+
+    return sessions
+
+
 def test_every_question_is_scored_from_the_services_search(
     sessions: sessionmaker[Session],
     embedder: Embedder,
@@ -93,7 +120,9 @@ def test_a_question_embedded_as_its_answers_chunk_ranks_that_chunk_first(
         vector = [float(x) for x in holding.embedding]
 
     single = GoldenSet(answerable=(question,), unanswerable=(), sha256="")
-    report = run_retrieval(sessions, lambda _: vector, ingested.collection_id, single, "dense")
+    report = run_retrieval(
+        searching_exactly(sessions), lambda _: vector, ingested.collection_id, single, "dense"
+    )
 
     (result,) = report.answerable
     assert (result.rank_at_5, result.rank_at_10) == (1, 1)
@@ -162,6 +191,7 @@ def test_questions_are_scored_from_the_search_the_retriever_names(
 ) -> None:
     """A harness that searched one way whatever it was told would score one of these wrongly."""
     collection_id, golden = ranked_differently(sessions)
+    sessions = searching_exactly(sessions)
 
     dense = run_retrieval(sessions, lambda _: axis(0), collection_id, golden, "dense")
     hybrid = run_retrieval(sessions, lambda _: axis(0), collection_id, golden, "hybrid")
@@ -179,6 +209,7 @@ def test_the_retrievers_are_compared_on_the_same_questions(
     sessions: sessionmaker[Session],
 ) -> None:
     collection_id, golden = ranked_differently(sessions)
+    sessions = searching_exactly(sessions)
 
     comparison = compare_retrievers(sessions, lambda _: axis(0), collection_id, golden)
 
