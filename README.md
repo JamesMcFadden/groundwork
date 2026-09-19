@@ -127,9 +127,11 @@ KEY=$(grep '^API_KEY=' .env | cut -d= -f2)
 # check connectivity
 curl -s localhost:8000/health/ready
 
-# create a collection, keeping its id for the commands below
+# create a collection, keeping its id for the commands below. The name carries the time,
+# since a repeated name answers 409 and $CID would be the string "null" from here on
 CID=$(curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
-  -H 'content-type: application/json' -d '{"name": "demo"}' | jq -r .id)
+  -H 'content-type: application/json' \
+  -d "{\"name\": \"demo-$(date -u +%Y%m%dT%H%M%SZ)\"}" | jq -r .id)
 
 # upload (general command) -> 202 {"document_id", "job_id", "status"}
 curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
@@ -141,8 +143,12 @@ JOBS=$(for f in eval/corpus/*.pdf; do
     -F collection_id=$CID -F file=@"$f" | jq -r .job_id
 done)
 
-# expect six UUIDs, no "null" lines
+# confirm uploading is done: expect six UUIDs, no "null" lines
 echo "$JOBS"
+
+# confirm indexing is done, should return complete
+curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY" | jq '{status, attempts, error, finished_at}'
+
 
 # (general command) poll one job: queued, running, then completed or failed
 curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"
