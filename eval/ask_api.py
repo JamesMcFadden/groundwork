@@ -115,10 +115,14 @@ def judge_unanswerable(question: UnanswerableQuestion, status: int, body: Any) -
 
 
 def render(asked: Asked, signal: str) -> str:
-    """One line per question: what came back, and whether it carried the signal."""
+    """One line per question: what came back, and whether it carried the signal.
+
+    Outcome and signal are padded to the widest each can be, so the answerable lines and
+    the unanswerable ones below them keep the same columns despite different signals.
+    """
     cited = ", ".join(asked.cited) if asked.cited else "-"
-    carried = "yes" if asked.signal else "no"
-    return f"{asked.id}  {asked.status}  {asked.outcome:<22}  {signal}={carried}  {cited}"
+    carried = f"{signal}={'yes' if asked.signal else 'no'}"
+    return f"{asked.id}  {asked.status}  {asked.outcome:<22}  {carried:<27}  {cited}"
 
 
 def tally(asked: Sequence[Asked]) -> tuple[int, int]:

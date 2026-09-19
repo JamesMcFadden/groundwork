@@ -127,3 +127,14 @@ def test_a_failed_ingestion_is_reported_rather_than_asked_over() -> None:
 
     assert failures(jobs) == ("j2",)
     assert failures({"j1": "completed"}) == ()
+
+
+def test_answerable_and_unanswerable_lines_keep_the_same_columns() -> None:
+    """The signals differ in length, and unpadded they moved the cited column between
+    the two groups, which the readme's sample output showed aligned."""
+    answered = Asked(id="a01", status=201, outcome="answered", cited=("a.pdf",), signal=True)
+    refused = Asked(id="u01", status=201, outcome="insufficient_evidence", cited=(), signal=True)
+
+    lines = [render(answered, "cited-evidence-document"), render(refused, "refused")]
+
+    assert lines[0].index("a.pdf") == lines[1].index("-")
