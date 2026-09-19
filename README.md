@@ -141,14 +141,19 @@ JOBS=$(for f in eval/corpus/*.pdf; do
     -F collection_id=$CID -F file=@"$f" | jq -r .job_id
 done)
 
-# poll one job (general command): queued, running, then completed or failed
+# expect six UUIDs, no "null" lines
+echo "$JOBS"
+
+# (general command) poll one job: queued, running, then completed or failed
 curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"
 
 # wait for every upload: a question asked before this answers from an empty index
-for job in $JOBS; do
+# read rather than `for job in $JOBS`: zsh does not split an unquoted variable into words
+echo "$JOBS" | while read -r job; do
   while :; do
-    status=$(curl -s localhost:8000/jobs/$job -H "x-api-key: $KEY" | jq -r .status)
-    case $status in completed|failed) echo "$job $status"; break ;; esac
+    # not `status`, which zsh reserves as a read-only alias for $?
+    state=$(curl -s localhost:8000/jobs/$job -H "x-api-key: $KEY" | jq -r .status)
+    case $state in completed|failed) echo "$job $state"; break ;; esac
     sleep 2
   done
 done
@@ -156,7 +161,7 @@ done
 # queues a stored document for ingestion again (general command), after a failed one
 curl -s -X POST localhost:8000/documents/<document id>/reindex -H "x-api-key: $KEY"
 
-# ask (general command) -> 201 with answer, citations, per-stage timings
+# (general command) ask -> 201 with answer, citations, per-stage timings
 curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d '{"collection_id": "<collection id>", "question": "What does the report conclude?"}'
 ```
