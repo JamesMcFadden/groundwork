@@ -115,17 +115,79 @@ Every route but `/health` needs the `X-API-Key` header to match `API_KEY` in `.e
 the API refuses to start without one.
 
 ```bash
-docker compose up -d --build                # applies migrations and creates the bucket too
-KEY=change-me                               # API_KEY from .env
-curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
-  -H 'content-type: application/json' -d '{"name": "demo"}'
+# applies migrations, creates the bucket, and waits until the api is healthy
+docker compose up -d --build --wait
+
+# API_KEY from .env
+KEY=$(grep '^API_KEY=' .env | cut -d= -f2)
+
+# check connectivity
+curl -s localhost:8000/health/ready
+
+# create a collection, keeping its id for the commands below
+CID=$(curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
+  -H 'content-type: application/json' -d '{"name": "demo"}' | jq -r .id)
+
+# upload (general command) -> 202 {"document_id", "job_id", "status"}
 curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
   -F collection_id=<collection id> -F file=@report.pdf
-curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"   # queued, running, then completed or failed
-curl -s -X POST localhost:8000/documents/<document id>/reindex -H "x-api-key: $KEY"   # ingest it again
+
+# upload the demo pdfs, keeping every job id
+JOBS=$(for f in eval/corpus/*.pdf; do
+  curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
+    -F collection_id=$CID -F file=@"$f" | jq -r .job_id
+done)
+
+# poll one job (general command): queued, running, then completed or failed
+curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"
+
+# wait for every upload: a question asked before this answers from an empty index
+for job in $JOBS; do
+  while :; do
+    status=$(curl -s localhost:8000/jobs/$job -H "x-api-key: $KEY" | jq -r .status)
+    case $status in completed|failed) echo "$job $status"; break ;; esac
+    sleep 2
+  done
+done
+
+# queues a stored document for ingestion again (general command), after a failed one
+curl -s -X POST localhost:8000/documents/<document id>/reindex -H "x-api-key: $KEY"
+
+# ask (general command) -> 201 with answer, citations, per-stage timings
 curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d '{"collection_id": "<collection id>", "question": "What does the report conclude?"}'
 ```
+
+#### Asking the golden set
+
+`eval/ask_api.py` does that whole walk in one command, against a running API. It creates a
+collection, uploads the six NASA reports from `eval/corpus/`, waits for every ingestion
+job, then asks the golden set's questions and prints what came back:
+
+```bash
+KEY=$KEY uv run python -m eval.ask_api --upload --limit 3
+```
+
+```
+a01  201  answered                cited-evidence-document=yes  small-satellite-failure-rates.pdf
+u01  201  insufficient_evidence   refused=yes                  -
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--upload` | create a collection, upload the corpus, wait for indexing, then ask |
+| `--collection <id>` | ask against a collection that already holds the corpus, such as the `$CID` above |
+| `--limit N` | ask only the first N answerable and N unanswerable questions |
+| `--dry-run` | list the questions and ask nothing; needs no key and no service |
+| `--base <url>` | an API other than `http://localhost:8000` |
+
+`KEY` is the shell variable above; the `KEY=` prefix passes it to the process. Every
+question is charged unless `GENERATOR=stub`, so `--limit` is worth using first.
+
+This is a walkthrough, not a measurement: the API returns the passages an answer cited,
+not the chunks behind them, so a citation naming the right report is far coarser than the
+harness's Recall@5. The figures to cite come from `make eval`; see
+[docs/evaluation.md](docs/evaluation.md).
 
 Stop the `api` and `worker` containers (`docker compose stop api worker`) before running
 the integration tests again.
