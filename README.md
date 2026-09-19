@@ -133,10 +133,6 @@ CID=$(curl -s -X POST localhost:8000/collections -H "x-api-key: $KEY" \
   -H 'content-type: application/json' \
   -d "{\"name\": \"demo-$(date -u +%Y%m%dT%H%M%SZ)\"}" | jq -r .id)
 
-# upload (general command) -> 202 {"document_id", "job_id", "status"}
-curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
-  -F collection_id=<collection id> -F file=@report.pdf
-
 # upload the demo pdfs, keeping every job id
 JOBS=$(for f in eval/corpus/*.pdf; do
   curl -s -X POST localhost:8000/documents -H "x-api-key: $KEY" \
@@ -145,13 +141,6 @@ done)
 
 # confirm uploading is done: expect six UUIDs, no "null" lines
 echo "$JOBS"
-
-# confirm indexing is done, should return complete
-curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY" | jq '{status, attempts, error, finished_at}'
-
-
-# (general command) poll one job: queued, running, then completed or failed
-curl -s localhost:8000/jobs/<job id> -H "x-api-key: $KEY"
 
 # wait for every upload: a question asked before this answers from an empty index
 # read rather than `for job in $JOBS`: zsh does not split an unquoted variable into words
@@ -164,12 +153,13 @@ echo "$JOBS" | while read -r job; do
   done
 done
 
-# queues a stored document for ingestion again (general command), after a failed one
-curl -s -X POST localhost:8000/documents/<document id>/reindex -H "x-api-key: $KEY"
+# confirm indexing is done for one of them: expect "completed", and a null error
+JOB=$(echo "$JOBS" | head -1)
+curl -s localhost:8000/jobs/$JOB -H "x-api-key: $KEY" | jq '{status, attempts, error, finished_at}'
 
-# (general command) ask -> 201 with answer, citations, per-stage timings
+# ask the indexed corpus -> 201 with answer, citations, per-stage timings
 curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: application/json' \
-  -d '{"collection_id": "<collection id>", "question": "What does the report conclude?"}'
+  -d "{\"collection_id\": \"$CID\", \"question\": \"What causes small satellite failures?\"}" | jq
 ```
 
 #### Asking the golden set
