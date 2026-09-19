@@ -161,7 +161,7 @@ done
 JOB=$(echo "$JOBS" | head -1)
 curl -s localhost:8000/jobs/$JOB -H "x-api-key: $KEY" | jq '{status, attempts, error, finished_at}'
 
-# ask the indexed corpus -> 201 with answer, citations, per-stage timings
+# ask the indexed corpus: 201 with answer, citations, per-stage timings
 curl -s -X POST localhost:8000/questions -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d "{\"collection_id\": \"$CID\", \"question\": \"What causes small satellite failures?\"}" | jq
 ```
